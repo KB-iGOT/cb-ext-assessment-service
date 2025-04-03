@@ -126,7 +126,9 @@ public class Constants {
     public static final String ASSESSMENT_SUBMIT_INVALID_QUESTION = "The QuestionId provided don't match to the Assessment Read";
     public static final String ASSESSMENT_SUBMIT_QUESTION_READ_FAILED = "Failed to read Question Set from DB";
 
-
+    public static final String ASSESSMENT_ID_INVALID = "The Assessment Id is Invalid/Doesn't match with our records";
+    public static final String ASSESSMENT_ID_KEY_IS_NOT_PRESENT_IS_EMPTY = "Assessment Id Key is not present/is empty";
+    public static final String ASSESSMENT_READ_RESPONSE_KEY = "assessmentReadResponse";
     public static final String ASSESSMENT_READ_RESPONSE = "assessmentreadresponse";
     public static final String API_SUBMIT_ASSESSMENT = "api.submit.asssessment";
     public static final String MAX_ASSESSMENT_RETAKE_ATTEMPTS = "maxAssessmentRetakeAttempts";
@@ -138,10 +140,11 @@ public class Constants {
     public static final String API_READ_ASSESSMENT = "api.assessment.read";
     public static final String API_READ_ASSESSMENT_RESULT = "api.assessment.read.result";
     public static final String STATUS_IS_IN_PROGRESS = "isInProgress";
-    public static final String ASSESSMENT_READ_RESPONSE_KEY = "assessmentReadResponse";
+    public static final String API_QUESTIONS_LIST = "api.questions.list";
     public static final String EMPTY="";
     public static final String UNDER_SCORE="_";
-
+    public static final String IDENTIFIER_LIST_IS_EMPTY = "Identifier List is Empty";
+    public static final String THE_QUESTIONS_IDS_PROVIDED_DONT_MATCH = "The Questions Ids Provided don't match the active user assessment session";
 
     public static final String ASSESSMENT_INVALID = "Assessment Data doesn't contain mandatory values of expected duration.";
     public static final String ERROR  = "error";
@@ -164,7 +167,9 @@ public class Constants {
     public static final String MCQ_SCA_TF = "mcq-sca-tf";
     public static final String NO_OF_QUESTIONS = "noOfQuestions";
     public static final String FAILED_TO_UPDATE_PROGRESS = "Failed to update progress of assessment using content state update API";
-
+    public static final String CHOICES = "choices";
+    public static final String RHS_CHOICES = "rhsChoices";
+    public static final String MTF_QUESTION = "MTF Question";
 
 
     private Constants() {

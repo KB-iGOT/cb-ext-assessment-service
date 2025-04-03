@@ -13,6 +13,7 @@ import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.common.util.ProjectUtil;
 import com.igot.cb.core.producer.Producer;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -393,6 +394,41 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
         } catch (Exception e) {
             String errMsg = String.format("Failed to process Assessment read response. Excption: %s", e.getMessage());
             updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
+    }
+
+    @Override
+    public SBApiResponse readQuestionListV7(Map<String, Object> requestBody, String authUserToken, boolean editMode) {
+        logger.info("AssessmentServiceV7Impl::readQuestionListV7... Started");
+        SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_QUESTIONS_LIST);
+        String errMsg;
+        Map<String, String> result = new HashMap<>();
+        try {
+            List<String> identifierList = new ArrayList<>();
+            List<Object> questionList = new ArrayList<>();
+            result = validateQuestionListAPI(requestBody, authUserToken, identifierList, editMode);
+            errMsg = result.get(Constants.ERROR_MESSAGE);
+            if (StringUtils.isNotBlank(errMsg)) {
+                updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
+                return response;
+            }
+
+            String assessmentIdFromRequest = (String) requestBody.get(Constants.ASSESSMENT_ID_KEY);
+            Map<String, Object> questionsMap = assessUtilServ.readQListfromCache(identifierList, assessmentIdFromRequest, editMode, authUserToken);
+            for (String questionId : identifierList) {
+                questionList.add(assessUtilServ.filterQuestionMapDetailV7((Map<String, Object>) questionsMap.get(questionId),
+                        result.get(Constants.PRIMARY_CATEGORY)));
+            }
+            if (errMsg.isEmpty() && identifierList.size() == questionList.size()) {
+                response.getResult().put(Constants.QUESTIONS, questionList);
+            }
+        } catch (Exception e) {
+            errMsg = String.format("Failed to fetch the question list. Exception: %s", e.getMessage());
+            logger.error(errMsg, e);
+        }
+        if (StringUtils.isNotBlank(errMsg)) {
+            updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
         }
         return response;
     }
@@ -840,6 +876,101 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
         // Shuffle the list using Collections.shuffle()
         Collections.shuffle(shuffledQnsList);
         return shuffledQnsList;
+    }
+
+    private Map<String, String> validateQuestionListAPI(Map<String, Object> requestBody, String authUserToken,
+                                                        List<String> identifierList, boolean editMode) throws IOException {
+        Map<String, String> result = new HashMap<>();
+        String userId = accessTokenValidator.fetchUserIdFromAccessToken(authUserToken);
+        if (StringUtils.isBlank(userId)) {
+            result.put(Constants.ERROR_MESSAGE, Constants.USER_ID_DOESNT_EXIST);
+            return result;
+        }
+        String assessmentIdFromRequest = (String) requestBody.get(Constants.ASSESSMENT_ID_KEY);
+        if (StringUtils.isBlank(assessmentIdFromRequest)) {
+            result.put(Constants.ERROR_MESSAGE, Constants.ASSESSMENT_ID_KEY_IS_NOT_PRESENT_IS_EMPTY);
+            return result;
+        }
+        identifierList.addAll(getQuestionIdList(requestBody));
+        if (identifierList.isEmpty()) {
+            result.put(Constants.ERROR_MESSAGE, Constants.IDENTIFIER_LIST_IS_EMPTY);
+            return result;
+        }
+
+        Map<String, Object> assessmentAllDetail = assessUtilServ
+                .readAssessmentHierarchyFromCache(assessmentIdFromRequest, editMode, authUserToken);
+
+        if (MapUtils.isEmpty(assessmentAllDetail)) {
+            result.put(Constants.ERROR_MESSAGE, Constants.ASSESSMENT_HIERARCHY_READ_FAILED);
+            return result;
+        }
+        String primaryCategory = (String) assessmentAllDetail.get(Constants.PRIMARY_CATEGORY);
+        if (Constants.PRACTICE_QUESTION_SET
+                .equalsIgnoreCase(primaryCategory) || editMode) {
+            result.put(Constants.PRIMARY_CATEGORY, primaryCategory);
+            result.put(Constants.ERROR_MESSAGE, StringUtils.EMPTY);
+            return result;
+        }
+
+        Map<String, Object> userAssessmentAllDetail = new HashMap<String, Object>();
+
+        List<Map<String, Object>> existingDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
+                userId, assessmentIdFromRequest);
+        String questionSetFromAssessmentString = (!existingDataList.isEmpty())
+                ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE_KEY)
+                : "";
+        if (StringUtils.isNotBlank(questionSetFromAssessmentString)) {
+            userAssessmentAllDetail.putAll(mapper.readValue(questionSetFromAssessmentString,
+                    new TypeReference<Map<String, Object>>() {
+                    }));
+        } else {
+            result.put(Constants.ERROR_MESSAGE, Constants.USER_ASSESSMENT_DATA_NOT_PRESENT);
+            return result;
+        }
+
+        if (!MapUtils.isEmpty(userAssessmentAllDetail)) {
+            result.put(Constants.PRIMARY_CATEGORY, (String) userAssessmentAllDetail.get(Constants.PRIMARY_CATEGORY));
+            List<String> questionsFromAssessment = new ArrayList<>();
+            List<Map<String, Object>> sections = (List<Map<String, Object>>) userAssessmentAllDetail
+                    .get(Constants.CHILDREN);
+            for (Map<String, Object> section : sections) {
+                // Out of the list of questions received in the payload, checking if the request
+                // has only those ids which are a part of the user's latest assessment
+                // Fetching all the remaining questions details from the Redis
+                questionsFromAssessment.addAll((List<String>) section.get(Constants.CHILD_NODES));
+            }
+            if (validateQuestionListRequest(identifierList, questionsFromAssessment)) {
+                result.put(Constants.ERROR_MESSAGE, StringUtils.EMPTY);
+            } else {
+                result.put(Constants.ERROR_MESSAGE, Constants.THE_QUESTIONS_IDS_PROVIDED_DONT_MATCH);
+            }
+            return result;
+        } else {
+            result.put(Constants.ERROR_MESSAGE, Constants.ASSESSMENT_ID_INVALID);
+            return result;
+        }
+    }
+
+    private List<String> getQuestionIdList(Map<String, Object> questionListRequest) {
+        try {
+            if (questionListRequest.containsKey(Constants.REQUEST)) {
+                Map<String, Object> request = (Map<String, Object>) questionListRequest.get(Constants.REQUEST);
+                if ((!ObjectUtils.isEmpty(request)) && request.containsKey(Constants.SEARCH)) {
+                    Map<String, Object> searchObj = (Map<String, Object>) request.get(Constants.SEARCH);
+                    if (!ObjectUtils.isEmpty(searchObj) && searchObj.containsKey(Constants.IDENTIFIER)
+                            && !CollectionUtils.isEmpty((List<String>) searchObj.get(Constants.IDENTIFIER))) {
+                        return (List<String>) searchObj.get(Constants.IDENTIFIER);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error(String.format("Failed to process the questionList request body. %s", e.getMessage()));
+        }
+        return Collections.emptyList();
+    }
+
+    private Boolean validateQuestionListRequest(List<String> identifierList, List<String> questionsFromAssessment) {
+        return (new HashSet<>(questionsFromAssessment).containsAll(identifierList)) ? Boolean.TRUE : Boolean.FALSE;
     }
 
 }

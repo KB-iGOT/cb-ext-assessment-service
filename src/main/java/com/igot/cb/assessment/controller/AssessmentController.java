@@ -50,4 +50,11 @@ public class AssessmentController {
         SBApiResponse response = assessmentService.readAssessmentResultV7(requestBody, authUserToken);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
+
+    @PostMapping("/v7/quml/question/list")
+    public ResponseEntity<SBApiResponse> readQuestionListV7(@Valid @RequestBody Map<String, Object> requestBody, @RequestHeader("x-authenticated-user-token") String authUserToken, @RequestParam(name = "editMode", required = false) String editMode) {
+        boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
+        SBApiResponse response = assessmentService.readQuestionListV7(requestBody, authUserToken, edit);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
 }

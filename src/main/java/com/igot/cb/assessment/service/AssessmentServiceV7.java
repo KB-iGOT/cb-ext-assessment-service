@@ -13,4 +13,5 @@ public interface AssessmentServiceV7 {
 
     public SBApiResponse readAssessmentResultV7(Map<String, Object> request, String userAuthToken);
 
+    SBApiResponse readQuestionListV7(Map<String, Object> requestBody, String authUserToken, boolean edit);
 }

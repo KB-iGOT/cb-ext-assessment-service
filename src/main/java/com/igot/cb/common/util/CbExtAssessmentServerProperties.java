@@ -68,7 +68,16 @@ public class CbExtAssessmentServerProperties {
     @Value("${sunbird.user.search.endpoint}")
     private String userSearchEndPoint;
 
+    @Value("${assessment.read.questionLevel.params}")
+    private String assessmentQuestionParams;
 
+    public List<String> getAssessmentQuestionParams() {
+        return Arrays.asList(assessmentQuestionParams.split(",", -1));
+    }
+
+    public void setAssessmentQuestionParams(String assessmentQuestionParams) {
+        this.assessmentQuestionParams = assessmentQuestionParams;
+    }
 
     public void setUserAssessmentSubmissionDuration(String userAssessmentSubmissionDuration) {
         this.userAssessmentSubmissionDuration = userAssessmentSubmissionDuration;

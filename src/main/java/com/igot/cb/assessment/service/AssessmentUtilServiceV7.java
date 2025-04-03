@@ -29,4 +29,7 @@ public interface AssessmentUtilServiceV7 {
      */
     Map<String, Object> validateQumlAssessmentV7(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
                                                  List<Map<String, Object>> userQuestionList, Map<String,Object> questionMap);
+
+    Map<String, Object> filterQuestionMapDetailV7(Map<String, Object> questionMapResponse, String primaryCategory);
+
 }
