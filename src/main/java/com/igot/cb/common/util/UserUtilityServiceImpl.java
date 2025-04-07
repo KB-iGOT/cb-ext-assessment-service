@@ -2,22 +2,24 @@ package com.igot.cb.common.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.common.model.SunbirdApiResp;
-import com.igot.cb.core.exception.ApplicationLogicError;
+import com.igot.cb.core.exception.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class UserUtilityServiceImpl implements UserUtilityService{
+public class UserUtilityServiceImpl implements UserUtilityService {
     @Autowired
     CbExtAssessmentServerProperties props;
 
     @Autowired
     RestTemplate restTemplate;
+
     @Override
     public boolean validateUser(String rootOrg, String userId) {
         Map<String, Object> requestMap = new HashMap<>();
@@ -38,12 +40,11 @@ public class UserUtilityServiceImpl implements UserUtilityService{
 
             SunbirdApiResp sunbirdApiResp = restTemplate.postForObject(serverUrl, requestEnty, SunbirdApiResp.class);
 
-            boolean expression = (sunbirdApiResp != null && "OK".equalsIgnoreCase(sunbirdApiResp.getResponseCode())
-                    && sunbirdApiResp.getResult().getResponse().getCount() >= 1);
+            boolean expression = (sunbirdApiResp != null && "OK".equalsIgnoreCase(sunbirdApiResp.getResponseCode()) && sunbirdApiResp.getResult().getResponse().getCount() >= 1);
             return expression;
 
         } catch (Exception e) {
-            throw new ApplicationLogicError("Sunbird Service ERROR: ", e);
+            throw new CustomException(Constants.ERROR, "Sunbird Service ERROR: ", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

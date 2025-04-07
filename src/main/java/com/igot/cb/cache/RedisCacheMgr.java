@@ -5,8 +5,9 @@ package com.igot.cb.cache;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
-import com.igot.cb.core.logger.CbExtAssessmentLogger;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import redis.clients.jedis.Jedis;
@@ -29,8 +30,8 @@ public class RedisCacheMgr {
     @Autowired
     CbExtAssessmentServerProperties cbExtAssessmentServerProperties;
 
-    private CbExtAssessmentLogger logger = new CbExtAssessmentLogger(getClass().getName());
-    
+    private final Logger logger = LoggerFactory.getLogger(RedisCacheMgr.class);
+
     ObjectMapper objectMapper = new ObjectMapper();
 
     private static int questions_cache_ttl = 84600;
@@ -49,7 +50,7 @@ public class RedisCacheMgr {
             jedis.expire(Constants.REDIS_COMMON_KEY + key, ttl);
             logger.debug("Cache_key_value " + Constants.REDIS_COMMON_KEY + key + " is saved in redis");
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while putting cache data in Redis cache: ", e);
         }
     }
     public void putCache(String key, Object object) {
@@ -62,7 +63,7 @@ public class RedisCacheMgr {
             jedis.expire(Constants.REDIS_COMMON_KEY + key, questions_cache_ttl);
             logger.debug("Cache_key_value " + Constants.REDIS_COMMON_KEY + key + " is saved in redis");
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while putting Question data in Redis cache: ", e);
         }
     }
     public void putStringInCache(String key, String value,int ttl) {
@@ -71,7 +72,7 @@ public class RedisCacheMgr {
             jedis.expire(Constants.REDIS_COMMON_KEY + key, ttl);
             logger.debug("Cache_key_value " + Constants.REDIS_COMMON_KEY + key + " is saved in redis");
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while putting data in Redis cache: ", e);
         }
     }
 
@@ -85,7 +86,7 @@ public class RedisCacheMgr {
             logger.debug("Cache_key_value " + Constants.REDIS_COMMON_KEY + key + " is deleted from redis");
             return true;
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while delete by key Name data in Redis cache: ", e);
             return false;
         }
     }
@@ -100,7 +101,7 @@ public class RedisCacheMgr {
             logger.info("All Keys starts with " + Constants.REDIS_COMMON_KEY + " is deleted from redis");
             return true;
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while delete all data in Redis cache: ", e);
             return false;
         }
     }
@@ -109,7 +110,7 @@ public class RedisCacheMgr {
         try (Jedis jedis = jedisPool.getResource()) {
             return jedis.get(Constants.REDIS_COMMON_KEY + key);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while getting data from Redis cache: ", e);
             return null;
         }
     }
@@ -122,7 +123,7 @@ public class RedisCacheMgr {
             }
             return jedis.mget(updatedKeys);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while getting all data from Redis cache: ", e);
         }
         return null;
     }
@@ -132,7 +133,7 @@ public class RedisCacheMgr {
             String keyPattern = Constants.REDIS_COMMON_KEY + "*";
             return jedis.keys(keyPattern);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while getting all key Names from Redis cache: ", e);
             return Collections.emptySet();
         }
     }
@@ -152,7 +153,7 @@ public class RedisCacheMgr {
                 result.add(res);
             }
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while getting all key and values from Redis cache: ", e);
             return Collections.emptyList();
         }
         return result;
@@ -163,7 +164,7 @@ public class RedisCacheMgr {
             jedis.select(index);
             return jedis.hmget(key, fields);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while getting index list from Redis cache: ", e);
             return null;
         }
     }
@@ -175,7 +176,7 @@ public class RedisCacheMgr {
             }
             return jedis.get(key);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Error while getting Index from Redis cache: ", e);
             return null;
         }
     }
@@ -187,7 +188,7 @@ public class RedisCacheMgr {
             }
             return jedis.get(key);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Failed to get key '{}' from Redis at index {}: {}", key, index, e.getMessage(), e);
             return null;
         }
     }
@@ -199,7 +200,7 @@ public class RedisCacheMgr {
             }
             return jedis.hget(key,field);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Failed to fetch field '{}' from Redis hash '{}' at index {}: {}", field, key, index, e.getMessage(), e);
             return null;
         }
     }
@@ -208,7 +209,7 @@ public class RedisCacheMgr {
         try (Jedis jedis = jedisPool.getResource()) {
             return jedis.get(key);
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("Failed to fetch Content from Redis cache: ", e);
             return null;
         }
     }

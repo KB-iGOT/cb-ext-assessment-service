@@ -3,7 +3,8 @@ package com.igot.cb.common.service;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
-import com.igot.cb.core.logger.CbExtAssessmentLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,7 @@ import java.util.*;
 @Service
 public class ContentServiceImpl implements ContentService{
 
-    private CbExtAssessmentLogger logger = new CbExtAssessmentLogger(getClass().getName());
+    private Logger logger = LoggerFactory.getLogger(ContentServiceImpl.class);
 
     @Autowired
     private OutboundRequestHandlerServiceImpl outboundRequestHandlerService;

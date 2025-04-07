@@ -6,8 +6,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.igot.cb.common.util.Constants;
-import com.igot.cb.core.logger.CbExtAssessmentLogger;
 import org.apache.commons.collections4.MapUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,7 @@ import java.util.Map;
 
 @Service
 public class OutboundRequestHandlerServiceImpl {
-    private CbExtAssessmentLogger log = new CbExtAssessmentLogger(getClass().getName());
+    private Logger log = LoggerFactory.getLogger(OutboundRequestHandlerServiceImpl.class);
 
     @Autowired
     private RestTemplate restTemplate;
@@ -52,7 +53,7 @@ public class OutboundRequestHandlerServiceImpl {
             }
             log.error("Error received: " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
-            log.error(e);
+            log.error(String.valueOf(e));
             try {
                 log.warn("Error Response: " + mapper.writeValueAsString(response));
             } catch (Exception e1) {
@@ -85,9 +86,9 @@ public class OutboundRequestHandlerServiceImpl {
             response = restTemplate.exchange(uri, HttpMethod.GET, entity, Map.class);
             return response.getBody();
         } catch (HttpClientErrorException e) {
-            log.error(e);
+            log.error(String.valueOf(e));
         } catch (Exception e) {
-            log.error(e);
+            log.error(String.valueOf(e));
         }
         return null;
     }
@@ -169,7 +170,7 @@ public class OutboundRequestHandlerServiceImpl {
             }
             log.error("Error received: " + hce.getResponseBodyAsString(), hce);
         } catch(JsonProcessingException e) {
-            log.error(e);
+            log.error(String.valueOf(e));
             try {
                 log.warn("Error Response: " + mapper.writeValueAsString(response));
             } catch (Exception e1) {
