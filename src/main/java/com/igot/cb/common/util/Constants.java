@@ -171,6 +171,11 @@ public class Constants {
     public static final String RHS_CHOICES = "rhsChoices";
     public static final String MTF_QUESTION = "MTF Question";
 
+    public static final String CONTEXT_CATEGORY_TAG = "contextCategory";
+    public static final String FINAL_PROGRAM_ASSESSMENT = "Final Program Assessment";
+    public static final String PARENT_CONTEXT_ID = "parentContextId";
+    public static final String CONTEXT_LOCKING_TYPE = "contextLockingType";
+    public static final String COURSE_ASSESSMENT_ONLY = "Course Assessment Only";
 
     private Constants() {
         throw new IllegalStateException("Utility class");

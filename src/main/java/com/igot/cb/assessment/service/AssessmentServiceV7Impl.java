@@ -234,7 +234,7 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
     }
 
     @Override
-    public SBApiResponse readAssessmentV7(String assessmentIdentifier, String token, boolean editMode) {
+    public SBApiResponse readAssessmentV7(String assessmentIdentifier, Map<String, Object> request, String token, boolean editMode) {
         logger.info("AssessmentServiceV7Impl::readAssessmentV7... Started");
         SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_READ_ASSESSMENT);
         String errMsg = "";
@@ -280,6 +280,7 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
                 if (null == assessmentAllDetail.get(Constants.EXPECTED_DURATION)) {
                     errMsg = Constants.ASSESSMENT_INVALID;
                 } else {
+                    String str = checkContextLocking(assessmentAllDetail, request, response);
                     int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
                     Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration,
                             assessmentStartTime, 0);
@@ -364,6 +365,30 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return response;
+    }
+
+    private String checkContextLocking(Map<String, Object> assessmentAllDetail, Map<String, Object> request, SBApiResponse response) {
+        String errMsg = "";
+        String contextCategory = (String) assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
+        if (Constants.FINAL_PROGRAM_ASSESSMENT.equalsIgnoreCase(contextCategory)) {
+            String contentId = (String) request.get(Constants.PARENT_CONTEXT_ID);
+            if (StringUtils.isNotBlank(contentId)) {
+                Map<String, Object> contentDetails = contentService.readContentFromCache(contentId, null);
+                if (contentDetails != null) {
+                    String contextLockingType = (String) contentDetails.get(Constants.CONTEXT_LOCKING_TYPE);
+                    if (Constants.COURSE_ASSESSMENT_ONLY.equalsIgnoreCase(contextLockingType)) {
+                        //TODO get the children course details from Redis server for this parent do_id.
+
+                    }
+                    else{
+                        errMsg = "API doesn’t support this feature";
+                        updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+                        return errMsg;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override

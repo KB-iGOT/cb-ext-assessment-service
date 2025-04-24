@@ -1,8 +1,14 @@
 package com.igot.cb.common.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.igot.cb.cache.DataCacheMgr;
+import com.igot.cb.cache.RedisCacheMgr;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +19,8 @@ import org.springframework.util.ObjectUtils;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static org.keycloak.util.JsonSerialization.mapper;
+
 @Service
 public class ContentServiceImpl implements ContentService{
 
@@ -22,6 +30,12 @@ public class ContentServiceImpl implements ContentService{
     private OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
     @Autowired
     CbExtAssessmentServerProperties serverConfig;
+
+    @Autowired
+    RedisCacheMgr redisCacheMgr;
+
+    @Autowired
+    DataCacheMgr dataCacheMgr;
 
     @Override
     public String getContentType(String resourceId) {
@@ -122,4 +136,67 @@ public class ContentServiceImpl implements ContentService{
 
         return response;
     }
+
+    public Map<String, Object> readContentFromCache(String contentId, List<String> fields) {
+        if (CollectionUtils.isEmpty(fields)) {
+            fields = serverConfig.getDefaultContentProperties();
+        }
+        Map<String, Object> responseData = null;
+
+        responseData = dataCacheMgr.getContentFromCache(contentId);
+
+        if (MapUtils.isEmpty(responseData) || responseData.size() < fields.size()) {
+            // DataCacheMgr doesn't have data OR contains less content fields.
+            // Let's read again
+            String contentString = redisCacheMgr.getContentFromCache(contentId);
+            if (StringUtils.isBlank(contentString)) {
+                // Tried reading from Redis - but redis didn't have data for some reason.
+                // Or connection failed ??
+                responseData = readContent(contentId, fields);
+            } else {
+                try {
+                    responseData = new HashMap<String, Object>();
+                    Map<String, Object> contentData = mapper.readValue(contentString,
+                            new TypeReference<Map<String, Object>>() {
+                            });
+                    if (MapUtils.isNotEmpty(contentData)) {
+                        for (String field : fields) {
+                            if (contentData.containsKey(field)) {
+                                responseData.put(field, contentData.get(field));
+                            }
+                        }
+                        dataCacheMgr.putContentInCache(contentId, responseData);
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to parse content info from redis. Exception: " + e.getMessage(), e);
+                    responseData = readContent(contentId);
+                }
+            }
+        } else {
+            // We are going to send the data read from which might have more fields.
+            // This is fine for now.
+        }
+
+        return responseData;
+    }
+    public Map<String, Object> readContent(String contentId) {
+        return readContent(contentId, Collections.emptyList());
+    }
+
+    public Map<String, Object> readContent(String contentId, List<String> fields) {
+        StringBuilder url = new StringBuilder();
+        url.append(serverConfig.getContentHost()).append(serverConfig.getContentReadEndPoint()).append("/" + contentId)
+                .append(serverConfig.getContentReadEndPointFields());
+        if (CollectionUtils.isNotEmpty(fields)) {
+            StringBuffer stringBuffer = new StringBuffer(String.join(",", fields));
+            url.append(",").append(stringBuffer);
+        }
+        Map<String, Object> response = (Map<String, Object>) outboundRequestHandlerService.fetchResult(url.toString());
+        if (null != response && Constants.OK.equalsIgnoreCase((String) response.get(Constants.RESPONSE_CODE))) {
+            Map<String, Object> contentResult = (Map<String, Object>) response.get(Constants.RESULT);
+            return (Map<String, Object>) contentResult.get(Constants.CONTENT);
+        }
+        return null;
+    }
+
 }

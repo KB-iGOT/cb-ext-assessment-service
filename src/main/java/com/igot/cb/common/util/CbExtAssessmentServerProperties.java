@@ -71,6 +71,15 @@ public class CbExtAssessmentServerProperties {
     @Value("${assessment.read.questionLevel.params}")
     private String assessmentQuestionParams;
 
+    @Value("${default.content.properties}")
+    private String defaultContentProperties;
+
+    @Value("${content-read-endpoint}")
+    private String contentReadEndPoint;
+
+    @Value("${content-read-endpoint-fields}")
+    private String contentReadEndPointFields;
+
     public List<String> getAssessmentQuestionParams() {
         return Arrays.asList(assessmentQuestionParams.split(",", -1));
     }
@@ -239,5 +248,29 @@ public class CbExtAssessmentServerProperties {
 
     public void setUserSearchEndPoint(String userSearchEndPoint) {
         this.userSearchEndPoint = userSearchEndPoint;
+    }
+
+    public List<String> getDefaultContentProperties() {
+        return Arrays.asList(defaultContentProperties.split(",", -1));
+    }
+
+    public void setDefaultContentProperties(String defaultContentProperties) {
+        this.defaultContentProperties = defaultContentProperties;
+    }
+
+    public String getContentReadEndPoint() {
+        return contentReadEndPoint;
+    }
+
+    public void setContentReadEndPoint(String contentReadEndPoint) {
+        this.contentReadEndPoint = contentReadEndPoint;
+    }
+
+    public String getContentReadEndPointFields() {
+        return contentReadEndPointFields;
+    }
+
+    public void setContentReadEndPointFields(String contentReadEndPointFields) {
+        this.contentReadEndPointFields = contentReadEndPointFields;
     }
 }
