@@ -1,12 +1,12 @@
 package com.igot.cb.assessment.repo;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 
 public interface AssessmentRepository {
 
-    boolean addUserAssesmentDataToDB(String userId, String assessmentId, Timestamp startTime, Timestamp endTime,
+    boolean addUserAssesmentDataToDB(String userId, String assessmentId, Instant startTime, Instant endTime,
                                      Map<String, Object> questionSet, String status);
 
     Boolean updateUserAssesmentDataToDB(String userId, String assessmentIdentifier,
