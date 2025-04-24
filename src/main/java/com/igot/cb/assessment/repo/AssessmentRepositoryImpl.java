@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -19,8 +19,8 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
     CassandraOperation cassandraOperation;
 
     @Override
-    public boolean addUserAssesmentDataToDB(String userId, String assessmentIdentifier, Timestamp startTime,
-                                            Timestamp endTime, Map<String, Object> questionSet, String status) {
+    public boolean addUserAssesmentDataToDB(String userId, String assessmentIdentifier, Instant startTime,
+                                            Instant endTime, Map<String, Object> questionSet, String status) {
         Map<String, Object> request = new HashMap<>();
         request.put(Constants.USER_ID, userId);
         request.put(Constants.ASSESSMENT_ID_KEY, assessmentIdentifier);

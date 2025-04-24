@@ -25,6 +25,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 
 import static com.igot.cb.common.util.ProjectUtil.updateErrorDetails;
@@ -271,7 +272,7 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             // Step-3 : If read user submitted assessment
             List<Map<String, Object>> existingDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
                     userId, assessmentIdentifier);
-            Timestamp assessmentStartTime = new Timestamp(new Date().getTime());
+            Instant assessmentStartTime = Instant.now();
 
             if (existingDataList.isEmpty()) {
                 logger.info("Assessment read first time for user.");
@@ -280,11 +281,11 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
                     errMsg = Constants.ASSESSMENT_INVALID;
                 } else {
                     int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
-                    Timestamp assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration,
+                    Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration,
                             assessmentStartTime, 0);
                     Map<String, Object> assessmentData = readAssessmentLevelData(assessmentAllDetail);
-                    assessmentData.put(Constants.START_TIME, assessmentStartTime.getTime());
-                    assessmentData.put(Constants.END_TIME, assessmentEndTime.getTime());
+                    assessmentData.put(Constants.START_TIME, assessmentStartTime);
+                    assessmentData.put(Constants.END_TIME, assessmentEndTime);
                     response.getResult().put(Constants.QUESTION_SET, assessmentData);
                     Boolean isAssessmentUpdatedToDB = assessmentRepository.addUserAssesmentDataToDB(userId,
                             assessmentIdentifier, assessmentStartTime, assessmentEndTime,
@@ -296,53 +297,66 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
                 }
             } else {
                 logger.info("Assessment read... user has details... ");
-                Date existingAssessmentEndTime = (Date) (existingDataList.get(0)
-                        .get(Constants.END_TIME));
-                Timestamp existingAssessmentEndTimeTimestamp = new Timestamp(
-                        existingAssessmentEndTime.getTime());
-                if (assessmentStartTime.compareTo(existingAssessmentEndTimeTimestamp) < 0
+                Object endTimeObj = existingDataList.get(0).get(Constants.END_TIME);
+                Date existingAssessmentEndTime = endTimeObj instanceof Instant
+                        ? Date.from((Instant) endTimeObj)
+                        : (Date) endTimeObj;
+                if (assessmentStartTime.isBefore(existingAssessmentEndTime.toInstant())
                         && Constants.NOT_SUBMITTED.equalsIgnoreCase((String) existingDataList.get(0).get(Constants.STATUS))) {
+
                     String questionSetFromAssessmentString = (String) existingDataList.get(0)
                             .get(Constants.ASSESSMENT_READ_RESPONSE_KEY);
+
                     Map<String, Object> questionSetFromAssessment = new Gson().fromJson(
                             questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
                             }.getType());
-                    questionSetFromAssessment.put(Constants.START_TIME, assessmentStartTime.getTime());
-                    questionSetFromAssessment.put(Constants.END_TIME,
-                            existingAssessmentEndTimeTimestamp.getTime());
+
+                    questionSetFromAssessment.put(Constants.START_TIME, assessmentStartTime.toEpochMilli());
+                    questionSetFromAssessment.put(Constants.END_TIME, existingAssessmentEndTime);
+
                     response.getResult().put(Constants.QUESTION_SET, questionSetFromAssessment);
-                } else if ((assessmentStartTime.compareTo(existingAssessmentEndTime) < 0
-                        && ((String) existingDataList.get(0).get(Constants.STATUS))
-                        .equalsIgnoreCase(Constants.SUBMITTED))
-                        || assessmentStartTime.compareTo(existingAssessmentEndTime) > 0) {
-                    logger.info(
-                            "Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly ");
+                } else if ((assessmentStartTime.isBefore(existingAssessmentEndTime.toInstant())
+                        && Constants.SUBMITTED.equalsIgnoreCase((String) existingDataList.get(0).get(Constants.STATUS)))
+                        || assessmentStartTime.isAfter(existingAssessmentEndTime.toInstant())) {
+
+                    logger.info("Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly");
+
                     if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                         int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) + 1;
                         int retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
+
                         if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
                             errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
                             updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
                             return response;
                         }
                     }
+
                     Map<String, Object> assessmentData = readAssessmentLevelData(assessmentAllDetail);
                     int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
-                    assessmentStartTime = new Timestamp(new Date().getTime());
-                    Timestamp assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration,
-                            assessmentStartTime, 0);
-                    assessmentData.put(Constants.START_TIME, assessmentStartTime.getTime());
-                    assessmentData.put(Constants.END_TIME, assessmentEndTime.getTime());
+
+                    Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration, assessmentStartTime, 0);
+
+                    assessmentData.put(Constants.START_TIME, assessmentStartTime.toEpochMilli());
+                    assessmentData.put(Constants.END_TIME, assessmentEndTime.toEpochMilli());
+
                     response.getResult().put(Constants.QUESTION_SET, assessmentData);
-                    Boolean isAssessmentUpdatedToDB = assessmentRepository.addUserAssesmentDataToDB(userId,
-                            assessmentIdentifier, assessmentStartTime, assessmentEndTime,
-                            assessmentData, Constants.NOT_SUBMITTED);
-                    if (Boolean.FALSE.equals(isAssessmentUpdatedToDB)) {
+
+                    boolean isAssessmentUpdatedToDB = assessmentRepository.addUserAssesmentDataToDB(
+                            userId,
+                            assessmentIdentifier,
+                            assessmentStartTime,
+                            assessmentEndTime,
+                            assessmentData,
+                            Constants.NOT_SUBMITTED
+                    );
+
+                    if (!isAssessmentUpdatedToDB) {
                         errMsg = Constants.ASSESSMENT_DATA_START_TIME_NOT_UPDATED;
                     }
                 }
             }
-        } catch (Exception e) {
+            } catch (Exception e) {
             errMsg = String.format("Error while reading assessment. Exception: %s", e.getMessage());
             logger.error(errMsg, e);
         }
@@ -500,10 +514,10 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             return Constants.READ_ASSESSMENT_START_TIME_FAILED;
         }
         int expectedDuration = (Integer) assessmentHierarchy.get(Constants.EXPECTED_DURATION);
-        Timestamp later = calculateAssessmentSubmitTime(expectedDuration,
-                new Timestamp(assessmentStartTime.getTime()),
+        Instant later = calculateAssessmentSubmitTime(expectedDuration,
+                assessmentStartTime.toInstant(),
                 Integer.parseInt(serverProperties.getUserAssessmentSubmissionDuration()));
-        Timestamp submissionTime = new Timestamp(new Date().getTime());
+        Instant submissionTime = Instant.now();
         int time = submissionTime.compareTo(later);
         if (time <= 0) {
             List<String> desiredKeys = List.of(Constants.IDENTIFIER);
@@ -526,17 +540,15 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
         return "";
     }
 
-    private Timestamp calculateAssessmentSubmitTime(int expectedDuration, Timestamp assessmentStartTime,
-                                                    int bufferTime) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(assessmentStartTime.getTime());
-        if (bufferTime > 0) {
-            cal.add(Calendar.SECOND,
-                    expectedDuration + Integer.parseInt(serverProperties.getUserAssessmentSubmissionDuration()));
-        } else {
-            cal.add(Calendar.SECOND, expectedDuration);
+    private Instant calculateAssessmentSubmitTime(int expectedDurationInSeconds, Instant assessmentStartTime,
+                                                  int bufferTimeInSeconds) {
+        int totalDurationInSeconds = expectedDurationInSeconds;
+
+        if (bufferTimeInSeconds > 0) {
+            totalDurationInSeconds += Integer.parseInt(serverProperties.getUserAssessmentSubmissionDuration());
         }
-        return new Timestamp(cal.getTime().getTime());
+
+        return assessmentStartTime.plusSeconds(totalDurationInSeconds);
     }
 
     private String validateIfQuestionIdsAreSame(Map<String, Object> submitRequest,
