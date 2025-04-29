@@ -1,9 +1,11 @@
 package com.igot.cb.assessment.repo;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.igot.cb.cassandra.utils.CassandraOperation;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.common.util.InstantTypeAdapter;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,12 +23,15 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
     @Override
     public boolean addUserAssesmentDataToDB(String userId, String assessmentIdentifier, Instant startTime,
                                             Instant endTime, Map<String, Object> questionSet, String status) {
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(Instant.class, new InstantTypeAdapter())
+                .create();
         Map<String, Object> request = new HashMap<>();
         request.put(Constants.USER_ID, userId);
         request.put(Constants.ASSESSMENT_ID_KEY, assessmentIdentifier);
         request.put(Constants.START_TIME, startTime);
         request.put(Constants.END_TIME, endTime);
-        request.put(Constants.ASSESSMENT_READ_RESPONSE, new Gson().toJson(questionSet));
+        request.put(Constants.ASSESSMENT_READ_RESPONSE, gson.toJson(questionSet));
         request.put(Constants.STATUS, status);
         SBApiResponse resp = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD,
                 Constants.TABLE_USER_ASSESSMENT_DATA, request);
