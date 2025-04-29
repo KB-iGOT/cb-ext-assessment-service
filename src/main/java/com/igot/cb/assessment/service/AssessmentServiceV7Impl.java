@@ -564,7 +564,17 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             existingAssessmentData.putAll(existingDataList.get(0));
         }
 
-        Date assessmentStartTime = (Date) existingAssessmentData.get(Constants.START_TIME);
+        Object startTimeObj = existingAssessmentData.get(Constants.START_TIME);
+
+        Date assessmentStartTime = Optional.ofNullable(startTimeObj)
+                .map(obj -> {
+                    if (obj instanceof Instant) return Date.from((Instant) obj);
+                    if (obj instanceof Date) return (Date) obj;
+                    if (obj instanceof String) return Date.from(Instant.parse((String) obj));
+                    return null;
+                })
+                .orElse(null);
+
         if (assessmentStartTime == null) {
             return Constants.READ_ASSESSMENT_START_TIME_FAILED;
         }
