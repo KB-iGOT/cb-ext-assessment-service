@@ -38,9 +38,10 @@ public class AssessmentController {
     @GetMapping("/v7/quml/assessment/read/{assessmentIdentifier}")
     public ResponseEntity<SBApiResponse> readAssessmentV7(
             @PathVariable("assessmentIdentifier") String assessmentIdentifier,
+            @RequestParam (name = "parentContextId" ,required = false) String parentContextId,
             @RequestHeader(Constants.X_AUTH_TOKEN) String token,@RequestParam(name = "editMode" ,required = false) String editMode) {
         boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
-        SBApiResponse readResponse = assessmentService.readAssessmentV7(assessmentIdentifier, token,edit);
+        SBApiResponse readResponse = assessmentService.readAssessmentV7(assessmentIdentifier, parentContextId, token, edit);
         return new ResponseEntity<>(readResponse, readResponse.getResponseCode());
     }
 

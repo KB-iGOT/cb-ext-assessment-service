@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.igot.cb.assessment.repo.AssessmentRepository;
+import com.igot.cb.cache.RedisCacheMgr;
+import com.igot.cb.cassandra.utils.CassandraOperation;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.service.ContentService;
 import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
@@ -57,6 +59,9 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
 
     @Autowired
     ContentService contentService;
+
+    @Autowired
+    CassandraOperation cassandraOperation;
 
     @Override
     public SBApiResponse submitAssessmentAsyncV7(Map<String, Object> submitRequest, String userAuthToken, boolean editMode) {
@@ -234,7 +239,7 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
     }
 
     @Override
-    public SBApiResponse readAssessmentV7(String assessmentIdentifier, String token, boolean editMode) {
+    public SBApiResponse readAssessmentV7(String assessmentIdentifier, String parentContextId, String token, boolean editMode) {
         logger.info("AssessmentServiceV7Impl::readAssessmentV7... Started");
         SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_READ_ASSESSMENT);
         String errMsg = "";
@@ -276,10 +281,13 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
 
             if (existingDataList.isEmpty()) {
                 logger.info("Assessment read first time for user.");
-                // Add Null check for expectedDuration.throw bad questionSet Assessment Exam
                 if (null == assessmentAllDetail.get(Constants.EXPECTED_DURATION)) {
                     errMsg = Constants.ASSESSMENT_INVALID;
                 } else {
+                    errMsg = validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    if (StringUtils.isNotBlank(errMsg)) {
+                        return response;
+                    }
                     int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
                     Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration,
                             assessmentStartTime, 0);
@@ -364,6 +372,53 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return response;
+    }
+
+    private String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId,
+                                          SBApiResponse response, String userId) {
+        String errMsg = "";
+        String contextCategory = (String) assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
+        if (Constants.FINAL_PROGRAM_ASSESSMENT.equalsIgnoreCase(contextCategory) &&
+                StringUtils.isNotBlank(parentContextId)) {
+            Map<String, Object> contentDetails = contentService.readContentFromCache(parentContextId, null);
+            if (contentDetails != null) {
+                String contextLockingType = (String) contentDetails.get(Constants.CONTEXT_LOCKING_TYPE);
+                if (Constants.COURSE_ASSESSMENT_ONLY.equalsIgnoreCase(contextLockingType)) {
+                    Set<String> courseIds = contentService.readChildCoursesFromCache(parentContextId);
+                    if (!isAllCourseCompleted(userId, courseIds)) {
+                        errMsg = "User has not completed one or more courses in this program";
+                        updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
+                        return errMsg;
+                    }
+                } else {
+                    errMsg = "API doesn’t support this feature";
+                    updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+                    return errMsg;
+                }
+            }
+        }
+        return errMsg;
+    }
+
+    private boolean isAllCourseCompleted(String userId, Set<String> courseIds) {
+        if (courseIds == null || courseIds.isEmpty()) {
+            return false;
+        }
+        Map<String, Object> propertyMap = new HashMap<>();
+        propertyMap.put(Constants.ACTIVE, Boolean.TRUE);
+        propertyMap.put(Constants.USER_ID_CONSTANT, userId);
+        for (String courseId : courseIds) {
+            propertyMap.put(Constants.COURSE_ID, courseId);
+            List<Map<String, Object>> enrolments = cassandraOperation.getRecordsByProperties(
+                    Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_ENROLMENT, propertyMap,
+                    Arrays.asList(Constants.USER_ID_CONSTANT, Constants.COURSE_ID, Constants.BATCH_ID, Constants.COMPLETION_PERCENTAGE, Constants.PROGRESS, Constants.STATUS
+                    ));
+
+            if (enrolments.isEmpty() || enrolments.get(0) == null || !Constants.STATUS_COMPLETED.equals(String.valueOf(enrolments.get(0).get(Constants.STATUS)))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -509,7 +564,17 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             existingAssessmentData.putAll(existingDataList.get(0));
         }
 
-        Date assessmentStartTime = (Date) existingAssessmentData.get(Constants.START_TIME);
+        Object startTimeObj = existingAssessmentData.get(Constants.START_TIME);
+
+        Date assessmentStartTime = Optional.ofNullable(startTimeObj)
+                .map(obj -> {
+                    if (obj instanceof Instant) return Date.from((Instant) obj);
+                    if (obj instanceof Date) return (Date) obj;
+                    if (obj instanceof String) return Date.from(Instant.parse((String) obj));
+                    return null;
+                })
+                .orElse(null);
+
         if (assessmentStartTime == null) {
             return Constants.READ_ASSESSMENT_START_TIME_FAILED;
         }

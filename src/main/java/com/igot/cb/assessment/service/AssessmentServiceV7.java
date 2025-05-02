@@ -9,7 +9,7 @@ public interface AssessmentServiceV7 {
 
     public SBApiResponse retakeAssessmentV7(String assessmentIdentifier, String token, Boolean editMode);
 
-    public SBApiResponse readAssessmentV7(String assessmentIdentifier, String token, boolean editMode);
+    public SBApiResponse readAssessmentV7(String assessmentIdentifier, String parentContextId, String token, boolean editMode);
 
     public SBApiResponse readAssessmentResultV7(Map<String, Object> request, String userAuthToken);
 

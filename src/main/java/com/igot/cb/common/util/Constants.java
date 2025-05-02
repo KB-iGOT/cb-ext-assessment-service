@@ -171,6 +171,17 @@ public class Constants {
     public static final String RHS_CHOICES = "rhsChoices";
     public static final String MTF_QUESTION = "MTF Question";
 
+    public static final String CONTEXT_CATEGORY_TAG = "contextCategory";
+    public static final String FINAL_PROGRAM_ASSESSMENT = "Final Program Assessment";
+    public static final String CONTEXT_LOCKING_TYPE = "contextLockingType";
+    public static final String COURSE_ASSESSMENT_ONLY = "Course Assessment Only";
+    public static final String KEYSPACE_SUNBIRD_COURSES = "sunbird_courses";
+    public static final String TABLE_USER_ENROLMENT = "user_enrolments";
+    public static final String USER_ID_CONSTANT = "userId";
+    public static final String PROGRESS = "progress";
+    public static final String ACTIVE = "active";
+    public static final String CHILDREN_COURSES = "childrenCourses";
+    public static final String STATUS_COMPLETED ="2";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
