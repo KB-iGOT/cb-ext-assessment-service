@@ -1,7 +1,6 @@
 package com.igot.cb.assessment.repo;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.Map;
 
 public interface AssessmentRepository {
@@ -11,7 +10,7 @@ public interface AssessmentRepository {
 
     Boolean updateUserAssesmentDataToDB(String userId, String assessmentIdentifier,
                                         Map<String, Object> submitAssessmentRequest, Map<String, Object> submitAssessmentResponse, String status,
-                                        Date startTime, Map<String, Object> saveSubmitAssessmentRequest);
+                                        Instant startTime, Map<String, Object> saveSubmitAssessmentRequest);
 
 
 }
