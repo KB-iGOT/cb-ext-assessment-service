@@ -42,7 +42,7 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
     @Override
     public Boolean updateUserAssesmentDataToDB(String userId, String assessmentIdentifier,
                                                Map<String, Object> submitAssessmentRequest, Map<String, Object> submitAssessmentResponse, String status,
-                                               Date startTime,Map<String, Object> saveSubmitAssessmentRequest) {
+                                               Instant startTime,Map<String, Object> saveSubmitAssessmentRequest) {
         Map<String, Object> compositeKeys = new HashMap<>();
         compositeKeys.put(Constants.USER_ID, userId);
         compositeKeys.put(Constants.ASSESSMENT_ID_KEY, assessmentIdentifier);

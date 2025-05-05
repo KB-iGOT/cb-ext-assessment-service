@@ -810,7 +810,7 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Long existingAssessmentStartTime = (Long) questionSetFromAssessment.get(Constants.START_TIME);
-                Timestamp startTime = new Timestamp(existingAssessmentStartTime);
+                Instant startTime = Instant.ofEpochMilli(existingAssessmentStartTime);
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime, null);
