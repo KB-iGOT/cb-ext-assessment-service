@@ -27,51 +27,6 @@ public class AssessmentController {
     @Autowired
     AssessmentServiceV5 assessmentServiceV5;
 
-    @Autowired
-    AssessmentServiceV7 assessmentServiceV7;
-
-    @PostMapping("/v7/user/assessment/submit")
-    public ResponseEntity<SBApiResponse> submitUserAssessmentV7(@Valid @RequestBody Map<String, Object> requestBody,
-                                                                @RequestHeader(Constants.X_AUTH_TOKEN) String authUserToken,
-                                                                @RequestParam(name = "editMode" ,required = false) String editMode) {
-        boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
-        SBApiResponse submitResponse = assessmentServiceV7.submitAssessmentAsyncV7(requestBody, authUserToken,edit);
-        return new ResponseEntity<>(submitResponse, submitResponse.getResponseCode());
-    }
-
-    @GetMapping("/v7/quml/assessment/retake/{assessmentIdentifier}")
-    public ResponseEntity<SBApiResponse> retakeAssessmentV7(
-            @PathVariable("assessmentIdentifier") String assessmentIdentifier,
-            @RequestHeader(Constants.X_AUTH_TOKEN) String token,@RequestParam(name = "editMode" ,required = false) String editMode) {
-        Boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
-        SBApiResponse readResponse = assessmentServiceV7.retakeAssessmentV7(assessmentIdentifier, token,edit);
-        return new ResponseEntity<>(readResponse, readResponse.getResponseCode());
-    }
-
-    @GetMapping("/v7/quml/assessment/read/{assessmentIdentifier}")
-    public ResponseEntity<SBApiResponse> readAssessmentV7(
-            @PathVariable("assessmentIdentifier") String assessmentIdentifier,
-            @RequestParam (name = "parentContextId" ,required = false) String parentContextId,
-            @RequestHeader(Constants.X_AUTH_TOKEN) String token,@RequestParam(name = "editMode" ,required = false) String editMode) {
-        boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
-        SBApiResponse readResponse = assessmentServiceV7.readAssessmentV7(assessmentIdentifier, parentContextId, token, edit);
-        return new ResponseEntity<>(readResponse, readResponse.getResponseCode());
-    }
-
-    @PostMapping("/v7/quml/assessment/result")
-    public ResponseEntity<SBApiResponse> readAssessmentResultV7(@Valid @RequestBody Map<String, Object> requestBody,
-                                                                @RequestHeader(Constants.X_AUTH_TOKEN) String authUserToken) {
-        SBApiResponse response = assessmentServiceV7.readAssessmentResultV7(requestBody, authUserToken);
-        return new ResponseEntity<>(response, response.getResponseCode());
-    }
-
-    @PostMapping("/v7/quml/question/list")
-    public ResponseEntity<SBApiResponse> readQuestionListV7(@Valid @RequestBody Map<String, Object> requestBody, @RequestHeader("x-authenticated-user-token") String authUserToken, @RequestParam(name = "editMode", required = false) String editMode) {
-        boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
-        SBApiResponse response = assessmentServiceV7.readQuestionListV7(requestBody, authUserToken, edit);
-        return new ResponseEntity<>(response, response.getResponseCode());
-    }
-
     @PostMapping("/v2/user/{userId}/assessment/submit")
     public ResponseEntity<Map<String, Object>> submitAssessment(@Valid @RequestBody AssessmentSubmissionDTO requestBody,
                                                                 @PathVariable("userId") String userId, @RequestHeader("rootOrg") String rootOrg) throws Exception {
