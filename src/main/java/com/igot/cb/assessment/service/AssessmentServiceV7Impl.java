@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.igot.cb.assessment.repo.AssessmentRepository;
-import com.igot.cb.cache.RedisCacheMgr;
 import com.igot.cb.cassandra.utils.CassandraOperation;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.service.ContentService;
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 
@@ -339,6 +337,10 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
                             return response;
                         }
                     }
+                    errMsg = validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    if (StringUtils.isNotBlank(errMsg)) {
+                        return response;
+                    }
 
                     Map<String, Object> assessmentData = readAssessmentLevelData(assessmentAllDetail);
                     int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
@@ -395,6 +397,10 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
                     updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
                     return errMsg;
                 }
+            } else {
+                errMsg = "content Details not found from cache";
+                updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+                return errMsg;
             }
         }
         return errMsg;
@@ -405,20 +411,29 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
             return false;
         }
         Map<String, Object> propertyMap = new HashMap<>();
-        propertyMap.put(Constants.ACTIVE, Boolean.TRUE);
         propertyMap.put(Constants.USER_ID_CONSTANT, userId);
-        for (String courseId : courseIds) {
-            propertyMap.put(Constants.COURSE_ID, courseId);
-            List<Map<String, Object>> enrolments = cassandraOperation.getRecordsByProperties(
-                    Constants.KEYSPACE_SUNBIRD_COURSES, Constants.TABLE_USER_ENROLMENT, propertyMap,
-                    Arrays.asList(Constants.USER_ID_CONSTANT, Constants.COURSE_ID, Constants.BATCH_ID, Constants.COMPLETION_PERCENTAGE, Constants.PROGRESS, Constants.STATUS
-                    ));
+        propertyMap.put(Constants.COURSE_ID, new ArrayList<>(courseIds)); // assumes IN clause support
 
-            if (enrolments.isEmpty() || enrolments.get(0) == null || !Constants.STATUS_COMPLETED.equals(String.valueOf(enrolments.get(0).get(Constants.STATUS)))) {
-                return false;
-            }
-        }
-        return true;
+        List<Map<String, Object>> enrolmentRecords = cassandraOperation.getRecordsByProperties(
+                Constants.KEYSPACE_SUNBIRD_COURSES,
+                Constants.TABLE_USER_ENROLMENT,
+                propertyMap,
+                Arrays.asList(
+                        Constants.USER_ID_CONSTANT,
+                        Constants.COURSE_ID,
+                        Constants.BATCH_ID,
+                        Constants.COMPLETION_PERCENTAGE,
+                        Constants.PROGRESS,
+                        Constants.STATUS,
+                        Constants.ACTIVE
+                )
+        );
+
+        return !enrolmentRecords.isEmpty() && enrolmentRecords.stream().allMatch(enrolment ->
+                enrolment != null &&
+                        Boolean.TRUE.equals(enrolment.get(Constants.ACTIVE)) &&
+                        Constants.STATUS_COMPLETED.equals(String.valueOf(enrolment.get(Constants.STATUS)))
+        );
     }
 
     @Override
@@ -842,7 +857,6 @@ public class AssessmentServiceV7Impl implements AssessmentServiceV7 {
                             kafkaResult.put(Constants.COMPETENCY, "");
                         }
                     }
-
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
                 }
             }
