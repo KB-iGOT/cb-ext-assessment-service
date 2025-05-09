@@ -25,16 +25,16 @@ public class RedisConfig {
     }
     private JedisPoolConfig buildPoolConfig() {
         final JedisPoolConfig poolConfig = new JedisPoolConfig();
-        poolConfig.setMaxIdle(128);
-        poolConfig.setMaxTotal(3000);
-        poolConfig.setMinIdle(100);
-        poolConfig.setTestOnBorrow(true);
-        poolConfig.setTestOnReturn(true);
-        poolConfig.setTestWhileIdle(true);
-        poolConfig.setMinEvictableIdleTimeMillis(120000);
-        poolConfig.setTimeBetweenEvictionRunsMillis(30000);
-        poolConfig.setNumTestsPerEvictionRun(3);
-        poolConfig.setBlockWhenExhausted(true);
+        poolConfig.setMaxIdle(cbExtAssessmentServerProperties.getMaxIdle());
+        poolConfig.setMaxTotal(cbExtAssessmentServerProperties.getMaxActive());
+        poolConfig.setMinIdle(cbExtAssessmentServerProperties.getMinIdle());
+        poolConfig.setTestOnBorrow(cbExtAssessmentServerProperties.isTestOnBorrow());
+        poolConfig.setTestOnReturn(cbExtAssessmentServerProperties.isTestOnReturn());
+        poolConfig.setTestWhileIdle(cbExtAssessmentServerProperties.isTestWhileIdle());
+        poolConfig.setMinEvictableIdleTimeMillis(cbExtAssessmentServerProperties.getMinEvictableIdleTime());
+        poolConfig.setTimeBetweenEvictionRunsMillis(cbExtAssessmentServerProperties.getTimeBetweenEvictionRuns());
+        poolConfig.setNumTestsPerEvictionRun(cbExtAssessmentServerProperties.getNumTestsPerEvictionRun());
+        poolConfig.setBlockWhenExhausted(cbExtAssessmentServerProperties.isBlockWhenExhausted());
         return poolConfig;
     }
 }

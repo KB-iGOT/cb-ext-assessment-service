@@ -1001,6 +1001,36 @@ public class CbExtAssessmentServerProperties {
     @Value("${org.updatable.fields}")
     private String orgUpdatableFields;
 
+    @Value("${redis.jedis.pool.max-active}")
+    private int maxActive;
+
+    @Value("${redis.jedis.pool.max-idle}")
+    private int maxIdle;
+
+    @Value("${redis.jedis.pool.min-idle}")
+    private int minIdle;
+
+    @Value("${redis.jedis.pool.test-on-borrow}")
+    private boolean testOnBorrow;
+
+    @Value("${redis.jedis.pool.test-on-return}")
+    private boolean testOnReturn;
+
+    @Value("${redis.jedis.pool.test-while-idle}")
+    private boolean testWhileIdle;
+
+    @Value("${redis.jedis.pool.min-evictable-idle-time}")
+    private long minEvictableIdleTime;
+
+    @Value("${redis.jedis.pool.time-between-eviction-runs}")
+    private long timeBetweenEvictionRuns;
+
+    @Value("${redis.jedis.pool.num-tests-per-eviction-run}")
+    private int numTestsPerEvictionRun;
+
+    @Value("${redis.jedis.pool.block-when-exhausted}")
+    private boolean blockWhenExhausted;
+
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
     }
@@ -3459,6 +3489,86 @@ public class CbExtAssessmentServerProperties {
 
     public void setOrgUpdatableFields(String orgUpdatableFields) {
         this.orgUpdatableFields = orgUpdatableFields;
+    }
+
+    public int getMaxActive() {
+        return maxActive;
+    }
+
+    public void setMaxActive(int maxActive) {
+        this.maxActive = maxActive;
+    }
+
+    public int getMaxIdle() {
+        return maxIdle;
+    }
+
+    public void setMaxIdle(int maxIdle) {
+        this.maxIdle = maxIdle;
+    }
+
+    public int getMinIdle() {
+        return minIdle;
+    }
+
+    public void setMinIdle(int minIdle) {
+        this.minIdle = minIdle;
+    }
+
+    public boolean isTestOnBorrow() {
+        return testOnBorrow;
+    }
+
+    public void setTestOnBorrow(boolean testOnBorrow) {
+        this.testOnBorrow = testOnBorrow;
+    }
+
+    public boolean isTestOnReturn() {
+        return testOnReturn;
+    }
+
+    public void setTestOnReturn(boolean testOnReturn) {
+        this.testOnReturn = testOnReturn;
+    }
+
+    public boolean isTestWhileIdle() {
+        return testWhileIdle;
+    }
+
+    public void setTestWhileIdle(boolean testWhileIdle) {
+        this.testWhileIdle = testWhileIdle;
+    }
+
+    public long getMinEvictableIdleTime() {
+        return minEvictableIdleTime;
+    }
+
+    public void setMinEvictableIdleTime(String minEvictableIdleTime) {
+        this.minEvictableIdleTime = Long.parseLong(minEvictableIdleTime);
+    }
+
+    public long getTimeBetweenEvictionRuns() {
+        return timeBetweenEvictionRuns;
+    }
+
+    public void setTimeBetweenEvictionRuns(String timeBetweenEvictionRuns) {
+        this.timeBetweenEvictionRuns = Long.parseLong(timeBetweenEvictionRuns);
+    }
+
+    public int getNumTestsPerEvictionRun() {
+        return numTestsPerEvictionRun;
+    }
+
+    public void setNumTestsPerEvictionRun(int numTestsPerEvictionRun) {
+        this.numTestsPerEvictionRun = numTestsPerEvictionRun;
+    }
+
+    public boolean isBlockWhenExhausted() {
+        return blockWhenExhausted;
+    }
+
+    public void setBlockWhenExhausted(boolean blockWhenExhausted) {
+        this.blockWhenExhausted = blockWhenExhausted;
     }
 
 }
