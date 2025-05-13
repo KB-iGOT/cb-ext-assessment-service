@@ -17,4 +17,6 @@ public interface ContentService {
 
     public Set<String> readChildCoursesFromCache(String parentDoId);
 
+    public Map<String, Object> readContent(String contentId);
+
 }
