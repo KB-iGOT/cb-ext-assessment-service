@@ -1090,8 +1090,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		logger.info("Marks or index retrieved successfully.");
 	}
 
-	public String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId,
-										 SBApiResponse response, String userId) {
+	public String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId, SBApiResponse response, String userId) {
 		String errMsg = "";
 		String contextCategory = (String) assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
 		logger.info("AssessmentUtilServiceV2Impl:: validateContextLocking:: AssessmentContextCategory: {}, parentContextId: {}", contextCategory, parentContextId);
