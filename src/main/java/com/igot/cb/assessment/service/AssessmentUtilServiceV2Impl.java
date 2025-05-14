@@ -1093,35 +1093,35 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	public String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId, SBApiResponse response, String userId) {
 		String errMsg = "";
 		String contextCategory = (String) assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
-		logger.info("AssessmentUtilServiceV2Impl:: validateContextLocking:: AssessmentContextCategory: {}, parentContextId: {}", contextCategory, parentContextId);
+		logger.info("{} AssessmentContextCategory: {}, parentContextId: {}",Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, contextCategory, parentContextId);
 		if (Constants.FINAL_PROGRAM_ASSESSMENT.equalsIgnoreCase(contextCategory)) {
 			if (StringUtils.isNotBlank(parentContextId)) {
 				Map<String, Object> contentDetails = contentService.readContentFromCache(parentContextId, null);
-				if (contentDetails != null) {
+				if (MapUtils.isNotEmpty(contentDetails)) {
 					String contextLockingType = (String) contentDetails.get(Constants.CONTEXT_LOCKING_TYPE);
-					logger.info("AssessmentUtilServiceV2Impl:: validateContextLocking:: {}", contextLockingType);
+					logger.info("{} {}", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, contextLockingType);
 					if (Constants.COURSE_ASSESSMENT_ONLY.equalsIgnoreCase(contextLockingType)) {
 						Set<String> courseIds = contentService.readChildCoursesFromCache(parentContextId);
-						logger.info("AssessmentUtilServiceV2Impl:: validateContextLocking:: children courseIds: {}", courseIds);
+						logger.info("{} children courseIds: {}", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, courseIds);
 						if (!isAllCourseCompleted(userId, new ArrayList<>(courseIds))) {
-							errMsg = "User has not completed one or more courses in this program";
+							errMsg = Constants.USER_COURSES_NOT_COMPLETED;
 							updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
 							return errMsg;
 						} else {
-							logger.info("AssessmentUtilServiceV2Impl:: validateContextLocking:: user has completed all the children courses");
+							logger.info("{} user has completed all the children courses", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING);
 						}
 					} else {
-						errMsg = "API doesn’t support this feature";
+						errMsg = Constants.UNSUPPORTED_FEATURE;
 						updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
 						return errMsg;
 					}
 				} else {
-					errMsg = "Content Details not found from cache";
+					errMsg = Constants.CONTENT_NOT_FOUND;
 					updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
 					return errMsg;
 				}
 			} else {
-				errMsg = "Invalid request. Course / Program details are not sent.";
+				errMsg = Constants.INVALID_COURSE_REQUEST;
 				updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
 				return errMsg;
 			}
@@ -1141,14 +1141,14 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				Arrays.asList(Constants.USER_ID_CONSTANT, Constants.COURSE_ID, Constants.STATUS));
 		if (CollectionUtils.isEmpty(enrolments) || enrolments.size() < courseIds.size()) {
 			logger.info(
-					"AssessmentUtilServiceV2Impl:: isAllCourseCompleted: Failed to fetch enrolment list for userId: {}, courseIds: {}",
+					"{} Failed to fetch enrolment list for userId: {}, courseIds: {}", Constants.PREFIX_VALIDATE_COMPLETED_COURSE,
 					userId, courseIds);
 			return false;
 		}
 
 		for (Map<String, Object> enrolment : enrolments) {
 			if (Constants.ASSESSMENT_STATUS_COMPLETED != (int) enrolment.get(Constants.STATUS)) {
-				logger.info("AssessmentUtilServiceV2Impl:: isAllCourseCompleted: User: {}, not completed course: {}",
+				logger.info("{} User: {}, not completed course: {}", Constants.PREFIX_VALIDATE_COMPLETED_COURSE,
 						userId, (String) enrolment.get(Constants.COURSE_ID));
 				return false;
 			}
