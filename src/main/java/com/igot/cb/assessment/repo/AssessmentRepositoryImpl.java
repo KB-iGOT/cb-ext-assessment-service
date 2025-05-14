@@ -52,7 +52,7 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         request.put(Constants.STATUS, status);
         SBApiResponse resp = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD,
                 Constants.TABLE_USER_ASSESSMENT_DATA, request);
-        Object responseVal = (resp != null) ? resp.get(Constants.RESPONSE) : null;;
+        Object responseVal = (resp != null) ? resp.get(Constants.RESPONSE) : null;
         return Constants.SUCCESS.equals(responseVal);
     }
 
