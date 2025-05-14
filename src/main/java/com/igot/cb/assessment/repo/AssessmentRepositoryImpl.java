@@ -3,7 +3,6 @@ package com.igot.cb.assessment.repo;
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.igot.cb.assessment.dto.AssessmentSubmissionDTO;
 import com.igot.cb.cassandra.utils.CassandraOperation;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.Constants;
@@ -53,7 +52,7 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         request.put(Constants.STATUS, status);
         SBApiResponse resp = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD,
                 Constants.TABLE_USER_ASSESSMENT_DATA, request);
-        Object responseVal = resp.get(Constants.RESPONSE);
+        Object responseVal = (resp != null) ? resp.get(Constants.RESPONSE) : null;;
         return Constants.SUCCESS.equals(responseVal);
     }
 
