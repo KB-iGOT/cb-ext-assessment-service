@@ -1355,7 +1355,13 @@ public class Constants {
     public static final String CONTEXT_LOCKING_TYPE = "contextLockingType";
     public static final String COURSE_ASSESSMENT_ONLY = "Course Assessment Only";
     public static final String CHILDREN_COURSES = "childrenCourses";
-    public static final String ASSESSMENT_STATUS_COMPLETED ="2";
+    public static final int ASSESSMENT_STATUS_COMPLETED =2;
+    public static final String USER_COURSES_NOT_COMPLETED = "User has not completed one or more courses in this program";
+    public static final String UNSUPPORTED_FEATURE = "API doesn’t support this feature";
+    public static final String CONTENT_NOT_FOUND = "Content Details not found from cache";
+    public static final String INVALID_COURSE_REQUEST = "Invalid request. Course / Program details are not sent.";
+    public static final String PREFIX_VALIDATE_CONTEXT_LOCKING = "AssessmentUtilServiceV2Impl:: validateContextLocking::";
+    public static final String PREFIX_VALIDATE_COMPLETED_COURSE = "AssessmentUtilServiceV2Impl:: isAllCourseCompleted:";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
