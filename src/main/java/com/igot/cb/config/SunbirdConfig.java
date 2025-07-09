@@ -32,6 +32,7 @@ public class SunbirdConfig extends CassandraConfig {
     private String sunbirdPassword;
 
     @NotNull
+    @Primary
     @Bean(name = "sunbirdTemplate")
     public CassandraAdminTemplate cassandraTemplate(@Autowired CqlSession cqlSession) {
         logger.info("Creating CassandraAdminTemplate for keyspace: {}", getKeyspaceName());
