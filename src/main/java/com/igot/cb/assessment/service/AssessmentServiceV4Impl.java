@@ -334,6 +334,21 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
+            String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
+            if(StringUtils.isBlank(assessmentLanguage)){
+                Map<String,Object> assessmentResponse=assessUtilServ.readAssessmentRecord(assessmentIdFromRequest,List.of(Constants.LANGUAGE));
+                if (MapUtils.isNotEmpty(assessmentResponse)) {
+                    Object contentObj = assessmentResponse.get(Constants.CONTENT);
+                    if (contentObj instanceof Map) {
+                        Map<String, Object> content = (Map<String, Object>) contentObj;
+                        Object languageObj = content.get(Constants.LANGUAGE);
+                        if (languageObj instanceof List && !((List<?>) languageObj).isEmpty()) {
+                            assessmentLanguage = ((List<?>) languageObj).get(0).toString();
+                            submitRequest.put(Constants.LANGUAGE, assessmentLanguage);
+                        }
+                    }
+                }
+            }
             String assessmentPrimaryCategory = (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY);
             Map<String,Object> courseCategoryMap=contentService.readContent((String) submitRequest.get(Constants.COURSE_ID));
             String courseCategory = "";
@@ -763,12 +778,16 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         }
 
         Object startTimeObj = existingAssessmentData.get(Constants.START_TIME);
-        if (!(startTimeObj instanceof Date)) {
+        Instant assessmentStartTime;
+        if (startTimeObj instanceof Date) {
+            assessmentStartTime = ((Date) startTimeObj).toInstant();
+        } else if (startTimeObj instanceof Instant) {
+            assessmentStartTime = (Instant) startTimeObj;
+        } else if (startTimeObj instanceof String) {
+            assessmentStartTime = Instant.parse((String) startTimeObj);
+        } else {
             return Constants.READ_ASSESSMENT_START_TIME_FAILED;
         }
-
-        Instant assessmentStartTime = ((Date) startTimeObj).toInstant();
-
         Integer expectedDuration = (Integer) assessmentHierarchy.get(Constants.EXPECTED_DURATION);
         int userSubmissionDuration = Integer.parseInt(serverProperties.getUserAssessmentSubmissionDuration());
 
@@ -897,8 +916,8 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                                          String userAuthToken, boolean shouldUpdateContentProgress) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Long existingAssessmentStartTime = (Long) questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = Instant.ofEpochMilli(existingAssessmentStartTime);
+                String existingAssessmentStartTime = questionSetFromAssessment.get(Constants.START_TIME).toString();
+                Instant startTime = Instant.ofEpochMilli(Long.parseLong(existingAssessmentStartTime));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);

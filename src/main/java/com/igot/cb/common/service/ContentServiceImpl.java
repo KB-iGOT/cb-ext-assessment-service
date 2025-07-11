@@ -88,6 +88,7 @@ public class ContentServiceImpl implements ContentService{
             reqObj.put(Constants.STATUS, 2);
             reqObj.put("lastAccessTime", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSSZ").format(new Date()));
             reqObj.put(Constants.COMPLETION_PERCENTAGE, 100);
+            reqObj.put(Constants.LANGUAGE, reqBody.get(Constants.LANGUAGE));
 
             contents.add(reqObj);
 

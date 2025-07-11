@@ -11,6 +11,7 @@ import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -1154,5 +1156,33 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			}
 		}
 		return true;
+	}
+
+	@Override
+	public Map<String, Object> readAssessmentRecord(String assessmentIdentifier,List<String> fields) {
+		Map<String, Object> resMap = new HashMap<>();
+		Map<String, String> headers = new HashMap<>();
+		try {
+			String fieldsStr = StringUtils.join(fields, ",");
+			StringBuilder sbUrl = new StringBuilder(serverProperties.getContentHost());
+			sbUrl.append(serverProperties.getCourseReadPath() + assessmentIdentifier+ "?fields=" + fieldsStr);
+			headers.put(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON);
+			logger.info("making call for assessment read ==" + assessmentIdentifier);
+			Map<String, Object> response = outboundRequestHandlerService.fetchResultUsingGet(sbUrl.toString(),headers);
+			if (MapUtils.isNotEmpty(response)) {
+				response = (Map<String, Object>) response.get(Constants.RESULT);
+				if (MapUtils.isNotEmpty(response)) {
+					Object content = response.get(Constants.CONTENT);
+					resMap.put(Constants.CONTENT, content);
+				} else {
+					logger.info("AssessmentUtilServiceV2Impl:readAssessmentRecord No data found");
+				}
+			} else {
+				logger.info("AssessmentUtilServiceV2Impl:readAssessmentRecord No data found");
+			}
+		} catch (Exception e) {
+			logger.error("Error found during content search parse==" + e.getMessage(), e);
+		}
+		return resMap;
 	}
 }

@@ -52,8 +52,8 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         request.put(Constants.STATUS, status);
         SBApiResponse resp = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD,
                 Constants.TABLE_USER_ASSESSMENT_DATA, request);
-        Object responseVal = (resp != null) ? resp.get(Constants.RESPONSE) : null;
-        return Constants.SUCCESS.equals(responseVal);
+        Object responseVal = (resp != null) ? resp.getResult().get("STATUS") : null;
+        return Constants.SUCCESS.equalsIgnoreCase(responseVal.toString());
     }
 
 
@@ -77,6 +77,10 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         }
         if (MapUtils.isNotEmpty(saveSubmitAssessmentRequest)) {
             fieldsToBeUpdated.put("savepointsubmitreq", new Gson().toJson(saveSubmitAssessmentRequest));
+        }
+        String language = (String) submitAssessmentRequest.get(Constants.LANGUAGE);
+        if (StringUtils.isNotBlank(language)) {
+            fieldsToBeUpdated.put(Constants.LANGUAGE, language);
         }
         cassandraOperation.updateRecord(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER_ASSESSMENT_DATA,
                 fieldsToBeUpdated, compositeKeys);
