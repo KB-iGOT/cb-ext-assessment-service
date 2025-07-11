@@ -598,7 +598,7 @@ public class Constants {
     public static final String IS_CORRECT = "isCorrect";
     public static final String OPTION_ID = "optionId";
 
-    public static final String TABLE_USER_ASSESSMENT_DATA = "user_assessment_data";
+    public static final String TABLE_USER_ASSESSMENT_DATA = "user_assessment_data_v2";
     public static final String TABLE_MASTER_DATA = "master_data";
 
 
@@ -1363,6 +1363,7 @@ public class Constants {
     public static final String PREFIX_VALIDATE_CONTEXT_LOCKING = "AssessmentUtilServiceV2Impl:: validateContextLocking::";
     public static final String PREFIX_VALIDATE_COMPLETED_COURSE = "AssessmentUtilServiceV2Impl:: isAllCourseCompleted:";
     public static final String PRE_ENROLLED_ASSESSMENT_KEY = "Pre Enrolment Assessment";
+    public static final String LANGUAGE = "language";
 
     private Constants() {
         throw new IllegalStateException("Utility class");

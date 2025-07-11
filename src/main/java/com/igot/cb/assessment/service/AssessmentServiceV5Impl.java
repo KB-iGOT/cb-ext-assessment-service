@@ -346,6 +346,14 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
+            String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
+            if(StringUtils.isBlank(assessmentLanguage)){
+                Map<String,Object> assessmentResponse=assessUtilServ.readAssessmentRecord(assessmentIdFromRequest,List.of(Constants.LANGUAGE));
+                if(MapUtils.isNotEmpty(assessmentResponse)){
+                    assessmentLanguage = (String) assessmentResponse.get(Constants.LANGUAGE);
+                    submitRequest.put(Constants.LANGUAGE,assessmentLanguage);
+                }
+            }
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
             int retakeAttemptsConsumed;
@@ -1338,6 +1346,14 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             if (StringUtils.isNotBlank(errMsg)) {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
+            }
+            String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
+            if(StringUtils.isBlank(assessmentLanguage)){
+                Map<String,Object> assessmentResponse=assessUtilServ.readAssessmentRecord(assessmentIdFromRequest,List.of(Constants.LANGUAGE));
+                if(MapUtils.isNotEmpty(assessmentResponse)){
+                    assessmentLanguage = (String) assessmentResponse.get(Constants.LANGUAGE);
+                    submitRequest.put(Constants.LANGUAGE,assessmentLanguage);
+                }
             }
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
