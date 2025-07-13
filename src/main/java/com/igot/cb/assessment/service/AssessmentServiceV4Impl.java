@@ -917,6 +917,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 String existingAssessmentStartTime = questionSetFromAssessment.get(Constants.START_TIME).toString();
+                logger.info(String.format("AssessmentServiceV4Impl: writeDataToDatabaseAndTriggerKafkaEvent :existingAssessmentStartTime : %s",existingAssessmentStartTime ));
                 Instant startTime = Instant.ofEpochMilli(Long.parseLong(existingAssessmentStartTime));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
