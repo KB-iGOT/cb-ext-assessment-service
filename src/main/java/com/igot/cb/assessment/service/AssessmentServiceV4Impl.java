@@ -916,9 +916,24 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                                          String userAuthToken, boolean shouldUpdateContentProgress) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                String existingAssessmentStartTime = questionSetFromAssessment.get(Constants.START_TIME).toString();
-                logger.info(String.format("AssessmentServiceV4Impl: writeDataToDatabaseAndTriggerKafkaEvent :existingAssessmentStartTime : %s",existingAssessmentStartTime ));
-                Instant startTime = Instant.parse(existingAssessmentStartTime);
+                Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
+                Instant startTime;
+                if (startTimeObj instanceof Long) {
+                    startTime = Instant.ofEpochMilli((Long) startTimeObj);
+                } else if (startTimeObj instanceof String) {
+                    String startTimeStr = (String) startTimeObj;
+                    if (startTimeStr.matches("\\d+")) {
+                        startTime = Instant.ofEpochMilli(Long.parseLong(startTimeStr));
+                    } else {
+                        startTime = Instant.parse(startTimeStr);
+                    }
+                } else if (startTimeObj instanceof Instant) {
+                    startTime = (Instant) startTimeObj;
+                } else if (startTimeObj instanceof Date) {
+                    startTime = ((Date) startTimeObj).toInstant();
+                } else {
+                    throw new IllegalArgumentException("Unsupported start time type: " + startTimeObj);
+                }
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
