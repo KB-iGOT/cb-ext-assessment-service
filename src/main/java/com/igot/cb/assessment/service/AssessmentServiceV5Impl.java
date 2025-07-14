@@ -1354,6 +1354,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 Map<String,Object> assessmentResponse=assessUtilServ.readAssessmentRecord(assessmentIdFromRequest,List.of(Constants.LANGUAGE));
                 if(MapUtils.isNotEmpty(assessmentResponse)){
                     assessmentLanguage = (String) assessmentResponse.get(Constants.LANGUAGE);
+                    logger.info("AssessmentServiceV5Impl : submitAssessmentAsyncV6 : assessmentLanguage fetched from assessment record: {}", assessmentLanguage);
                     submitRequest.put(Constants.LANGUAGE,assessmentLanguage);
                 }
             }
