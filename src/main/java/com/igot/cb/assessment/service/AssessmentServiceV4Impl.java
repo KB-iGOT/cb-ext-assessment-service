@@ -917,6 +917,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
+                logger.info("AssessmentServiceV4Impl: START_TIME value: {}, type: {}", startTimeObj.toString(), startTimeObj != null ? startTimeObj.getClass().getName() : "null");
                 Instant startTime;
                 if (startTimeObj instanceof Long) {
                     startTime = Instant.ofEpochMilli((Long) startTimeObj);
