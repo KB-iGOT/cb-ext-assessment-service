@@ -540,7 +540,14 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			for (Map.Entry<String, Object> optionWeightAgeFromOptions : optionWeightageMap.entrySet()) {
 				String submittedQuestionSetIndex = marked.get(0);
 				if (submittedQuestionSetIndex.equals(optionWeightAgeFromOptions.getKey())) {
-					sectionMarks = sectionMarks + (Integer) optionWeightAgeFromOptions.getValue();
+					Object value = optionWeightAgeFromOptions.getValue();
+					double weightage = 0;
+					if (value instanceof Number) {
+						weightage = ((Number) value).doubleValue();
+					} else if (value instanceof String) {
+						weightage = Double.parseDouble((String) value);
+					}
+					sectionMarks = sectionMarks + weightage;
 				}
 			}
 		}
@@ -882,6 +889,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : proficiencyMap is {}", proficiencyMap);
 				List<String> marked = new ArrayList<>();
 				handleqTypeQuestionV2(question, marked, assessmentType);
+				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : marked answers are {}", marked);
 				if (CollectionUtils.isEmpty(marked)) {
 					blank++;
 					question.put(Constants.RESULT, Constants.BLANK);
