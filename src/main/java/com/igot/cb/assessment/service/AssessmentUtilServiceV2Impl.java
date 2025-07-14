@@ -1171,7 +1171,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	}
 
 	@Override
-	public String readAssessmentLanguage(String assessmentIdentifier, List<String> fields) {
+	public String readAssessmentRecord(String assessmentIdentifier, List<String> fields) {
 		Map<String, String> headers = new HashMap<>();
 		try {
 			String fieldsStr = StringUtils.join(fields, ",");
