@@ -863,7 +863,6 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			String assessmentType = getAssessmentType(questionSetDetailsMap);
 			int minimumPassPercentage = getMinimumPassPercentage(questionSetDetailsMap);
 			int totalMarks = getTotalMarks(questionSetDetailsMap);
-			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : {}", totalMarks);
 
 			Map<String, Object> resultMap = new HashMap<>();
 
@@ -879,17 +878,13 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			if (assessmentType.equalsIgnoreCase(Constants.OPTION_WEIGHTAGE)) {
 				optionWeightages = getOptionWeightages(originalQuestionList, questionMap);
 			} else if (assessmentType.equalsIgnoreCase(Constants.QUESTION_WEIGHTAGE)) {
-				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : assessmentType is QUESTION_WEIGHTAGE");
 				questionSetSectionScheme = getQuestionSetSectionScheme(questionSetDetailsMap);
 				negativeMarksValue = getNegativeMarksValue(questionSetDetailsMap);
 			}
-			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : negativeMarksValue is {}", negativeMarksValue);
 			for (Map<String, Object> question : userQuestionList) {
 				Map<String, Object> proficiencyMap = getProficiencyMap(questionMap, question);
-				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : proficiencyMap is {}", proficiencyMap);
 				List<String> marked = new ArrayList<>();
 				handleqTypeQuestionV2(question, marked, assessmentType);
-				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : marked answers are {}", marked);
 				if (CollectionUtils.isEmpty(marked)) {
 					blank++;
 					question.put(Constants.RESULT, Constants.BLANK);
@@ -899,7 +894,6 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					sortAnswers(answer);
 					sortAnswers(marked);
 					if (assessmentType.equalsIgnoreCase(Constants.QUESTION_WEIGHTAGE)) {
-						logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : assessmentType is QUESTION_WEIGHTAGE");
 						if (answer.equals(marked)) {
 							question.put(Constants.RESULT, Constants.CORRECT);
 							correct++;
@@ -913,7 +907,6 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					sectionMarks = calculateScoreForOptionWeightage(question, assessmentType, optionWeightages, sectionMarks, marked);
 				}
 			}
-			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : blank count is {}", blank);
 			blank = handleBlankAnswers(userQuestionList, answers, blank);
 			updateResultMap(userQuestionList, correct, blank, inCorrect, resultMap, sectionMarks, totalMarks);
 			calculatePassPercentage(sectionMarks, totalMarks, correct, blank, inCorrect, assessmentType, resultMap);
@@ -985,7 +978,6 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		if (totalMarksObj instanceof Number) {
 			return ((Number) totalMarksObj).intValue();
 		} else {
-			// Log warning or return 0 if TOTAL_MARKS is missing or not a number
 			return 0;
 		}
 	}
@@ -1206,7 +1198,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		return resMap;
 	}
 
-	public Instant parseStartTime(Object startTimeObj) {
+	public Instant parseStartTimeToInstant(Object startTimeObj) {
 		if (startTimeObj instanceof Long) {
 			return Instant.ofEpochMilli((Long) startTimeObj);
 		} else if (startTimeObj instanceof String) {
@@ -1225,5 +1217,23 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					(startTimeObj != null ? startTimeObj.getClass().getName() : "null"));
 		}
 	}
+
+	public Long parseStartTimeToLong(Object startTimeObj) {
+		if (startTimeObj instanceof Date) {
+			return ((Date) startTimeObj).getTime();
+		} else if (startTimeObj instanceof Instant) {
+			return ((Instant) startTimeObj).toEpochMilli();
+		} else if (startTimeObj instanceof Long) {
+			return (Long) startTimeObj;
+		} else if (startTimeObj instanceof String) {
+			String str = (String) startTimeObj;
+			if (str.matches("\\d+")) {
+				return Long.parseLong(str);
+			} else {
+				return Instant.parse(str).toEpochMilli(); // ISO 8601 string
+			}
+		}
+        return 0L;
+    }
 
 }

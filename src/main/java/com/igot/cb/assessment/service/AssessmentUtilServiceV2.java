@@ -61,5 +61,7 @@ public interface AssessmentUtilServiceV2 {
 
 	Map<String, Object> readAssessmentRecord(String assessmentIdentifier,List<String> fields);
 
-	Instant parseStartTime(Object startTimeObj);
+	Instant parseStartTimeToInstant(Object startTimeObj);
+
+	Long parseStartTimeToLong(Object startTimeObj);
 }

@@ -335,8 +335,8 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 return outgoingResponse;
             }
             String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
-            if(StringUtils.isBlank(assessmentLanguage)){
-                Map<String,Object> assessmentResponse=assessUtilServ.readAssessmentRecord(assessmentIdFromRequest,List.of(Constants.LANGUAGE));
+            if (StringUtils.isBlank(assessmentLanguage)) {
+                Map<String, Object> assessmentResponse = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
                 if (MapUtils.isNotEmpty(assessmentResponse)) {
                     Object contentObj = assessmentResponse.get(Constants.CONTENT);
                     if (contentObj instanceof Map) {
@@ -918,23 +918,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
                 logger.info("AssessmentServiceV4Impl: START_TIME value: {}, type: {}", startTimeObj.toString(), startTimeObj != null ? startTimeObj.getClass().getName() : "null");
-                Instant startTime;
-                if (startTimeObj instanceof Long) {
-                    startTime = Instant.ofEpochMilli((Long) startTimeObj);
-                } else if (startTimeObj instanceof String) {
-                    String startTimeStr = (String) startTimeObj;
-                    if (startTimeStr.matches("\\d+")) {
-                        startTime = Instant.ofEpochMilli(Long.parseLong(startTimeStr));
-                    } else {
-                        startTime = Instant.parse(startTimeStr);
-                    }
-                } else if (startTimeObj instanceof Instant) {
-                    startTime = (Instant) startTimeObj;
-                } else if (startTimeObj instanceof Date) {
-                    startTime = ((Date) startTimeObj).toInstant();
-                } else {
-                    throw new IllegalArgumentException("Unsupported start time type: " + startTimeObj);
-                }
+                Instant startTime=assessUtilServ.parseStartTimeToInstant(startTimeObj);
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
