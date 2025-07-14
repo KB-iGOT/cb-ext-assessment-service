@@ -415,8 +415,25 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId, Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Long existingAssessmentStartTime = (Long) questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = Instant.ofEpochMilli(existingAssessmentStartTime);
+                Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
+                logger.info("AssessmentServiceV4Impl: START_TIME value: {}, type: {}", startTimeObj.toString(), startTimeObj != null ? startTimeObj.getClass().getName() : "null");
+                Instant startTime;
+                if (startTimeObj instanceof Long) {
+                    startTime = Instant.ofEpochMilli((Long) startTimeObj);
+                } else if (startTimeObj instanceof String) {
+                    String startTimeStr = (String) startTimeObj;
+                    if (startTimeStr.matches("\\d+")) {
+                        startTime = Instant.ofEpochMilli(Long.parseLong(startTimeStr));
+                    } else {
+                        startTime = Instant.parse(startTimeStr);
+                    }
+                } else if (startTimeObj instanceof Instant) {
+                    startTime = (Instant) startTimeObj;
+                } else if (startTimeObj instanceof Date) {
+                    startTime = ((Date) startTimeObj).toInstant();
+                } else {
+                    throw new IllegalArgumentException("Unsupported start time type: " + startTimeObj);
+                }
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId, (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED, startTime,null);
                 if (Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
                     Map<String, Object> kafkaResult = new HashMap<>();
