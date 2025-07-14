@@ -23,6 +23,7 @@ import org.springframework.util.ObjectUtils;
 
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -871,10 +872,11 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			if (assessmentType.equalsIgnoreCase(Constants.OPTION_WEIGHTAGE)) {
 				optionWeightages = getOptionWeightages(originalQuestionList, questionMap);
 			} else if (assessmentType.equalsIgnoreCase(Constants.QUESTION_WEIGHTAGE)) {
+				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : assessmentType is QUESTION_WEIGHTAGE");
 				questionSetSectionScheme = getQuestionSetSectionScheme(questionSetDetailsMap);
 				negativeMarksValue = getNegativeMarksValue(questionSetDetailsMap);
 			}
-
+			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : negativeMarksValue is {}", negativeMarksValue);
 			for (Map<String, Object> question : userQuestionList) {
 				Map<String, Object> proficiencyMap = getProficiencyMap(questionMap, question);
 				List<String> marked = new ArrayList<>();
@@ -901,6 +903,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					sectionMarks = calculateScoreForOptionWeightage(question, assessmentType, optionWeightages, sectionMarks, marked);
 				}
 			}
+			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : blank count is {}", blank);
 			blank = handleBlankAnswers(userQuestionList, answers, blank);
 			updateResultMap(userQuestionList, correct, blank, inCorrect, resultMap, sectionMarks, totalMarks);
 			calculatePassPercentage(sectionMarks, totalMarks, correct, blank, inCorrect, assessmentType, resultMap);
@@ -1192,4 +1195,25 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		}
 		return resMap;
 	}
+
+	public Instant parseStartTime(Object startTimeObj) {
+		if (startTimeObj instanceof Long) {
+			return Instant.ofEpochMilli((Long) startTimeObj);
+		} else if (startTimeObj instanceof String) {
+			String startTimeStr = (String) startTimeObj;
+			if (startTimeStr.matches("\\d+")) {
+				return Instant.ofEpochMilli(Long.parseLong(startTimeStr));
+			} else {
+				return Instant.parse(startTimeStr);
+			}
+		} else if (startTimeObj instanceof Instant) {
+			return (Instant) startTimeObj;
+		} else if (startTimeObj instanceof Date) {
+			return ((Date) startTimeObj).toInstant();
+		} else {
+			throw new IllegalArgumentException("Unsupported start time type: " +
+					(startTimeObj != null ? startTimeObj.getClass().getName() : "null"));
+		}
+	}
+
 }

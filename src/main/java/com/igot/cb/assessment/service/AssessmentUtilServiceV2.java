@@ -4,6 +4,7 @@ package com.igot.cb.assessment.service;
 import com.igot.cb.common.model.SBApiResponse;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -59,4 +60,6 @@ public interface AssessmentUtilServiceV2 {
 								  SBApiResponse response, String userId);
 
 	Map<String, Object> readAssessmentRecord(String assessmentIdentifier,List<String> fields);
+
+	Instant parseStartTime(Object startTimeObj);
 }
