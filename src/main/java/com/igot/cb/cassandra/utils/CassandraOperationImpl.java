@@ -146,6 +146,7 @@ public class CassandraOperationImpl implements CassandraOperation {
 
 	public Map<String, Object> updateRecord(String keyspaceName, String tableName, Map<String, Object> updateAttributes,
 											Map<String, Object> compositeKey) {
+		logger.info("Updating record in table: {} with attributes: {}", tableName, updateAttributes);
 		Map<String, Object> response = new HashMap<>();
 		CqlSession session = null;
 		try {
