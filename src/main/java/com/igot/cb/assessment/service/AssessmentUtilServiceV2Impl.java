@@ -879,6 +879,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : negativeMarksValue is {}", negativeMarksValue);
 			for (Map<String, Object> question : userQuestionList) {
 				Map<String, Object> proficiencyMap = getProficiencyMap(questionMap, question);
+				logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : proficiencyMap is {}", proficiencyMap);
 				List<String> marked = new ArrayList<>();
 				handleqTypeQuestionV2(question, marked, assessmentType);
 				if (CollectionUtils.isEmpty(marked)) {
@@ -890,6 +891,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					sortAnswers(answer);
 					sortAnswers(marked);
 					if (assessmentType.equalsIgnoreCase(Constants.QUESTION_WEIGHTAGE)) {
+						logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : assessmentType is QUESTION_WEIGHTAGE");
 						if (answer.equals(marked)) {
 							question.put(Constants.RESULT, Constants.CORRECT);
 							correct++;
