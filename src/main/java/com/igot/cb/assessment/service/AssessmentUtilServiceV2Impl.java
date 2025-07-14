@@ -1171,32 +1171,41 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	}
 
 	@Override
-	public Map<String, Object> readAssessmentRecord(String assessmentIdentifier,List<String> fields) {
-		Map<String, Object> resMap = new HashMap<>();
+	public String readAssessmentLanguage(String assessmentIdentifier, List<String> fields) {
 		Map<String, String> headers = new HashMap<>();
 		try {
 			String fieldsStr = StringUtils.join(fields, ",");
 			StringBuilder sbUrl = new StringBuilder(serverProperties.getContentHost());
-			sbUrl.append(serverProperties.getCourseReadPath() + assessmentIdentifier+ "?fields=" + fieldsStr);
+			sbUrl.append(serverProperties.getCourseReadPath())
+					.append(assessmentIdentifier)
+					.append("?fields=").append(fieldsStr);
+
 			headers.put(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON);
-			logger.info("making call for assessment read ==" + assessmentIdentifier);
-			Map<String, Object> response = outboundRequestHandlerService.fetchResultUsingGet(sbUrl.toString(),headers);
+			logger.info("Making call for assessment read: {}", assessmentIdentifier);
+
+			Map<String, Object> response = outboundRequestHandlerService.fetchResultUsingGet(sbUrl.toString(), headers);
 			if (MapUtils.isNotEmpty(response)) {
 				response = (Map<String, Object>) response.get(Constants.RESULT);
 				if (MapUtils.isNotEmpty(response)) {
 					Object content = response.get(Constants.CONTENT);
-					resMap.put(Constants.CONTENT, content);
+					if (content instanceof Map) {
+						Object languageObj = ((Map<?, ?>) content).get(Constants.LANGUAGE);
+						if (languageObj instanceof List && !((List<?>) languageObj).isEmpty()) {
+							return ((List<?>) languageObj).get(0).toString(); // ✅ Return the first language directly
+						}
+					}
 				} else {
-					logger.info("AssessmentUtilServiceV2Impl:readAssessmentRecord No data found");
+					logger.info("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in RESULT");
 				}
 			} else {
-				logger.info("AssessmentUtilServiceV2Impl:readAssessmentRecord No data found");
+				logger.info("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in response");
 			}
 		} catch (Exception e) {
-			logger.error("Error found during content search parse==" + e.getMessage(), e);
+			logger.error("Error during assessment read for {}: {}", assessmentIdentifier, e.getMessage(), e);
 		}
-		return resMap;
+		return "";
 	}
+
 
 	public Instant parseStartTimeToInstant(Object startTimeObj) {
 		if (startTimeObj instanceof Long) {

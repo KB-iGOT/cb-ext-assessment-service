@@ -348,17 +348,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             }
             String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
             if (StringUtils.isBlank(assessmentLanguage)) {
-                Map<String, Object> assessmentResponse = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
-                if (MapUtils.isNotEmpty(assessmentResponse)) {
-                    Object contentObj = assessmentResponse.get(Constants.CONTENT);
-                    if (contentObj instanceof Map) {
-                        Map<String, Object> content = (Map<String, Object>) contentObj;
-                        Object languageObj = content.get(Constants.LANGUAGE);
-                        if (languageObj instanceof List && !((List<?>) languageObj).isEmpty()) {
-                            assessmentLanguage = ((List<?>) languageObj).get(0).toString();
-                            submitRequest.put(Constants.LANGUAGE, assessmentLanguage);
-                        }
-                    }
+                assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if (StringUtils.isNotBlank(assessmentLanguage)) {
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguage);
                 }
             }
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
@@ -1357,17 +1349,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             }
             String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
             if (StringUtils.isBlank(assessmentLanguage)) {
-                Map<String, Object> assessmentResponse = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
-                if (MapUtils.isNotEmpty(assessmentResponse)) {
-                    Object contentObj = assessmentResponse.get(Constants.CONTENT);
-                    if (contentObj instanceof Map) {
-                        Map<String, Object> content = (Map<String, Object>) contentObj;
-                        Object languageObj = content.get(Constants.LANGUAGE);
-                        if (languageObj instanceof List && !((List<?>) languageObj).isEmpty()) {
-                            assessmentLanguage = ((List<?>) languageObj).get(0).toString();
-                            submitRequest.put(Constants.LANGUAGE, assessmentLanguage);
-                        }
-                    }
+                assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if (StringUtils.isNotBlank(assessmentLanguage)) {
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguage);
                 }
             }
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
