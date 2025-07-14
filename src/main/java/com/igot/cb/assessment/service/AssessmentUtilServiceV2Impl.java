@@ -855,6 +855,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			String assessmentType = getAssessmentType(questionSetDetailsMap);
 			int minimumPassPercentage = getMinimumPassPercentage(questionSetDetailsMap);
 			int totalMarks = getTotalMarks(questionSetDetailsMap);
+			logger.info("AssessmentUtilServiceV2Impl:validateQumlAssessmentV3() : {}", totalMarks);
 
 			Map<String, Object> resultMap = new HashMap<>();
 
@@ -967,7 +968,13 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 * @return Total marks as an integer
 	 */
 	private int getTotalMarks(Map<String, Object> questionSetDetailsMap) {
-		return (int) questionSetDetailsMap.get(Constants.TOTAL_MARKS);
+		Object totalMarksObj = questionSetDetailsMap.get(Constants.TOTAL_MARKS);
+		if (totalMarksObj instanceof Number) {
+			return ((Number) totalMarksObj).intValue();
+		} else {
+			// Log warning or return 0 if TOTAL_MARKS is missing or not a number
+			return 0;
+		}
 	}
 
 	private Map<String, Object> getQumlAnswersV2(List<String> questions, Map<String, Object> questionMap) {
