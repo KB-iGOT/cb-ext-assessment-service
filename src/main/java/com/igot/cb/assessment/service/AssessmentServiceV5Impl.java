@@ -835,8 +835,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
-                logger.info("AssessmentServiceV4Impl: START_TIME value: {}, type: {}", startTimeObj.toString(), startTimeObj != null ? startTimeObj.getClass().getName() : "null");
-                Instant startTime=assessUtilServ.parseStartTimeToInstant(startTimeObj);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(startTimeObj);
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
