@@ -69,6 +69,14 @@ public class CbExtAssessmentServerProperties {
     @Value("${es.username}")
     private String esUser;
 
+    public String getCourseReadPath() {
+        return courseReadPath;
+    }
+
+    public void setCourseReadPath(String courseReadPath) {
+        this.courseReadPath = courseReadPath;
+    }
+
     @Value("${es.password}")
     private String esPassword;
 
@@ -200,6 +208,9 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${kafka.topic.cbplan.content.request}")
     private String cbplanContentRequestKafkaTopic;
+
+    @Value("${course.read.path}")
+    private String courseReadPath;
 
     public String getRedisDataHostName() {
         return redisDataHostName;

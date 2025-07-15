@@ -4,6 +4,7 @@ package com.igot.cb.assessment.service;
 import com.igot.cb.common.model.SBApiResponse;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -58,4 +59,9 @@ public interface AssessmentUtilServiceV2 {
 	String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId,
 								  SBApiResponse response, String userId);
 
+	String readAssessmentRecord(String assessmentIdentifier,List<String> fields);
+
+	Instant parseStartTimeToInstant(Object startTimeObj);
+
+	Long parseStartTimeToLong(Object startTimeObj);
 }

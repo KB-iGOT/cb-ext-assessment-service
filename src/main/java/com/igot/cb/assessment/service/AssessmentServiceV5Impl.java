@@ -346,6 +346,22 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
+            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
+            if (StringUtils.isBlank(assessmentLanguageReq)) {
+                assessmentLanguageReq = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if (StringUtils.isNotBlank(assessmentLanguageReq)) {
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq);
+                }
+            }else{
+                String assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if(assessmentLanguageReq.equalsIgnoreCase(assessmentLanguage)){
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq.toLowerCase());
+                }else{
+                    errMsg = String.format("Assessment language mismatch. Expected: %s, Provided: %s", assessmentLanguage, assessmentLanguageReq);
+                    updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
+                    return outgoingResponse;
+                }
+            }
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
             int retakeAttemptsConsumed;
@@ -438,9 +454,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 }
                 if (Constants.SECTION_LEVEL_SCORE_CUTOFF.equalsIgnoreCase(scoreCutOffType)) {
                     long assessmentStartTime = 0;
-                    if (existingAssessmentData.get(Constants.START_TIME)!=null) {
-                        Date assessmentStart = (Date) existingAssessmentData.get(Constants.START_TIME);
-                        assessmentStartTime = assessmentStart.getTime();
+                    if (existingAssessmentData.get(Constants.START_TIME) != null) {
+                        assessmentStartTime = assessUtilServ.parseStartTimeToLong(existingAssessmentData.get(Constants.START_TIME));
                     }
                     Map<String, Object> result = calculateSectionFinalResults(sectionLevelsResults,assessmentStartTime,assessmentCompletionTime,maxAssessmentRetakeAttempts,retakeAttemptsConsumed);
                     outgoingResponse.getResult().putAll(result);
@@ -819,8 +834,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                                                          Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory, String userAuthToken) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Long existingAssessmentStartTime = (Long) questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = Instant.ofEpochMilli(existingAssessmentStartTime);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
@@ -1339,6 +1353,22 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
+            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
+            if (StringUtils.isBlank(assessmentLanguageReq)) {
+                assessmentLanguageReq = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if (StringUtils.isNotBlank(assessmentLanguageReq)) {
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq);
+                }
+            }else{
+                String assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if(assessmentLanguageReq.equalsIgnoreCase(assessmentLanguage)){
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq.toLowerCase());
+                }else{
+                    errMsg = String.format("Assessment language mismatch. Expected: %s, Provided: %s", assessmentLanguage, assessmentLanguageReq);
+                    updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
+                    return outgoingResponse;
+                }
+            }
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
             int retakeAttemptsConsumed;
@@ -1431,8 +1461,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             if (Constants.SECTION_LEVEL_SCORE_CUTOFF.equalsIgnoreCase(scoreCutOffType)) {
                 long assessmentStartTime = 0;
                 if (existingAssessmentData.get(Constants.START_TIME)!=null) {
-                    Date assessmentStart = (Date) existingAssessmentData.get(Constants.START_TIME);
-                    assessmentStartTime = assessmentStart.getTime();
+                    assessmentStartTime=assessUtilServ.parseStartTimeToLong(existingAssessmentData.get(Constants.START_TIME));
                 }
                 Map<String, Object> result = calculateSectionFinalResults(sectionLevelsResults,assessmentStartTime,assessmentCompletionTime,maxAssessmentRetakeAttempts,retakeAttemptsConsumed);
                 outgoingResponse.getResult().putAll(result);
