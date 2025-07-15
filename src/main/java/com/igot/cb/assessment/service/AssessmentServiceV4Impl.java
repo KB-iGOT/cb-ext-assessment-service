@@ -334,19 +334,20 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
-            String assessmentLanguage = (String) submitRequest.get(Constants.LANGUAGE);
-            if(StringUtils.isBlank(assessmentLanguage)){
-                Map<String,Object> assessmentResponse=assessUtilServ.readAssessmentRecord(assessmentIdFromRequest,List.of(Constants.LANGUAGE));
-                if (MapUtils.isNotEmpty(assessmentResponse)) {
-                    Object contentObj = assessmentResponse.get(Constants.CONTENT);
-                    if (contentObj instanceof Map) {
-                        Map<String, Object> content = (Map<String, Object>) contentObj;
-                        Object languageObj = content.get(Constants.LANGUAGE);
-                        if (languageObj instanceof List && !((List<?>) languageObj).isEmpty()) {
-                            assessmentLanguage = ((List<?>) languageObj).get(0).toString();
-                            submitRequest.put(Constants.LANGUAGE, assessmentLanguage);
-                        }
-                    }
+            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
+            if (StringUtils.isBlank(assessmentLanguageReq)) {
+                assessmentLanguageReq = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if (StringUtils.isNotBlank(assessmentLanguageReq)) {
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq);
+                }
+            }else{
+                String assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if(assessmentLanguageReq.equalsIgnoreCase(assessmentLanguage)){
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq.toLowerCase());
+                }else{
+                    errMsg = String.format("Assessment language mismatch. Expected: %s, Provided: %s", assessmentLanguage, assessmentLanguageReq);
+                    updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
+                    return outgoingResponse;
                 }
             }
             String assessmentPrimaryCategory = (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY);
@@ -916,8 +917,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                                          String userAuthToken, boolean shouldUpdateContentProgress) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                String existingAssessmentStartTime = questionSetFromAssessment.get(Constants.START_TIME).toString();
-                Instant startTime = Instant.ofEpochMilli(Long.parseLong(existingAssessmentStartTime));
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);

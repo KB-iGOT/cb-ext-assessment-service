@@ -78,9 +78,12 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         if (MapUtils.isNotEmpty(saveSubmitAssessmentRequest)) {
             fieldsToBeUpdated.put("savepointsubmitreq", new Gson().toJson(saveSubmitAssessmentRequest));
         }
-        String language = (String) submitAssessmentRequest.get(Constants.LANGUAGE);
-        if (StringUtils.isNotBlank(language)) {
-            fieldsToBeUpdated.put(Constants.LANGUAGE, language);
+        if (submitAssessmentRequest.get(Constants.LANGUAGE) instanceof String &&
+                StringUtils.isNotBlank((String) submitAssessmentRequest.get(Constants.LANGUAGE))) {
+            fieldsToBeUpdated.put(
+                    Constants.LANGUAGE,
+                    ((String) submitAssessmentRequest.get(Constants.LANGUAGE)).toLowerCase()
+            );
         }
         cassandraOperation.updateRecord(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER_ASSESSMENT_DATA,
                 fieldsToBeUpdated, compositeKeys);
