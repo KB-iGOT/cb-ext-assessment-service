@@ -1363,6 +1363,7 @@ public class Constants {
     public static final String PREFIX_VALIDATE_CONTEXT_LOCKING = "AssessmentUtilServiceV2Impl:: validateContextLocking::";
     public static final String PREFIX_VALIDATE_COMPLETED_COURSE = "AssessmentUtilServiceV2Impl:: isAllCourseCompleted:";
     public static final String PRE_ENROLLED_ASSESSMENT_KEY = "Pre Enrolment Assessment";
+    public static final String LANGUAGE = "language";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
