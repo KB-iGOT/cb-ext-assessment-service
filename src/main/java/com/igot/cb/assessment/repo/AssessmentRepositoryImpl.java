@@ -80,7 +80,7 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         }
         String language = (String) submitAssessmentRequest.get(Constants.LANGUAGE);
         if (StringUtils.isNotBlank(language)) {
-            fieldsToBeUpdated.put(Constants.LANGUAGE, language);
+            fieldsToBeUpdated.put(Constants.LANGUAGE, language.toLowerCase());
         }
         cassandraOperation.updateRecord(Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER_ASSESSMENT_DATA,
                 fieldsToBeUpdated, compositeKeys);
