@@ -1181,7 +1181,6 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					.append("?fields=").append(fieldsStr);
 
 			headers.put(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON);
-			logger.info("Making call for assessment read: {}", assessmentIdentifier);
 
 			Map<String, Object> response = outboundRequestHandlerService.fetchResultUsingGet(sbUrl.toString(), headers);
 			if (MapUtils.isNotEmpty(response)) {
@@ -1195,10 +1194,10 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						}
 					}
 				} else {
-					logger.info("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in RESULT");
+					logger.error("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in RESULT");
 				}
 			} else {
-				logger.info("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in response");
+				logger.error("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in response");
 			}
 		} catch (Exception e) {
 			logger.error("Error during assessment read for {}: {}", assessmentIdentifier, e.getMessage(), e);
