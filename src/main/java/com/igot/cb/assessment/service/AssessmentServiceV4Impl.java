@@ -908,8 +908,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                                          String userAuthToken, boolean shouldUpdateContentProgress) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = assessUtilServ.parseStartTimeToInstant(startTimeObj);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);

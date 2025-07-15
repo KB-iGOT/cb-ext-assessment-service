@@ -415,8 +415,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId, Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = assessUtilServ.parseStartTimeToInstant(startTimeObj);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId, (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED, startTime,null);
                 if (Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
                     Map<String, Object> kafkaResult = new HashMap<>();

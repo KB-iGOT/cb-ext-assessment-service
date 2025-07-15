@@ -445,9 +445,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 }
                 if (Constants.SECTION_LEVEL_SCORE_CUTOFF.equalsIgnoreCase(scoreCutOffType)) {
                     long assessmentStartTime = 0;
-                    Object startTimeObj = existingAssessmentData.get(Constants.START_TIME);
-                    if (startTimeObj != null) {
-                        assessmentStartTime = assessUtilServ.parseStartTimeToLong(startTimeObj);
+                    if (existingAssessmentData.get(Constants.START_TIME) != null) {
+                        assessmentStartTime = assessUtilServ.parseStartTimeToLong(existingAssessmentData.get(Constants.START_TIME));
                     }
                     Map<String, Object> result = calculateSectionFinalResults(sectionLevelsResults,assessmentStartTime,assessmentCompletionTime,maxAssessmentRetakeAttempts,retakeAttemptsConsumed);
                     outgoingResponse.getResult().putAll(result);
@@ -826,8 +825,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                                                          Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory, String userAuthToken) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Object startTimeObj = questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = assessUtilServ.parseStartTimeToInstant(startTimeObj);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
@@ -1444,9 +1442,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             }
             if (Constants.SECTION_LEVEL_SCORE_CUTOFF.equalsIgnoreCase(scoreCutOffType)) {
                 long assessmentStartTime = 0;
-                Object startTimeObj = existingAssessmentData.get(Constants.START_TIME);
-                if (startTimeObj!=null) {
-                    assessmentStartTime=assessUtilServ.parseStartTimeToLong(startTimeObj);
+                if (existingAssessmentData.get(Constants.START_TIME)!=null) {
+                    assessmentStartTime=assessUtilServ.parseStartTimeToLong(existingAssessmentData.get(Constants.START_TIME));
                 }
                 Map<String, Object> result = calculateSectionFinalResults(sectionLevelsResults,assessmentStartTime,assessmentCompletionTime,maxAssessmentRetakeAttempts,retakeAttemptsConsumed);
                 outgoingResponse.getResult().putAll(result);
