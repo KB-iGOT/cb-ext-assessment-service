@@ -222,8 +222,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
                     Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration, assessmentStartTime, 0);
 
-                    assessmentData.put(Constants.START_TIME, assessmentStartTime.toEpochMilli());
-                    assessmentData.put(Constants.END_TIME, assessmentEndTime.toEpochMilli());
+                    assessmentData.put(Constants.START_TIME, assessmentStartTime);
+                    assessmentData.put(Constants.END_TIME, assessmentEndTime);
                     response.getResult().put(Constants.QUESTION_SET, assessmentData);
                     Boolean isAssessmentUpdatedToDB = assessmentRepository.addUserAssesmentDataToDB(userId,
                             assessmentIdentifier, assessmentStartTime, assessmentEndTime,
