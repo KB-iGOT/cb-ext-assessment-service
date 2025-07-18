@@ -141,23 +141,39 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			List<String> correctOption = new ArrayList<>();
 			//questionMap = fetchQuestionMapDetails(questionId);
 			Map<String, Object> question = (Map<String, Object>) questionMap.get(questionId);
+			if (question == null) {
+				ret.put(questionId, correctOption);
+				continue;
+			}
 			if (question.containsKey(Constants.QUESTION_TYPE)) {
 				String questionType = ((String) question.get(Constants.QUESTION_TYPE)).toLowerCase();
 				Map<String, Object> editorStateObj = (Map<String, Object>) question.get(Constants.EDITOR_STATE);
+				if (editorStateObj == null) {
+					ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
+					continue;
+				}
 				List<Map<String, Object>> options = (List<Map<String, Object>>) editorStateObj.get(Constants.OPTIONS);
+				if (options == null) {
+					ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
+					continue;
+				}
 				switch (questionType) {
 					case Constants.MTF:
 						for (Map<String, Object> option : options) {
 							Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-							correctOption.add(valueObj.get(Constants.VALUE).toString() + "-"
-									+ option.get(Constants.ANSWER).toString().toLowerCase());
+							if (valueObj != null && valueObj.get(Constants.VALUE) != null && option.get(Constants.ANSWER) != null) {
+								correctOption.add(valueObj.get(Constants.VALUE).toString() + "-"
+										+ option.get(Constants.ANSWER).toString().toLowerCase());
+							}
 						}
 						break;
 					case Constants.FTB:
 						for (Map<String, Object> option : options) {
-							if ((boolean) option.get(Constants.ANSWER)) {
+							if (Boolean.TRUE.equals(option.get(Constants.ANSWER))) {
 								Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-								correctOption.add(valueObj.get(Constants.BODY).toString());
+								if (valueObj != null && valueObj.get(Constants.BODY) != null) {
+									correctOption.add(valueObj.get(Constants.BODY).toString());
+								}
 							}
 						}
 						break;
@@ -165,22 +181,28 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					case Constants.MCQ_MCA:
 					case Constants.MCQ_SCA_TF:
 						for (Map<String, Object> option : options) {
-							if ((boolean) option.get(Constants.ANSWER)) {
+							if (Boolean.TRUE.equals(option.get(Constants.ANSWER))) {
 								Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-								correctOption.add(valueObj.get(Constants.VALUE).toString());
+								if (valueObj != null && valueObj.get(Constants.VALUE) != null) {
+									correctOption.add(valueObj.get(Constants.VALUE).toString());
+								}
 							}
 						}
 						break;
 					default:
 						break;
 				}
+				ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 			} else {
-				for (Map<String, Object> options : (List<Map<String, Object>>) question.get(Constants.OPTIONS)) {
-					if ((boolean) options.get(Constants.IS_CORRECT))
-						correctOption.add(options.get(Constants.OPTION_ID).toString());
+				List<Map<String, Object>> options = (List<Map<String, Object>>) question.get(Constants.OPTIONS);
+				if (options != null) {
+					for (Map<String, Object> opt : options) {
+						if (Boolean.TRUE.equals(opt.get(Constants.IS_CORRECT)) && opt.get(Constants.OPTION_ID) != null)
+							correctOption.add(opt.get(Constants.OPTION_ID).toString());
+					}
 				}
+				ret.put(question.get(Constants.IDENTIFIER) != null ? question.get(Constants.IDENTIFIER).toString() : questionId, correctOption);
 			}
-			ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 		}
 
 		return ret;

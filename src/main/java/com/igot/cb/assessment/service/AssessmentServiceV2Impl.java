@@ -258,8 +258,10 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
             } else if (ObjectUtils.isEmpty(userQuestionSet)) {
                 if (!((String) assessmentAllDetail.get(Constants.PRIMARY_CATEGORY)).equalsIgnoreCase(Constants.PRACTICE_QUESTION_SET)) {
                     List<Map<String, Object>> existingDataList = assessmentRepository.fetchUserAssessmentDataFromDB(userId, assessmentIdFromRequest);
-                    String questionSetFromAssessmentString = (!existingDataList.isEmpty()) ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE) : "";
-                    if (!questionSetFromAssessmentString.isEmpty()) {
+                    String questionSetFromAssessmentString = (!existingDataList.isEmpty())
+                            ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE)
+                            : "";
+                    if (StringUtils.isNotBlank(questionSetFromAssessmentString)) {
                         userAssessmentAllDetail.putAll(new Gson().fromJson(questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
                         }.getType()));
                     } else {
@@ -332,7 +334,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                         }));
                     } else {
                         existingDataList = assessmentRepository.fetchUserAssessmentDataFromDB(userId, (String) submitRequest.get(Constants.IDENTIFIER));
-                        String questionSetFromAssessmentString = (!existingDataList.isEmpty()) ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE) : "";
+                        String questionSetFromAssessmentString = (!existingDataList.isEmpty()) ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE_KEY) : "";
                         if (!questionSetFromAssessmentString.isEmpty()) {
                             questionSetFromAssessment = new Gson().fromJson(questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
                             }.getType());
