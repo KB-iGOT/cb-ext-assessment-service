@@ -258,7 +258,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
             } else if (ObjectUtils.isEmpty(userQuestionSet)) {
                 if (!((String) assessmentAllDetail.get(Constants.PRIMARY_CATEGORY)).equalsIgnoreCase(Constants.PRACTICE_QUESTION_SET)) {
                     List<Map<String, Object>> existingDataList = assessmentRepository.fetchUserAssessmentDataFromDB(userId, assessmentIdFromRequest);
-                    String questionSetFromAssessmentString = (!existingDataList.isEmpty())
+                    String questionSetFromAssessmentString = CollectionUtils.isNotEmpty(existingDataList)
                             ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE)
                             : "";
                     if (StringUtils.isNotBlank(questionSetFromAssessmentString)) {
