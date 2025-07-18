@@ -237,6 +237,10 @@ public class AssessmentServiceImpl implements AssessmentService {
                             redisCacheMgr.putCache(Constants.ASSESSMENT_QNS_SET + assessmentContentId, assessmentQnsSet);
                         }
                     }
+                }else {
+                    logger.error("Error while fetching assessment content: " + response.getResponseCode());
+                    result.put(Constants.STATUS, Constants.FAILED);
+                    result.put(Constants.ERROR, "Error while fetching assessment content");
                 }
 
             } else {

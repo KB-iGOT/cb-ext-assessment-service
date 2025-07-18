@@ -3,6 +3,7 @@ package com.igot.cb.common.util;
 import com.google.gson.*;
 import java.lang.reflect.Type;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 
 public class InstantTypeAdapter implements JsonSerializer<Instant>, JsonDeserializer<Instant> {
     @Override
@@ -12,6 +13,10 @@ public class InstantTypeAdapter implements JsonSerializer<Instant>, JsonDeserial
 
     @Override
     public Instant deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-        return Instant.parse(json.getAsString());
+        try {
+            return Instant.parse(json.getAsString());
+        } catch (DateTimeParseException e) {
+            throw new JsonParseException("Invalid Instant format: " + json.getAsString(), e);
+        }
     }
 }
