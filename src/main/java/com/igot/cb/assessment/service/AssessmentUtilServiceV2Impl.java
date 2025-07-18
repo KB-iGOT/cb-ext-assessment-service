@@ -139,21 +139,20 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 
 		for (String questionId : questions) {
 			List<String> correctOption = new ArrayList<>();
-			//questionMap = fetchQuestionMapDetails(questionId);
 			Map<String, Object> question = (Map<String, Object>) questionMap.get(questionId);
-			if (question == null) {
+			if (MapUtils.isEmpty(question)) {
 				ret.put(questionId, correctOption);
 				continue;
 			}
 			if (question.containsKey(Constants.QUESTION_TYPE)) {
 				String questionType = ((String) question.get(Constants.QUESTION_TYPE)).toLowerCase();
 				Map<String, Object> editorStateObj = (Map<String, Object>) question.get(Constants.EDITOR_STATE);
-				if (editorStateObj == null) {
+				if (MapUtils.isEmpty(editorStateObj)) {
 					ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 					continue;
 				}
 				List<Map<String, Object>> options = (List<Map<String, Object>>) editorStateObj.get(Constants.OPTIONS);
-				if (options == null) {
+				if (CollectionUtils.isEmpty(options)) {
 					ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 					continue;
 				}
@@ -161,7 +160,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					case Constants.MTF:
 						for (Map<String, Object> option : options) {
 							Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-							if (valueObj != null && valueObj.get(Constants.VALUE) != null && option.get(Constants.ANSWER) != null) {
+							if (MapUtils.isNotEmpty(valueObj) && valueObj.get(Constants.VALUE) != null && option.get(Constants.ANSWER) != null) {
 								correctOption.add(valueObj.get(Constants.VALUE).toString() + "-"
 										+ option.get(Constants.ANSWER).toString().toLowerCase());
 							}
@@ -171,7 +170,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						for (Map<String, Object> option : options) {
 							if (Boolean.TRUE.equals(option.get(Constants.ANSWER))) {
 								Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-								if (valueObj != null && valueObj.get(Constants.BODY) != null) {
+								if (MapUtils.isNotEmpty(valueObj) && valueObj.get(Constants.BODY) != null) {
 									correctOption.add(valueObj.get(Constants.BODY).toString());
 								}
 							}
@@ -183,7 +182,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						for (Map<String, Object> option : options) {
 							if (Boolean.TRUE.equals(option.get(Constants.ANSWER))) {
 								Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-								if (valueObj != null && valueObj.get(Constants.VALUE) != null) {
+								if (MapUtils.isNotEmpty(valueObj) && valueObj.get(Constants.VALUE) != null) {
 									correctOption.add(valueObj.get(Constants.VALUE).toString());
 								}
 							}
@@ -195,7 +194,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 			} else {
 				List<Map<String, Object>> options = (List<Map<String, Object>>) question.get(Constants.OPTIONS);
-				if (options != null) {
+				if (!CollectionUtils.isEmpty(options)) {
 					for (Map<String, Object> opt : options) {
 						if (Boolean.TRUE.equals(opt.get(Constants.IS_CORRECT)) && opt.get(Constants.OPTION_ID) != null)
 							correctOption.add(opt.get(Constants.OPTION_ID).toString());
