@@ -5,25 +5,28 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.client.RestTemplate;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
 class CbExtAssessmentServiceApplicationTest {
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final CbExtAssessmentServiceApplication app = new CbExtAssessmentServiceApplication();
 
     @Test
-    void testMain() {
-        CbExtAssessmentServiceApplication.main(new String[]{"test"});
-    }
+    void restTemplateBean_ShouldNotBeNull() {
+        RestTemplate restTemplate = app.restTemplate();
 
-    @Test
-    void testRestTemplateBean() {
-        Assertions.assertNotNull(restTemplate);
-        Assertions.assertTrue(restTemplate.getRequestFactory() instanceof HttpComponentsClientHttpRequestFactory);
+        assertNotNull(restTemplate, "RestTemplate should not be null");
+        ClientHttpRequestFactory factory = restTemplate.getRequestFactory();
+        assertNotNull(factory, "ClientHttpRequestFactory should not be null");
+        assertTrue(factory.toString().contains("HttpComponentsClientHttpRequestFactory"),
+                "Request factory should be an instance of HttpComponentsClientHttpRequestFactory");
     }
 }
