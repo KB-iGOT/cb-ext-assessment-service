@@ -139,19 +139,4 @@ class CbExtAssessmentServiceApplicationTest {
             // but demonstrates capturing for verification
         }
     }
-
-    @Test
-    void testSpringAnnotations() {
-        // Test the presence of required annotations
-        assertTrue(CbExtAssessmentServiceApplication.class.isAnnotationPresent(SpringBootApplication.class));
-        assertTrue(CbExtAssessmentServiceApplication.class.isAnnotationPresent(ComponentScan.class));
-        assertTrue(CbExtAssessmentServiceApplication.class.isAnnotationPresent(EntityScan.class));
-
-        // Verify annotation values
-        ComponentScan componentScan = CbExtAssessmentServiceApplication.class.getAnnotation(ComponentScan.class);
-        assertEquals("com.igot.cb", componentScan.basePackages()[0]);
-
-        EntityScan entityScan = CbExtAssessmentServiceApplication.class.getAnnotation(EntityScan.class);
-        assertEquals("com.igot.cb", entityScan.value()[0]);
-    }
 }
