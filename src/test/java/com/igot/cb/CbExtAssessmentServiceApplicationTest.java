@@ -1,5 +1,6 @@
 package com.igot.cb;
 
+import com.igot.cb.common.helper.cassandra.CassandraConnectionManagerImpl;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
