@@ -1,53 +1,28 @@
 package com.igot.cb;
 
-import com.igot.cb.common.helper.cassandra.CassandraConnectionManagerImpl;
-import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.junit.jupiter.api.Assertions;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.verify;
 
-@ExtendWith(SpringExtension.class)
-@SpringBootTest
 class CbExtAssessmentServiceApplicationTest {
 
-    @InjectMocks
-    private CbExtAssessmentServiceApplication application;
+    private final CbExtAssessmentServiceApplication application = new CbExtAssessmentServiceApplication();
 
     @Test
     void testMain() {
-        // Testing the main method using MockedStatic
         try (MockedStatic<SpringApplication> mockedStatic = Mockito.mockStatic(SpringApplication.class)) {
-            // Arrange and Act
             CbExtAssessmentServiceApplication.main(new String[]{"arg1", "arg2"});
-
-            // Assert
             mockedStatic.verify(() ->
                     SpringApplication.run(eq(CbExtAssessmentServiceApplication.class), eq(new String[]{"arg1", "arg2"}))
             );
@@ -56,88 +31,63 @@ class CbExtAssessmentServiceApplicationTest {
 
     @Test
     void testRestTemplate() {
-        // Create actual RestTemplate
         RestTemplate restTemplate = application.restTemplate();
-
-        // Verify not null and correct type
         assertNotNull(restTemplate);
-
-        // Verify the RestTemplate has the correct RequestFactory type
-        Object requestFactory = ReflectionTestUtils.getField(restTemplate, "requestFactory");
+        ClientHttpRequestFactory requestFactory = restTemplate.getRequestFactory();
         assertNotNull(requestFactory);
         assertTrue(requestFactory instanceof HttpComponentsClientHttpRequestFactory);
     }
 
     @Test
     void testGetClientHttpRequestFactory_UsingReflection() throws Exception {
-        // Access private method via reflection
         Method method = CbExtAssessmentServiceApplication.class.getDeclaredMethod("getClientHttpRequestFactory");
         method.setAccessible(true);
-
-        // Invoke the method
         ClientHttpRequestFactory factory = (ClientHttpRequestFactory) method.invoke(application);
-
-        // Assert factory is created correctly
         assertNotNull(factory);
         assertTrue(factory instanceof HttpComponentsClientHttpRequestFactory);
-
-        // Verify HttpClient configuration by examining the factory
         HttpComponentsClientHttpRequestFactory httpFactory = (HttpComponentsClientHttpRequestFactory) factory;
-
-        // Access private httpClient field
         Field httpClientField = HttpComponentsClientHttpRequestFactory.class.getDeclaredField("httpClient");
         httpClientField.setAccessible(true);
-        CloseableHttpClient httpClient = (CloseableHttpClient) httpClientField.get(httpFactory);
-        assertNotNull(httpClient);
+        assertNotNull(httpClientField.get(httpFactory));
     }
 
     @Test
-    void testGetClientHttpRequestFactory_UsingSubclass() throws Exception{
-
+    void testGetClientHttpRequestFactory_UsingSubclass() throws Exception {
         Method method = CbExtAssessmentServiceApplication.class.getDeclaredMethod("getClientHttpRequestFactory");
         method.setAccessible(true);
         ClientHttpRequestFactory factory = (ClientHttpRequestFactory) method.invoke(application);
-
-        // Assert factory is created correctly
         assertNotNull(factory);
         assertTrue(factory instanceof HttpComponentsClientHttpRequestFactory);
     }
 
     @Test
     void testGetClientHttpRequestFactory_ConfigValues() throws Exception {
-        // Use reflection to access private method
         Method method = CbExtAssessmentServiceApplication.class.getDeclaredMethod("getClientHttpRequestFactory");
         method.setAccessible(true);
-
-        // Create mock objects for static methods
         try (MockedStatic<org.apache.hc.client5.http.impl.classic.HttpClients> httpClientsMock =
                      Mockito.mockStatic(org.apache.hc.client5.http.impl.classic.HttpClients.class)) {
-
-            // Mock builder chain
             org.apache.hc.client5.http.impl.classic.HttpClientBuilder builderMock = mock(org.apache.hc.client5.http.impl.classic.HttpClientBuilder.class);
-            CloseableHttpClient httpClientMock = mock(CloseableHttpClient.class);
-
-            // Set up expectations for the builder pattern
+            org.apache.hc.client5.http.impl.classic.CloseableHttpClient httpClientMock = mock(org.apache.hc.client5.http.impl.classic.CloseableHttpClient.class);
             httpClientsMock.when(org.apache.hc.client5.http.impl.classic.HttpClients::custom).thenReturn(builderMock);
-            when(builderMock.setDefaultRequestConfig(any(RequestConfig.class))).thenReturn(builderMock);
-            when(builderMock.setConnectionManager(any(PoolingHttpClientConnectionManager.class))).thenReturn(builderMock);
+            when(builderMock.setDefaultRequestConfig(any())).thenReturn(builderMock);
+            when(builderMock.setConnectionManager(any())).thenReturn(builderMock);
             when(builderMock.build()).thenReturn(httpClientMock);
-
-            // Capture RequestConfig to verify timeout
-            ArgumentCaptor<RequestConfig> configCaptor = ArgumentCaptor.forClass(RequestConfig.class);
-            ArgumentCaptor<PoolingHttpClientConnectionManager> managerCaptor =
-                    ArgumentCaptor.forClass(PoolingHttpClientConnectionManager.class);
-
-            // Invoke method
             method.invoke(application);
-
-            // Verify calls and capture arguments
-            verify(builderMock).setDefaultRequestConfig(configCaptor.capture());
-            verify(builderMock).setConnectionManager(managerCaptor.capture());
+            verify(builderMock).setDefaultRequestConfig(any());
+            verify(builderMock).setConnectionManager(any());
             verify(builderMock).build();
+        }
+    }
 
-            // This part won't actually work since RequestConfig doesn't expose its values easily
-            // but demonstrates capturing for verification
+    // Helper to access private fields
+    private Object getField(Object obj, String fieldName) {
+        try {
+            Field field = obj.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.get(obj);
+        } catch (Exception e) {
+            return null;
         }
     }
 }
+
