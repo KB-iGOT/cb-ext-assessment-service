@@ -1,32 +1,93 @@
 package com.igot.cb;
 
-import org.junit.jupiter.api.Assertions;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.boot.SpringApplication;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.client.RestTemplate;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
-@ExtendWith(SpringExtension.class)
-@SpringBootTest
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 class CbExtAssessmentServiceApplicationTest {
 
-    private final CbExtAssessmentServiceApplication app = new CbExtAssessmentServiceApplication();
+    private final CbExtAssessmentServiceApplication application = new CbExtAssessmentServiceApplication();
 
     @Test
-    void restTemplateBean_ShouldNotBeNull() {
-        RestTemplate restTemplate = app.restTemplate();
+    void testMain() {
+        try (MockedStatic<SpringApplication> mockedStatic = Mockito.mockStatic(SpringApplication.class)) {
+            CbExtAssessmentServiceApplication.main(new String[]{"arg1", "arg2"});
+            mockedStatic.verify(() ->
+                    SpringApplication.run(eq(CbExtAssessmentServiceApplication.class), eq(new String[]{"arg1", "arg2"}))
+            );
+        }
+    }
 
-        assertNotNull(restTemplate, "RestTemplate should not be null");
-        ClientHttpRequestFactory factory = restTemplate.getRequestFactory();
-        assertNotNull(factory, "ClientHttpRequestFactory should not be null");
-        assertTrue(factory.toString().contains("HttpComponentsClientHttpRequestFactory"),
-                "Request factory should be an instance of HttpComponentsClientHttpRequestFactory");
+    @Test
+    void testRestTemplate() {
+        RestTemplate restTemplate = application.restTemplate();
+        assertNotNull(restTemplate);
+        ClientHttpRequestFactory requestFactory = restTemplate.getRequestFactory();
+        assertNotNull(requestFactory);
+        assertTrue(requestFactory instanceof HttpComponentsClientHttpRequestFactory);
+    }
+
+    @Test
+    void testGetClientHttpRequestFactory_UsingReflection() throws Exception {
+        Method method = CbExtAssessmentServiceApplication.class.getDeclaredMethod("getClientHttpRequestFactory");
+        method.setAccessible(true);
+        ClientHttpRequestFactory factory = (ClientHttpRequestFactory) method.invoke(application);
+        assertNotNull(factory);
+        assertTrue(factory instanceof HttpComponentsClientHttpRequestFactory);
+        HttpComponentsClientHttpRequestFactory httpFactory = (HttpComponentsClientHttpRequestFactory) factory;
+        Field httpClientField = HttpComponentsClientHttpRequestFactory.class.getDeclaredField("httpClient");
+        httpClientField.setAccessible(true);
+        assertNotNull(httpClientField.get(httpFactory));
+    }
+
+    @Test
+    void testGetClientHttpRequestFactory_UsingSubclass() throws Exception {
+        Method method = CbExtAssessmentServiceApplication.class.getDeclaredMethod("getClientHttpRequestFactory");
+        method.setAccessible(true);
+        ClientHttpRequestFactory factory = (ClientHttpRequestFactory) method.invoke(application);
+        assertNotNull(factory);
+        assertTrue(factory instanceof HttpComponentsClientHttpRequestFactory);
+    }
+
+    @Test
+    void testGetClientHttpRequestFactory_ConfigValues() throws Exception {
+        Method method = CbExtAssessmentServiceApplication.class.getDeclaredMethod("getClientHttpRequestFactory");
+        method.setAccessible(true);
+        try (MockedStatic<org.apache.hc.client5.http.impl.classic.HttpClients> httpClientsMock =
+                     Mockito.mockStatic(org.apache.hc.client5.http.impl.classic.HttpClients.class)) {
+            org.apache.hc.client5.http.impl.classic.HttpClientBuilder builderMock = mock(org.apache.hc.client5.http.impl.classic.HttpClientBuilder.class);
+            org.apache.hc.client5.http.impl.classic.CloseableHttpClient httpClientMock = mock(org.apache.hc.client5.http.impl.classic.CloseableHttpClient.class);
+            httpClientsMock.when(org.apache.hc.client5.http.impl.classic.HttpClients::custom).thenReturn(builderMock);
+            when(builderMock.setDefaultRequestConfig(any())).thenReturn(builderMock);
+            when(builderMock.setConnectionManager(any())).thenReturn(builderMock);
+            when(builderMock.build()).thenReturn(httpClientMock);
+            method.invoke(application);
+            verify(builderMock).setDefaultRequestConfig(any());
+            verify(builderMock).setConnectionManager(any());
+            verify(builderMock).build();
+        }
+    }
+
+    // Helper to access private fields
+    private Object getField(Object obj, String fieldName) {
+        try {
+            Field field = obj.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.get(obj);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
+
