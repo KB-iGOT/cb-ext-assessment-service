@@ -1,6 +1,7 @@
 package com.igot.cb.common.helper.cassandra;
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.common.util.PropertiesCache;
@@ -12,6 +13,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,9 +54,22 @@ class CassandraConnectionManagerImplTest {
     }
 
     @Test
-    void testShutdownHook() {
-        Thread thread = new CassandraConnectionManagerImpl.ResourceCleanUp();
-        thread.start();
+    void testShutdownHook_closesSessions() throws Exception {
+        // Arrange
+        CqlSession mockSession1 = mock(CqlSession.class);
+        CqlSession mockSession2 = mock(CqlSession.class);
+        Map<String, CqlSession> sessionMap = getSessionMap();
+        sessionMap.clear();
+        sessionMap.put("ks1", mockSession1);
+        sessionMap.put("ks2", mockSession2);
+
+        // Act
+        CassandraConnectionManagerImpl.ResourceCleanUp cleanup = new CassandraConnectionManagerImpl.ResourceCleanUp();
+        cleanup.run();
+
+        // Assert
+        verify(mockSession1, times(1)).close();
+        verify(mockSession2, times(1)).close();
     }
 
     private ConsistencyLevel invokeGetConsistencyLevel() {
@@ -82,4 +97,54 @@ class CassandraConnectionManagerImplTest {
             assertEquals("Cassandra host is not configured", exception.getMessage()); // Adjust message if needed
         }
     }
+
+    @Test
+    void testGetSession_returnsExistingSession() {
+        CassandraConnectionManagerImpl manager = new CassandraConnectionManagerImpl();
+        CqlSession mockSession = mock(CqlSession.class);
+        when(mockSession.isClosed()).thenReturn(false);
+
+        // Inject session into map
+        String keyspace = "ks1";
+        var map = getSessionMap();
+        map.put(keyspace, mockSession);
+
+        CqlSession result = manager.getSession(keyspace);
+        assertSame(mockSession, result);
+    }
+
+    @Test
+    void testRegisterShutDownHook_noException() {
+        try (MockedStatic<Runtime> runtimeMock = mockStatic(Runtime.class)) {
+            Runtime mockRuntime = mock(Runtime.class);
+            runtimeMock.when(Runtime::getRuntime).thenReturn(mockRuntime);
+
+            CassandraConnectionManagerImpl.registerShutDownHook();
+
+            verify(mockRuntime, times(1)).addShutdownHook(any(Thread.class));
+        }
+    }
+
+    @Test
+    void testGetConsistencyLevel_blankProperty() {
+        try (MockedStatic<PropertiesCache> staticMock = mockStatic(PropertiesCache.class)) {
+            PropertiesCache cache = mock(PropertiesCache.class);
+            staticMock.when(PropertiesCache::getInstance).thenReturn(cache);
+            when(cache.readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL)).thenReturn("");
+            assertNull(invokeGetConsistencyLevel());
+        }
+    }
+
+    // Helper to access private static cassandraSessionMap
+    @SuppressWarnings("unchecked")
+    private Map<String, CqlSession> getSessionMap() {
+        try {
+            var field = CassandraConnectionManagerImpl.class.getDeclaredField("cassandraSessionMap");
+            field.setAccessible(true);
+            return (Map<String, CqlSession>) field.get(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

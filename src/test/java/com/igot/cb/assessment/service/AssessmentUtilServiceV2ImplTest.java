@@ -14,9 +14,11 @@ import com.igot.cb.common.util.Constants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
+import org.springframework.test.util.ReflectionTestUtils;
 
 
-
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.*;
 
@@ -45,8 +47,6 @@ class AssessmentUtilServiceV2ImplTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
     }
-
-    // --- validateQumlAssessment ---
 
     @Test
     void testValidateQumlAssessment_Positive() {
@@ -325,7 +325,6 @@ class AssessmentUtilServiceV2ImplTest {
         assertEquals(Constants.CONTENT_NOT_FOUND, result);
     }
 
-// --- readAssessmentRecord ---
 
     @Test
     void testReadAssessmentRecord_Positive() {
@@ -356,6 +355,147 @@ class AssessmentUtilServiceV2ImplTest {
 
         String lang = utilService.readAssessmentRecord(assessmentId, fields);
         assertEquals("", lang);
+    }
+
+    @Test
+    void testValidateQumlAssessmentV2_CorrectAndBlank() {
+        // Setup question set details
+        Map<String, Object> questionSetDetailsMap = new HashMap<>();
+        questionSetDetailsMap.put(Constants.ASSESSMENT_TYPE, Constants.QUESTION_WEIGHTAGE);
+        questionSetDetailsMap.put(Constants.MINIMUM_PASS_PERCENTAGE, 50);
+        questionSetDetailsMap.put(Constants.TOTAL_MARKS, 10);
+        Map<String, Object> sectionScheme = new HashMap<>();
+        sectionScheme.put("EASY", 10);
+        questionSetDetailsMap.put(Constants.QUESTION_SECTION_SCHEME, sectionScheme);
+        questionSetDetailsMap.put(Constants.NEGATIVE_MARKING_PERCENTAGE, "0%");
+
+        // Original question list
+        List<String> originalQuestionList = List.of("q1", "q2");
+
+        // Question map
+        Map<String, Object> questionMap = new HashMap<>();
+        Map<String, Object> q1 = new HashMap<>();
+        q1.put(Constants.IDENTIFIER, "q1");
+        q1.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        q1.put(Constants.EDITOR_STATE, Map.of(Constants.OPTIONS, List.of(
+                Map.of(Constants.INDEX, "1", Constants.SELECTED_ANSWER, true, Constants.ANSWER, true)
+        )));
+        q1.put(Constants.QUESTION_LEVEL, "EASY");
+        questionMap.put("q1", q1);
+
+        Map<String, Object> q2 = new HashMap<>();
+        q2.put(Constants.IDENTIFIER, "q2");
+        q2.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        q2.put(Constants.EDITOR_STATE, Map.of(Constants.OPTIONS, List.of(
+                Map.of(Constants.INDEX, "1", Constants.SELECTED_ANSWER, false, Constants.ANSWER, true)
+        )));
+        q2.put(Constants.QUESTION_LEVEL, "EASY");
+        questionMap.put("q2", q2);
+
+        // User question list: q1 answered, q2 blank
+        Map<String, Object> userQ1 = new HashMap<>(q1);
+        userQ1.put(Constants.RESULT, Constants.CORRECT);
+        List<Map<String, Object>> userQuestionList = new ArrayList<>();
+        userQuestionList.add(userQ1);
+        Map<String, Object> userQ2 = new HashMap<>(q2); // blank, no result
+        userQuestionList.add(userQ1);
+        userQuestionList.add(userQ2);
+        // Call method
+        Map<String, Object> result = utilService.validateQumlAssessmentV2(
+                questionSetDetailsMap, originalQuestionList, userQuestionList, questionMap);
+
+        assertNotNull(result);
+        assertEquals(0, result.get(Constants.CORRECT));
+        assertEquals(1, result.get(Constants.BLANK));
+        assertEquals(2, result.get(Constants.INCORRECT));
+        assertEquals(0.0, result.get(Constants.SECTION_MARKS));
+        assertEquals(10, result.get(Constants.TOTAL_MARKS));
+        assertEquals(Constants.FAIL, result.get(Constants.SECTION_RESULT));
+    }
+
+    @Test
+    void testGetQumlAnswersV2_MCQ_SCA() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        String qid = "q1";
+        Map<String, Object> questionMap = new HashMap<>();
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, qid);
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        Map<String, Object> editorState = new HashMap<>();
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.ANSWER, true);
+        Map<String, Object> valueObj = new HashMap<>();
+        valueObj.put(Constants.VALUE, "A");
+        option.put(Constants.VALUE, valueObj);
+        options.add(option);
+        editorState.put(Constants.OPTIONS, options);
+        question.put(Constants.EDITOR_STATE, editorState);
+        questionMap.put(qid, question);
+
+        // Mock mapper behavior
+        when(mapper.convertValue(any(), any(TypeReference.class)))
+                .thenReturn(question)
+                .thenReturn(editorState)
+                .thenReturn(options)
+                .thenReturn(valueObj);
+
+        List<String> questions = List.of(qid);
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswersV2", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, questions, questionMap);
+
+        assertNotNull(result);
+        assertTrue(result.containsKey(qid));
+        assertEquals(List.of("A"), result.get(qid));
+    }
+
+    @Test
+    void testIsAllCourseCompleted_AllCompleted() {
+        ReflectionTestUtils.setField(utilService, "cassandraOperation", cassandraOperation);
+
+        String userId = "user1";
+        List<String> courseIds = List.of("courseA", "courseB");
+        Map<String, Object> enrolment1 = new HashMap<>();
+        enrolment1.put(Constants.STATUS, Constants.ASSESSMENT_STATUS_COMPLETED);
+        enrolment1.put(Constants.COURSE_ID, "courseA");
+        Map<String, Object> enrolment2 = new HashMap<>();
+        enrolment2.put(Constants.STATUS, Constants.ASSESSMENT_STATUS_COMPLETED);
+        enrolment2.put(Constants.COURSE_ID, "courseB");
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList()))
+                .thenReturn(List.of(enrolment1, enrolment2));
+
+        boolean result = ReflectionTestUtils.invokeMethod(utilService, "isAllCourseCompleted", userId, courseIds);
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsAllCourseCompleted_NotAllCompleted() {
+        ReflectionTestUtils.setField(utilService, "cassandraOperation", cassandraOperation);
+
+        String userId = "user1";
+        List<String> courseIds = List.of("courseA", "courseB");
+        Map<String, Object> enrolment1 = new HashMap<>();
+        enrolment1.put(Constants.STATUS, Constants.ASSESSMENT_STATUS_COMPLETED);
+        enrolment1.put(Constants.COURSE_ID, "courseA");
+        Map<String, Object> enrolment2 = new HashMap<>();
+        enrolment2.put(Constants.STATUS, 0); // Not completed
+        enrolment2.put(Constants.COURSE_ID, "courseB");
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList()))
+                .thenReturn(List.of(enrolment1, enrolment2));
+
+        boolean result = ReflectionTestUtils.invokeMethod(utilService, "isAllCourseCompleted", userId, courseIds);
+        assertFalse(result);
+    }
+
+    @Test
+    void testIsAllCourseCompleted_EmptyCourseIds() {
+        boolean result = ReflectionTestUtils.invokeMethod(utilService, "isAllCourseCompleted", "user1", Collections.emptyList());
+        assertFalse(result);
     }
 
 }
