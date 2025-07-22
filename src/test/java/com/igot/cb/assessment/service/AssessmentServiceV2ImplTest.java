@@ -19,6 +19,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.*;
@@ -56,7 +57,7 @@ class AssessmentServiceV2ImplTest {
     private static final String USER_ID = "user123";
 
     @BeforeEach
-    void setUp() throws JsonProcessingException {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
@@ -413,6 +414,150 @@ class AssessmentServiceV2ImplTest {
         int count = (int) method.invoke(service, userAssessmentData);
 
         assertEquals(2, count);
+    }
+
+    @Test
+    void testCreateResponseMapWithProperStructure_WithResultMap() {
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+
+        Map<String, Object> hierarchySection = new HashMap<>();
+        hierarchySection.put(Constants.IDENTIFIER, "section1");
+        hierarchySection.put(Constants.OBJECT_TYPE, "Section");
+        hierarchySection.put(Constants.PRIMARY_CATEGORY, "Section");
+        hierarchySection.put(Constants.MINIMUM_PASS_PERCENTAGE, 60);
+
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put(Constants.RESULT, 75.0);
+        resultMap.put(Constants.TOTAL, 10);
+        resultMap.put(Constants.BLANK, 2);
+        resultMap.put(Constants.CORRECT, 7);
+        resultMap.put(Constants.INCORRECT, 1);
+
+        Map<String, Object> result = service.createResponseMapWithProperStructure(hierarchySection, resultMap);
+
+        assertEquals("section1", result.get(Constants.IDENTIFIER));
+        assertEquals("Section", result.get(Constants.OBJECT_TYPE));
+        assertEquals("Section", result.get(Constants.PRIMARY_CATEGORY));
+        assertEquals(60, result.get(Constants.PASS_PERCENTAGE));
+        assertEquals(75.0, result.get(Constants.RESULT));
+        assertEquals(10, result.get(Constants.TOTAL));
+        assertEquals(2, result.get(Constants.BLANK));
+        assertEquals(7, result.get(Constants.CORRECT));
+        assertEquals(1, result.get(Constants.INCORRECT));
+        assertEquals(true, result.get(Constants.PASS));
+        assertEquals(75.0, result.get(Constants.OVERALL_RESULT));
+    }
+
+    @Test
+    void testCreateResponseMapWithProperStructure_EmptyResultMap() {
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+
+        Map<String, Object> hierarchySection = new HashMap<>();
+        hierarchySection.put(Constants.IDENTIFIER, "section2");
+        hierarchySection.put(Constants.OBJECT_TYPE, "Section");
+        hierarchySection.put(Constants.PRIMARY_CATEGORY, "Section");
+        hierarchySection.put(Constants.MINIMUM_PASS_PERCENTAGE, 50);
+        hierarchySection.put(Constants.CHILDREN, Arrays.asList("q1", "q2", "q3"));
+
+        Map<String, Object> result = service.createResponseMapWithProperStructure(hierarchySection, null);
+
+        assertEquals("section2", result.get(Constants.IDENTIFIER));
+        assertEquals("Section", result.get(Constants.OBJECT_TYPE));
+        assertEquals("Section", result.get(Constants.PRIMARY_CATEGORY));
+        assertEquals(50, result.get(Constants.PASS_PERCENTAGE));
+        assertEquals(0.0, result.get(Constants.RESULT));
+        assertEquals(3, result.get(Constants.TOTAL));
+        assertEquals(3, result.get(Constants.BLANK));
+        assertEquals(0, result.get(Constants.CORRECT));
+        assertEquals(0, result.get(Constants.INCORRECT));
+        assertEquals(false, result.get(Constants.PASS));
+        assertEquals(0.0, result.get(Constants.OVERALL_RESULT));
+    }
+
+    @Test
+    void testCalculateAssessmentFinalResults() throws Exception {
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+
+        Map<String, Object> assessmentLevelResult = new HashMap<>();
+        assessmentLevelResult.put(Constants.RESULT, 85.0);
+        assessmentLevelResult.put(Constants.TOTAL, 20);
+        assessmentLevelResult.put(Constants.BLANK, 2);
+        assessmentLevelResult.put(Constants.CORRECT, 17);
+        assessmentLevelResult.put(Constants.PASS_PERCENTAGE, 60);
+        assessmentLevelResult.put(Constants.INCORRECT, 1);
+
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
+                "calculateAssessmentFinalResults", Map.class);
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(service, assessmentLevelResult);
+
+        assertNotNull(result);
+        assertEquals(85.0, result.get(Constants.OVERALL_RESULT));
+        assertEquals(20, result.get(Constants.TOTAL));
+        assertEquals(2, result.get(Constants.BLANK));
+        assertEquals(17, result.get(Constants.CORRECT));
+        assertEquals(60, result.get(Constants.PASS_PERCENTAGE));
+        assertEquals(1, result.get(Constants.INCORRECT));
+        assertEquals(true, result.get(Constants.PASS));
+        assertTrue(result.get(Constants.CHILDREN) instanceof List);
+        assertEquals(assessmentLevelResult, ((List<?>) result.get(Constants.CHILDREN)).get(0));
+    }
+
+    @Test
+    void testReadSectionLevelParams_PopulatesSectionDetailsCorrectly() throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+
+        CbExtAssessmentServerProperties mockProps = mock(CbExtAssessmentServerProperties.class);
+        List<String> sectionParams = List.of(Constants.IDENTIFIER, Constants.MINIMUM_PASS_PERCENTAGE, Constants.MAX_QUESTIONS);
+        when(mockProps.getAssessmentSectionParams()).thenReturn(sectionParams);
+
+        // Inject mock
+        try {
+            Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
+            propsField.setAccessible(true);
+            propsField.set(service, mockProps);
+        } catch (Exception e) {
+            fail("Failed to inject mock serverProperties");
+        }
+
+        // Prepare input assessmentAllDetail
+        Map<String, Object> section1 = new HashMap<>();
+        section1.put(Constants.IDENTIFIER, "section1");
+        section1.put(Constants.MINIMUM_PASS_PERCENTAGE, 60);
+        section1.put(Constants.MAX_QUESTIONS, 2);
+        Map<String, Object> q1 = new HashMap<>();
+        q1.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> q2 = new HashMap<>();
+        q2.put(Constants.IDENTIFIER, "q2");
+        section1.put(Constants.CHILDREN, List.of(q1, q2));
+
+        Map<String, Object> assessmentAllDetail = new HashMap<>();
+        assessmentAllDetail.put(Constants.CHILDREN, List.of(section1));
+
+        Map<String, Object> assessmentFilteredDetail = new HashMap<>();
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
+                "readSectionLevelParams", Map.class, Map.class);
+        method.setAccessible(true);
+        method.invoke(service, assessmentAllDetail, assessmentFilteredDetail);
+
+
+        // Assertions
+        assertTrue(assessmentFilteredDetail.containsKey(Constants.CHILDREN));
+        List<Map<String, Object>> sectionResponse = (List<Map<String, Object>>) assessmentFilteredDetail.get(Constants.CHILDREN);
+        assertEquals(1, sectionResponse.size());
+        Map<String, Object> newSection = sectionResponse.get(0);
+        assertEquals("section1", newSection.get(Constants.IDENTIFIER));
+        assertEquals(60, newSection.get(Constants.MINIMUM_PASS_PERCENTAGE));
+        assertTrue(newSection.containsKey(Constants.CHILD_NODES));
+        List<String> childNodes = (List<String>) newSection.get(Constants.CHILD_NODES);
+        assertEquals(2, childNodes.size());
+        assertTrue(childNodes.contains("q1") && childNodes.contains("q2"));
+
+        assertTrue(assessmentFilteredDetail.containsKey(Constants.CHILD_NODES));
+        List<String> sectionIdList = (List<String>) assessmentFilteredDetail.get(Constants.CHILD_NODES);
+        assertEquals(List.of("section1"), sectionIdList);
     }
 
 }
