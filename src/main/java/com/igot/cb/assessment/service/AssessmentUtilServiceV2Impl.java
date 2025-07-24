@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.igot.cb.common.util.ProjectUtil.updateErrorDetails;
+import static org.apache.commons.collections4.MapUtils.isNotEmpty;
 
 @Service
 public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
@@ -910,8 +911,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					blank++;
 					question.put(Constants.RESULT, Constants.BLANK);
 				} else {
-					List<String> answer = mapper.convertValue(answers.get(question.get(Constants.IDENTIFIER)), new TypeReference<List<String>>() {
-					});
+					List<String> answer = (List<String>) answers.get(question.get(Constants.IDENTIFIER));
 					sortAnswers(answer);
 					sortAnswers(marked);
 					if (assessmentType.equalsIgnoreCase(Constants.QUESTION_WEIGHTAGE)) {
@@ -960,8 +960,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 * @return Question set section scheme as a map of string to object
 	 */
 	private Map<String, Object> getQuestionSetSectionScheme(Map<String, Object> questionSetDetailsMap) {
-		return mapper.convertValue(questionSetDetailsMap.get(Constants.QUESTION_SECTION_SCHEME), new TypeReference<Map<String, Object>>() {
-		});
+		return safeToMap(questionSetDetailsMap.get(Constants.QUESTION_SECTION_SCHEME));
 	}
 
 	/**
@@ -1007,19 +1006,15 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		Map<String, Object> ret = new HashMap<>();
 		for (String questionId : questions) {
 			List<String> correctOption = new ArrayList<>();
-			Map<String, Object> question = mapper.convertValue(questionMap.get(questionId), new TypeReference<Map<String, Object>>() {
-			});
+			Map<String, Object> question =safeToMap(questionMap.get(questionId));
 			if (question.containsKey(Constants.QUESTION_TYPE)) {
 				String questionType = ((String) question.get(Constants.QUESTION_TYPE)).toLowerCase();
-				Map<String, Object> editorStateObj = mapper.convertValue(question.get(Constants.EDITOR_STATE), new TypeReference<Map<String, Object>>() {
-				});
-				List<Map<String, Object>> options = mapper.convertValue(editorStateObj.get(Constants.OPTIONS), new TypeReference<List<Map<String, Object>>>() {
-				});
+				Map<String, Object> editorStateObj = safeToMap(question.get(Constants.EDITOR_STATE));
+				List<Map<String, Object>> options = safeToList(editorStateObj.get(Constants.OPTIONS));
 				switch (questionType) {
 					case Constants.MTF:
 						for (Map<String, Object> option : options) {
-							Map<String, Object> valueObj = mapper.convertValue(option.get(Constants.VALUE), new TypeReference<Map<String, Object>>() {
-							});
+							Map<String, Object> valueObj = safeToMap(option.get(Constants.VALUE));
 							correctOption.add(valueObj.get(Constants.VALUE).toString() + "-"
 									+ option.get(Constants.ANSWER).toString().toLowerCase());
 						}
@@ -1028,8 +1023,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						for (Map<String, Object> option : options) {
 							if ((boolean) option.get(Constants.ANSWER)) {
 								int position = Integer.parseInt((String) option.get("position")) - 1;
-								Map<String, Object> valueObj = mapper.convertValue(option.get(Constants.VALUE), new TypeReference<Map<String, Object>>() {
-								});
+								Map<String, Object> valueObj = safeToMap(option.get(Constants.VALUE));
 								correctOption.add(position + "-" + valueObj.get(Constants.BODY).toString());
 							}
 						}
@@ -1039,8 +1033,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					case Constants.MCQ_SCA_TF:
 						for (Map<String, Object> option : options) {
 							if ((boolean) option.get(Constants.ANSWER)) {
-								Map<String, Object> valueObj = mapper.convertValue(option.get(Constants.VALUE), new TypeReference<Map<String, Object>>() {
-								});
+								Map<String, Object> valueObj = safeToMap(option.get(Constants.VALUE));
 								correctOption.add(valueObj.get(Constants.VALUE).toString());
 							}
 						}
@@ -1073,11 +1066,8 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	private void handleqTypeQuestionV2(Map<String, Object> question, List<String> marked, String assessmentType) {
 		if (question.containsKey(Constants.QUESTION_TYPE)) {
 			String questionType = ((String) question.get(Constants.QUESTION_TYPE)).toLowerCase();
-			Map<String, Object> editorStateObj = mapper.convertValue(question.get(Constants.EDITOR_STATE), new TypeReference<Map<String, Object>>() {
-			});
-			List<Map<String, Object>> options = mapper.convertValue(editorStateObj.get(Constants.OPTIONS),
-					new TypeReference<List<Map<String, Object>>>() {
-					});
+			Map<String, Object> editorStateObj = safeToMap(question.get(Constants.EDITOR_STATE));
+			List<Map<String, Object>> options = safeToList(editorStateObj.get(Constants.OPTIONS));
 			getMarkedIndexForEachQuestionV2(questionType, options, marked, assessmentType);
 		}
 	}
@@ -1264,5 +1254,23 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		}
         return 0L;
     }
+
+	private Map<String, Object> safeToMap(Object input) {
+		if (input instanceof Map && isNotEmpty((Map<?, ?>) input)) {
+			return (Map<String, Object>) input;
+		} else if (input != null) {
+			return mapper.convertValue(input, new TypeReference<Map<String, Object>>() {});
+		}
+		return Collections.emptyMap();
+	}
+
+	private List<Map<String, Object>> safeToList(Object input) {
+		if (input instanceof List) {
+			return (List<Map<String, Object>>) input;
+		} else if (input != null) {
+			return mapper.convertValue(input, new TypeReference<List<Map<String, Object>>>() {});
+		}
+		return Collections.emptyList();
+	}
 
 }
