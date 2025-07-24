@@ -560,4 +560,124 @@ class AssessmentServiceV2ImplTest {
         assertEquals(List.of("section1"), sectionIdList);
     }
 
+    @Test
+    void testReadAssessmentLevelData_withValidParams() throws Exception {
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, "q1");
+
+        Map<String, Object> section = new HashMap<>();
+        section.put(Constants.CHILDREN, List.of(question));
+
+        Map<String, Object> assessmentAllDetail = new HashMap<>();
+        assessmentAllDetail.put(Constants.IDENTIFIER, "assess1");
+        assessmentAllDetail.put(Constants.CHILDREN, List.of(section));
+
+        when(serverProperties.getAssessmentLevelParams()).thenReturn(List.of(Constants.IDENTIFIER));
+        when(serverProperties.getAssessmentSectionParams()).thenReturn(Collections.emptyList());
+
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
+        propsField.setAccessible(true);
+        propsField.set(service, serverProperties);
+
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod("readAssessmentLevelData", Map.class);
+        method.setAccessible(true);
+        Map<String, Object> result = (Map<String, Object>) method.invoke(service, assessmentAllDetail);
+        assertTrue(result.containsKey(Constants.IDENTIFIER));
+    }
+
+    @Test
+    void testReadAssessmentLevelData_withEmptyParams() throws Exception {
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+
+        // Inject mock serverProperties
+        Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
+        propsField.setAccessible(true);
+        propsField.set(service, serverProperties);
+
+        when(serverProperties.getAssessmentLevelParams()).thenReturn(Collections.emptyList());
+        when(serverProperties.getAssessmentSectionParams()).thenReturn(Collections.emptyList());
+
+        Map<String, Object> assessmentAllDetail = new HashMap<>();
+        assessmentAllDetail.put(Constants.CHILDREN, Collections.emptyList()); // Prevent NPE
+
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod("readAssessmentLevelData", Map.class);
+        method.setAccessible(true);
+        Map<String, Object> result = (Map<String, Object>) method.invoke(service, assessmentAllDetail);
+        assertNotNull(result);
+    }
+    // submitAssessment(Map, String, boolean)
+    @Test
+    void testSubmitAssessment_withNullUserId() throws Exception {
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.IDENTIFIER, "assess1");
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn(null);
+        SBApiResponse response = assessmentServiceV2.submitAssessment(submitRequest, TOKEN, false);
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testSubmitAssessment_withEmptyAssessmentId() throws Exception {
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.IDENTIFIER, "");
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn(USER_ID);
+        SBApiResponse response = assessmentServiceV2.submitAssessment(submitRequest, TOKEN, false);
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    // readAssessment(String, String)
+    @Test
+    void testReadAssessment_withInvalidToken() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn(null);
+        SBApiResponse response = assessmentServiceV2.readAssessment("assess1", TOKEN);
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testReadAssessment_withException() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenThrow(new RuntimeException("error"));
+        SBApiResponse response = assessmentServiceV2.readAssessment("assess1", TOKEN);
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    // readQuestionList(Map, String)
+    @Test
+    void testReadQuestionList_withEmptyRequestBody() {
+        Map<String, Object> requestBody = new HashMap<>();
+        SBApiResponse response = assessmentServiceV2.readQuestionList(requestBody, TOKEN);
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testReadQuestionList_withInvalidToken() {
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put(Constants.ASSESSMENT_ID_KEY, "assess1");
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn(null);
+        SBApiResponse response = assessmentServiceV2.readQuestionList(requestBody, TOKEN);
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    // fetchReadHierarchyDetails(Map, String, String)
+    @Test
+    void testFetchReadHierarchyDetails_withCacheHit() throws Exception {
+        Map<String, Object> assessmentAllDetail = new HashMap<>();
+        when(redisCacheMgr.getCache(anyString())).thenReturn("{\"primaryCategory\":\"Assessment\"}");
+        when(mapper.readValue(anyString(), any(TypeReference.class))).thenReturn(Map.of(Constants.PRIMARY_CATEGORY, "Assessment"));
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
+                "fetchReadHierarchyDetails", Map.class, String.class, String.class);
+        method.setAccessible(true);
+        String errMsg = (String) method.invoke(assessmentServiceV2, assessmentAllDetail, TOKEN, "assess1");
+        assertEquals("", errMsg);
+    }
+
+    @Test
+    void testFetchReadHierarchyDetails_withException() throws Exception {
+        Map<String, Object> assessmentAllDetail = new HashMap<>();
+        when(redisCacheMgr.getCache(anyString())).thenThrow(new RuntimeException("error"));
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
+                "fetchReadHierarchyDetails", Map.class, String.class, String.class);
+        method.setAccessible(true);
+        String errMsg = (String) method.invoke(assessmentServiceV2, assessmentAllDetail, TOKEN, "assess1");
+        assertEquals(Constants.ASSESSMENT_HIERARCHY_READ_FAILED, errMsg);
+    }
 }

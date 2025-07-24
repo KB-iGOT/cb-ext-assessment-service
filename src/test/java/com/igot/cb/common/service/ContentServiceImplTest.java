@@ -112,7 +112,7 @@ class ContentServiceImplTest {
     }
 
     @Test
-    void testReadContentFromCache_RedisHit() throws Exception {
+    void testReadContentFromCache_RedisHit() {
         when(dataCacheMgr.getContentFromCache(anyString())).thenReturn(Collections.emptyMap());
         String json = "{\"field1\":\"v1\",\"field2\":\"v2\"}";
         when(redisCacheMgr.getContentFromCache(anyString())).thenReturn(json);
@@ -129,7 +129,7 @@ class ContentServiceImplTest {
         Map<String, Object> response = Map.of(Constants.RESPONSE_CODE, Constants.OK, Constants.RESULT, resultMap);
         when(outboundRequestHandlerService.fetchResult(anyString())).thenReturn(response);
 
-        Map<String, Object> result = contentService.readContent("cid", Arrays.asList("field1"));
+        Map<String, Object> result = contentService.readContent("cid", List.of("field1"));
         assertEquals(content, result);
     }
 
@@ -138,7 +138,7 @@ class ContentServiceImplTest {
         Map<String, Object> response = Map.of(Constants.RESPONSE_CODE, "FAILED");
         when(outboundRequestHandlerService.fetchResult(anyString())).thenReturn(response);
 
-        Map<String, Object> result = contentService.readContent("cid", Arrays.asList("field1"));
+        Map<String, Object> result = contentService.readContent("cid", List.of("field1"));
         assertNull(result);
     }
 
@@ -161,5 +161,99 @@ class ContentServiceImplTest {
         assertEquals(Constants.FAILED, resp.getParams().getStatus());
         assertEquals("err", resp.getParams().getErrmsg());
         assertEquals(HttpStatus.BAD_REQUEST, resp.getResponseCode());
+    }
+
+    @Test
+    void testReadContentFromCache_FieldsEmpty() {
+        Map<String, Object> cacheData = Map.of("field1", "v1", "field2", "v2");
+        when(dataCacheMgr.getContentFromCache(anyString())).thenReturn(cacheData);
+        when(serverConfig.getDefaultContentProperties()).thenReturn(Arrays.asList("field1", "field2"));
+        Map<String, Object> result = contentService.readContentFromCache("cid", Collections.emptyList());
+        assertEquals(cacheData, result);
+    }
+
+    @Test
+    void testReadContentFromCache_RedisBlankFallback() {
+        when(dataCacheMgr.getContentFromCache(anyString())).thenReturn(Collections.emptyMap());
+        when(redisCacheMgr.getContentFromCache(anyString())).thenReturn("");
+        Map<String, Object> fallback = Map.of("field1", "v1");
+        ContentServiceImpl spy = spy(contentService);
+        doReturn(fallback).when(spy).readContent(anyString(), anyList());
+        Map<String, Object> result = spy.readContentFromCache("cid", List.of("field1"));
+        assertEquals(fallback, result);
+    }
+
+    @Test
+    void testReadContentFromCache_RedisInvalidJsonFallback() {
+        when(dataCacheMgr.getContentFromCache(anyString())).thenReturn(Collections.emptyMap());
+        when(redisCacheMgr.getContentFromCache(anyString())).thenReturn("invalid_json");
+        ContentServiceImpl spy = spy(contentService);
+        doReturn(Map.of("field1", "v1")).when(spy).readContent(anyString());
+        Map<String, Object> result = spy.readContentFromCache("cid", List.of("field1"));
+        assertEquals("v1", result.get("field1"));
+    }
+
+    @Test
+    void testReadContentFromCache_DataCacheHasMoreFields() {
+        Map<String, Object> cacheData = Map.of("field1", "v1", "field2", "v2", "extra", "x");
+        when(dataCacheMgr.getContentFromCache(anyString())).thenReturn(cacheData);
+        Map<String, Object> result = contentService.readContentFromCache("cid", Arrays.asList("field1", "field2"));
+        assertEquals(cacheData, result);
+    }
+
+    @Test
+    void testReadContent_ResponseNotOK() {
+        Map<String, Object> response = Map.of(Constants.RESPONSE_CODE, "ERROR");
+        when(outboundRequestHandlerService.fetchResult(anyString())).thenReturn(response);
+        Map<String, Object> result = contentService.readContent("cid", List.of("field1"));
+        assertNull(result);
+        // Additional assertion: verify fetchResult was called once
+        verify(outboundRequestHandlerService, times(1)).fetchResult(anyString());
+    }
+
+    @Test
+    void testReadContent_ResponseNull() {
+        when(outboundRequestHandlerService.fetchResult(anyString())).thenReturn(null);
+        Map<String, Object> result = contentService.readContent("cid", List.of("field1"));
+        assertNull(result);
+    }
+
+    @Test
+    void testGetHierarchyResponseMap_NotEmpty() {
+        Map<String, Object> response = Map.of("key", "value");
+        when(outboundRequestHandlerService.fetchResult(anyString())).thenReturn(response);
+        Map<String, Object> result = contentService.getHierarchyResponseMap("cid");
+        assertEquals(response, result);
+    }
+
+    @Test
+    void testUpdateContentProgress_ApiResponseNotOK() {
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put(Constants.IDENTIFIER, "id1");
+        reqBody.put(Constants.COURSE_ID, "cid");
+        reqBody.put(Constants.BATCH_ID, "bid");
+        reqBody.put(Constants.LANGUAGE, "en");
+        Map<String, Object> apiResponse = new HashMap<>();
+        apiResponse.put("responseCode", "FAILED");
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any())).thenReturn(apiResponse);
+        SBApiResponse outgoing = new SBApiResponse();
+        String result = contentService.updateContentProgress("token", reqBody, "user1", outgoing);
+        assertEquals("", result);
+        assertEquals(Constants.FAILED, outgoing.getParams().getStatus());
+    }
+
+    @Test
+    void testUpdateContentProgress_Exception() {
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put(Constants.IDENTIFIER, "id1");
+        reqBody.put(Constants.COURSE_ID, "cid");
+        reqBody.put(Constants.BATCH_ID, "bid");
+        reqBody.put(Constants.LANGUAGE, "en");
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenThrow(new RuntimeException("fail"));
+        SBApiResponse outgoing = new SBApiResponse();
+        String result = contentService.updateContentProgress("token", reqBody, "user1", outgoing);
+        assertEquals("", result);
+        assertEquals(Constants.FAILED, outgoing.getParams().getStatus());
     }
 }
