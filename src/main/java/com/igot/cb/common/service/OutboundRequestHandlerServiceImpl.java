@@ -16,6 +16,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -115,6 +116,7 @@ public class OutboundRequestHandlerServiceImpl {
                         new TypeReference<HashMap<String, Object>>() {
                         });
             } catch (Exception e1) {
+                return Collections.emptyMap();
             }
             log.error("Error received: " + e.getResponseBodyAsString(), e);
         }

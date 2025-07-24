@@ -47,4 +47,23 @@ class ResponseCodeTest {
         assertEquals("", ResponseCode.OK.getMessage(200));
         assertEquals("", ResponseCode.unAuthorized.getMessage(401));
     }
+
+    @Test
+    void testGetResponse_UnknownErrorCode() {
+        // Should return null for unknown error code
+        assertNull(ResponseCode.getResponse("UNKNOWN_CODE"));
+    }
+
+    @Test
+    void testSettersAndGetters_AllEnums() {
+        for (ResponseCode code : ResponseCode.values()) {
+            code.setErrorCode("ERR_" + code.name());
+            code.setErrorMessage("MSG_" + code.name());
+            code.setResponseCode(999);
+
+            assertEquals("ERR_" + code.name(), code.getErrorCode());
+            assertEquals("MSG_" + code.name(), code.getErrorMessage());
+            assertEquals(999, code.getResponseCode());
+        }
+    }
 }

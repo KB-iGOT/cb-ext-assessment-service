@@ -261,5 +261,35 @@ class AssessmentUtilServiceImplTest {
         assertTrue(ObjectUtils.isEmpty(result.getQuestions().get(0).getOptions()));
     }
 
+    @Test
+    void testGetAnswerKeyForAssessmentAuthoringPreview_ReturnsNull() {
+        Map<String, Object> contentMeta = new HashMap<>();
+        assertNull(utilService.getAnswerKeyForAssessmentAuthoringPreview(contentMeta));
+    }
+
+    @Test
+    void testGetAnswerKeyForAssessmentAuthoringPreview_WithNonEmptyInput() {
+        Map<String, Object> contentMeta = new HashMap<>();
+        contentMeta.put("dummyKey", "dummyValue");
+        assertNull(utilService.getAnswerKeyForAssessmentAuthoringPreview(contentMeta));
+    }
+
+    @Test
+    void testValidateAssessment_WithAnswers_MissingQuestionId() {
+        Map<String, Object> option = new HashMap<>();
+        option.put("optionId", "opt1");
+        option.put("userSelected", true);
+
+        Map<String, Object> question = new HashMap<>();
+        question.put("questionId", "q11");
+        question.put("questionType", "mcq-sca");
+        question.put("options", List.of(option));
+
+        List<Map<String, Object>> questions = List.of(question);
+        Map<String, Object> answers = new HashMap<>(); // Missing "q11" key
+
+        assertThrows(ApplicationLogicError.class, () -> utilService.validateAssessment(questions, answers));
+    }
+
 
 }
