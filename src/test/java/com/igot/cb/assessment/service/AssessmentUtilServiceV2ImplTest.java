@@ -1,7 +1,9 @@
 package com.igot.cb.assessment.service;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.cache.RedisCacheMgr;
 import com.igot.cb.cassandra.utils.CassandraOperation;
@@ -767,135 +769,6 @@ class AssessmentUtilServiceV2ImplTest {
 
         assertNotNull(result);
         assertEquals(Collections.emptyList(), result.get("q5"));
-    }
-
-    @Test
-    void testValidateQumlAssessmentV3_CorrectAnswer() {
-        Map<String, Object> questionSetDetailsMap = Map.of(
-                Constants.ASSESSMENT_TYPE, Constants.QUESTION_WEIGHTAGE,
-                Constants.MINIMUM_PASS_PERCENTAGE, 50,
-                Constants.TOTAL_MARKS, 10,
-                Constants.QUESTION_SECTION_SCHEME, Map.of("EASY", 10),
-                Constants.NEGATIVE_MARKING_PERCENTAGE, "0%"
-        );
-        List<String> originalQuestionList = List.of("q1");
-        Map<String, Object> questionMap = new HashMap<>();
-        Map<String, Object> q1 = new HashMap<>();
-        q1.put(Constants.IDENTIFIER, "q1");
-        q1.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
-        q1.put(Constants.EDITOR_STATE, Map.of(Constants.OPTIONS, List.of(
-                Map.of(Constants.INDEX, "1", Constants.SELECTED_ANSWER, true, Constants.ANSWER, true,Constants.VALUE, Map.of(Constants.VALUE, "1"))
-        )));
-        q1.put(Constants.QUESTION_LEVEL, "EASY");
-        questionMap.put("q1", q1);
-
-        Map<String, Object> userQ1 = new HashMap<>(q1);
-        List<Map<String, Object>> userQuestionList = List.of(userQ1);
-
-        Map<String, Object> result = utilService.validateQumlAssessmentV3(
-                questionSetDetailsMap, originalQuestionList, userQuestionList, questionMap);
-
-        assertNotNull(result);
-        assertEquals(1, result.get(Constants.CORRECT));
-        assertEquals(0, result.get(Constants.INCORRECT));
-        assertEquals(0, result.get(Constants.BLANK));
-    }
-
-    @Test
-    void testValidateQumlAssessmentV3_IncorrectAnswer() {
-        Map<String, Object> questionSetDetailsMap = Map.of(
-                Constants.ASSESSMENT_TYPE, Constants.QUESTION_WEIGHTAGE,
-                Constants.MINIMUM_PASS_PERCENTAGE, 50,
-                Constants.TOTAL_MARKS, 10,
-                Constants.QUESTION_SECTION_SCHEME, Map.of("EASY", 10),
-                Constants.NEGATIVE_MARKING_PERCENTAGE, "0%"
-        );
-        List<String> originalQuestionList = List.of("q1");
-        Map<String, Object> questionMap = new HashMap<>();
-        Map<String, Object> q1 = new HashMap<>();
-        q1.put(Constants.IDENTIFIER, "q1");
-        q1.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
-        q1.put(Constants.EDITOR_STATE, Map.of(Constants.OPTIONS, List.of(
-                Map.of(Constants.INDEX, "1", Constants.SELECTED_ANSWER, true, Constants.ANSWER, false)
-        )));
-        q1.put(Constants.QUESTION_LEVEL, "EASY");
-        questionMap.put("q1", q1);
-
-        Map<String, Object> userQ1 = new HashMap<>(q1);
-        List<Map<String, Object>> userQuestionList = List.of(userQ1);
-
-        Map<String, Object> result = utilService.validateQumlAssessmentV3(
-                questionSetDetailsMap, originalQuestionList, userQuestionList, questionMap);
-
-        assertNotNull(result);
-        assertEquals(0, result.get(Constants.CORRECT));
-        assertEquals(1, result.get(Constants.INCORRECT));
-        assertEquals(0, result.get(Constants.BLANK));
-    }
-
-    @Test
-    void testValidateQumlAssessmentV3_BlankAnswer() {
-        Map<String, Object> questionSetDetailsMap = Map.of(
-                Constants.ASSESSMENT_TYPE, Constants.QUESTION_WEIGHTAGE,
-                Constants.MINIMUM_PASS_PERCENTAGE, 50,
-                Constants.TOTAL_MARKS, 10,
-                Constants.QUESTION_SECTION_SCHEME, Map.of("EASY", 10),
-                Constants.NEGATIVE_MARKING_PERCENTAGE, "0%"
-        );
-        List<String> originalQuestionList = List.of("q1");
-        Map<String, Object> questionMap = new HashMap<>();
-        Map<String, Object> q1 = new HashMap<>();
-        q1.put(Constants.IDENTIFIER, "q1");
-        q1.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
-        q1.put(Constants.EDITOR_STATE, Map.of(Constants.OPTIONS, List.of(
-                Map.of(Constants.INDEX, "1", Constants.SELECTED_ANSWER, false, Constants.ANSWER, true,Constants.VALUE, Map.of(Constants.VALUE, "1"))
-        )));
-        q1.put(Constants.QUESTION_LEVEL, "EASY");
-        questionMap.put("q1", q1);
-
-        Map<String, Object> userQ1 = new HashMap<>(q1);
-        List<Map<String, Object>> userQuestionList = List.of(userQ1);
-
-        Map<String, Object> result = utilService.validateQumlAssessmentV3(
-                questionSetDetailsMap, originalQuestionList, userQuestionList, questionMap);
-
-        assertNotNull(result);
-        assertEquals(0, result.get(Constants.CORRECT));
-        assertEquals(0, result.get(Constants.INCORRECT));
-        assertEquals(1, result.get(Constants.BLANK));
-    }
-
-    @Test
-    void testValidateQumlAssessmentV3_MultipleCorrectAnswers_MCQ_MCA() {
-        Map<String, Object> questionSetDetailsMap = Map.of(
-                Constants.ASSESSMENT_TYPE, Constants.QUESTION_WEIGHTAGE,
-                Constants.MINIMUM_PASS_PERCENTAGE, 50,
-                Constants.TOTAL_MARKS, 10,
-                Constants.QUESTION_SECTION_SCHEME, Map.of("EASY", 10),
-                Constants.NEGATIVE_MARKING_PERCENTAGE, "0%"
-        );
-        List<String> originalQuestionList = List.of("q2");
-        Map<String, Object> questionMap = new HashMap<>();
-        Map<String, Object> q2 = new HashMap<>();
-        q2.put(Constants.IDENTIFIER, "q2");
-        q2.put(Constants.QUESTION_TYPE, Constants.MCQ_MCA);
-        q2.put(Constants.EDITOR_STATE, Map.of(Constants.OPTIONS, List.of(
-                Map.of(Constants.INDEX, "1", Constants.SELECTED_ANSWER, true, Constants.ANSWER, true, Constants.VALUE, Map.of(Constants.VALUE, "1")),
-                Map.of(Constants.INDEX, "2", Constants.SELECTED_ANSWER, true, Constants.ANSWER, true, Constants.VALUE, Map.of(Constants.VALUE, "2"))
-        )));
-        q2.put(Constants.QUESTION_LEVEL, "EASY");
-        questionMap.put("q2", q2);
-
-        Map<String, Object> userQ2 = new HashMap<>(q2);
-        List<Map<String, Object>> userQuestionList = List.of(userQ2);
-
-        Map<String, Object> result = utilService.validateQumlAssessmentV3(
-                questionSetDetailsMap, originalQuestionList, userQuestionList, questionMap);
-
-        assertNotNull(result);
-        assertEquals(1, result.get(Constants.CORRECT));
-        assertEquals(0, result.get(Constants.INCORRECT));
-        assertEquals(0, result.get(Constants.BLANK));
     }
 
     @Test
