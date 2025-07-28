@@ -901,4 +901,1251 @@ class AssessmentUtilServiceV2ImplTest {
         assertTrue(result.isEmpty());
     }
 
+    @Test
+    void testReadAssessmentRecord_Exception() {
+        String assessmentIdentifier = "assess1";
+        List<String> fields = List.of("field1", "field2");
+
+        when(outboundRequestHandlerService.fetchResultUsingGet(anyString(), anyMap()))
+                .thenThrow(new RuntimeException("Service error"));
+
+        String result = utilService.readAssessmentRecord(assessmentIdentifier, fields);
+
+        assertEquals("", result);
+    }
+
+    @Test
+    void testSortAnswers_MultipleElements() throws Exception {
+        List<String> answers = new ArrayList<>(Arrays.asList("C", "A", "B"));
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("sortAnswers", List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, answers);
+        assertEquals(Arrays.asList("A", "B", "C"), answers);
+    }
+
+    @Test
+    void testSortAnswers_SingleElement() throws Exception {
+        List<String> answers = new ArrayList<>(Collections.singletonList("A"));
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("sortAnswers", List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, answers);
+        assertEquals(Collections.singletonList("A"), answers);
+    }
+
+    @Test
+    void testSortAnswers_EmptyList() throws Exception {
+        List<String> answers = new ArrayList<>();
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("sortAnswers", List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, answers);
+        assertTrue(answers.isEmpty());
+    }
+
+    @Test
+    void testValidateQumlAssessment_CorrectAnswer() {
+        List<String> originalQuestionList = List.of("q1");
+        Map<String, Object> questionMap = new HashMap<>();
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, "q1");
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.SELECTED_ANSWER, true);
+        option.put(Constants.ANSWER, true);
+        editorState.put(Constants.OPTIONS, List.of(option));
+        question.put(Constants.EDITOR_STATE, editorState);
+        questionMap.put("q1", question);
+
+        List<Map<String, Object>> userQuestionList = new ArrayList<>();
+        Map<String, Object> userQuestion = new HashMap<>(question);
+        userQuestionList.add(userQuestion);
+
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQuestionList, userQuestionList, questionMap);
+
+        assertNotNull(result);
+        assertTrue(result.containsKey(Constants.RESULT));
+        assertTrue(result.containsKey(Constants.CORRECT));
+        assertTrue(result.containsKey(Constants.INCORRECT));
+        assertTrue(result.containsKey(Constants.BLANK));
+    }
+
+    @Test
+    void testValidateQumlAssessment_IncorrectAnswer() {
+        List<String> originalQuestionList = List.of("q1");
+        Map<String, Object> questionMap = new HashMap<>();
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, "q1");
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.SELECTED_ANSWER, true);
+        option.put(Constants.ANSWER, false);
+        editorState.put(Constants.OPTIONS, List.of(option));
+        question.put(Constants.EDITOR_STATE, editorState);
+        questionMap.put("q1", question);
+
+        List<Map<String, Object>> userQuestionList = new ArrayList<>();
+        Map<String, Object> userQuestion = new HashMap<>(question);
+        userQuestionList.add(userQuestion);
+
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQuestionList, userQuestionList, questionMap);
+
+        assertNotNull(result);
+        assertTrue(result.containsKey(Constants.INCORRECT));
+        assertTrue((Integer) result.get(Constants.INCORRECT) > 0);
+    }
+
+    @Test
+    void testValidateQumlAssessment_Exception() {
+        // Pass invalid input to trigger catch block
+        Map<String, Object> result = utilService.validateQumlAssessment(null, null, null);
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testHandleBlankAnswers_NoBlank() throws Exception {
+        List<Map<String, Object>> userQuestionList = Arrays.asList(new HashMap<>(), new HashMap<>());
+        Map<String, Object> answers = new HashMap<>();
+        answers.put("q1", "A");
+        answers.put("q2", "B");
+        Integer blank = 0;
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("handleBlankAnswers", List.class, Map.class, Integer.class);
+        method.setAccessible(true);
+        Integer result = (Integer) method.invoke(utilService, userQuestionList, answers, blank);
+
+        assertEquals(0, result);
+    }
+
+    @Test
+    void testHandleBlankAnswers_WithBlank() throws Exception {
+        List<Map<String, Object>> userQuestionList = List.of(new HashMap<>());
+        Map<String, Object> answers = new HashMap<>();
+        answers.put("q1", "A");
+        answers.put("q2", "B");
+        Integer blank = 0;
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("handleBlankAnswers", List.class, Map.class, Integer.class);
+        method.setAccessible(true);
+        Integer result = (Integer) method.invoke(utilService, userQuestionList, answers, blank);
+
+        assertEquals(1, result);
+    }
+
+    @Test
+    void testHandleBlankAnswers_EmptyAnswers() throws Exception {
+        List<Map<String, Object>> userQuestionList = List.of(new HashMap<>());
+        Map<String, Object> answers = new HashMap<>();
+        Integer blank = 0;
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("handleBlankAnswers", List.class, Map.class, Integer.class);
+        method.setAccessible(true);
+        Integer result = (Integer) method.invoke(utilService, userQuestionList, answers, blank);
+
+        assertEquals(0, result);
+    }
+
+    @Test
+    void testHandleBlankAnswers_EmptyUserQuestions() throws Exception {
+        List<Map<String, Object>> userQuestionList = new ArrayList<>();
+        Map<String, Object> answers = new HashMap<>();
+        answers.put("q1", "A");
+        answers.put("q2", "B");
+        Integer blank = 0;
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("handleBlankAnswers", List.class, Map.class, Integer.class);
+        method.setAccessible(true);
+        Integer result = (Integer) method.invoke(utilService, userQuestionList, answers, blank);
+
+        assertEquals(2, result);
+    }
+
+    // MCQ_MCA: Multiple correct answers
+    @Test
+    void testGetQumlAnswersV2_MCQ_MCA_MultipleCorrect() throws Exception {
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswersV2", List.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> mcqMca = new HashMap<>();
+        mcqMca.put(Constants.IDENTIFIER, "q2");
+        mcqMca.put(Constants.QUESTION_TYPE, Constants.MCQ_MCA);
+        Map<String, Object> editorStateMca = new HashMap<>();
+        Map<String, Object> optionMca1 = new HashMap<>();
+        optionMca1.put(Constants.ANSWER, true);
+        optionMca1.put(Constants.VALUE, Map.of(Constants.VALUE, "B"));
+        Map<String, Object> optionMca2 = new HashMap<>();
+        optionMca2.put(Constants.ANSWER, true);
+        optionMca2.put(Constants.VALUE, Map.of(Constants.VALUE, "C"));
+        editorStateMca.put(Constants.OPTIONS, List.of(optionMca1, optionMca2));
+        mcqMca.put(Constants.EDITOR_STATE, editorStateMca);
+
+        Map<String, Object> questionMap = Map.of("q2", mcqMca);
+        List<String> questions = List.of("q2");
+
+        when(utilService.mapper.convertValue(any(), any(TypeReference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, questions, questionMap);
+
+        assertNotNull(result);
+        assertEquals(List.of("B", "C"), result.get("q2"));
+    }
+
+    // FTB: Fill the blank with position
+    @Test
+    void testGetQumlAnswersV2_FTB() throws Exception {
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswersV2", List.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> ftb = new HashMap<>();
+        ftb.put(Constants.IDENTIFIER, "q3");
+        ftb.put(Constants.QUESTION_TYPE, Constants.FTB);
+        Map<String, Object> editorStateFtb = new HashMap<>();
+        Map<String, Object> optionFtb = new HashMap<>();
+        optionFtb.put(Constants.ANSWER, true);
+        optionFtb.put("position", "2");
+        optionFtb.put(Constants.VALUE, Map.of(Constants.BODY, "D"));
+        editorStateFtb.put(Constants.OPTIONS, List.of(optionFtb));
+        ftb.put(Constants.EDITOR_STATE, editorStateFtb);
+
+        Map<String, Object> questionMap = Map.of("q3", ftb);
+        List<String> questions = List.of("q3");
+
+        when(utilService.mapper.convertValue(any(), any(TypeReference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, questions, questionMap);
+
+        assertNotNull(result);
+        assertEquals(List.of("1-D"), result.get("q3")); // position-1 (2-1)
+    }
+
+    // MTF: Match the following
+    @Test
+    void testGetQumlAnswersV2_MTF() throws Exception {
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswersV2", List.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> mtf = new HashMap<>();
+        mtf.put(Constants.IDENTIFIER, "q4");
+        mtf.put(Constants.QUESTION_TYPE, Constants.MTF);
+        Map<String, Object> editorStateMtf = new HashMap<>();
+        Map<String, Object> optionMtf = new HashMap<>();
+        optionMtf.put(Constants.ANSWER, true);
+        optionMtf.put(Constants.VALUE, Map.of(Constants.VALUE, "E"));
+        editorStateMtf.put(Constants.OPTIONS, List.of(optionMtf));
+        mtf.put(Constants.EDITOR_STATE, editorStateMtf);
+
+        Map<String, Object> questionMap = Map.of("q4", mtf);
+        List<String> questions = List.of("q4");
+
+        when(utilService.mapper.convertValue(any(), any(TypeReference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, questions, questionMap);
+
+        assertNotNull(result);
+        assertEquals(List.of("E-true"), result.get("q4"));
+    }
+
+    // Edge case: No options
+    @Test
+    void testGetQumlAnswersV2_NoOptions() throws Exception {
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswersV2", List.class, Map.class);
+        method.setAccessible(true);
+
+        Map<String, Object> mcqSca = new HashMap<>();
+        mcqSca.put(Constants.IDENTIFIER, "q5");
+        mcqSca.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        Map<String, Object> editorStateSca = new HashMap<>();
+        editorStateSca.put(Constants.OPTIONS, Collections.emptyList());
+        mcqSca.put(Constants.EDITOR_STATE, editorStateSca);
+
+        Map<String, Object> questionMap = Map.of("q5", mcqSca);
+        List<String> questions = List.of("q5");
+
+        when(utilService.mapper.convertValue(any(), any(TypeReference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, questions, questionMap);
+
+        assertNotNull(result);
+        assertEquals(Collections.emptyList(), result.get("q5"));
+    }
+
+    @Test
+    void testGetQumlAnswers_MCQ_SCA() throws Exception {
+        AssessmentUtilServiceV2Impl utilService = new AssessmentUtilServiceV2Impl();
+        String qid = "q1";
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, qid);
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.ANSWER, true);
+        option.put(Constants.VALUE, Map.of(Constants.VALUE, "A"));
+        editorState.put(Constants.OPTIONS, List.of(option));
+        question.put(Constants.EDITOR_STATE, editorState);
+        Map<String, Object> questionMap = Map.of(qid, question);
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswers", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, List.of(qid), questionMap);
+        assertEquals(List.of("A"), result.get(qid));
+    }
+
+    @Test
+    void testGetQumlAnswers_MCQ_MCA() throws Exception {
+        AssessmentUtilServiceV2Impl utilService = new AssessmentUtilServiceV2Impl();
+        String qid = "q2";
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, qid);
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_MCA);
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option1 = new HashMap<>();
+        option1.put(Constants.ANSWER, true);
+        option1.put(Constants.VALUE, Map.of(Constants.VALUE, "B"));
+        Map<String, Object> option2 = new HashMap<>();
+        option2.put(Constants.ANSWER, true);
+        option2.put(Constants.VALUE, Map.of(Constants.VALUE, "C"));
+        editorState.put(Constants.OPTIONS, List.of(option1, option2));
+        question.put(Constants.EDITOR_STATE, editorState);
+        Map<String, Object> questionMap = Map.of(qid, question);
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswers", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, List.of(qid), questionMap);
+        assertEquals(List.of("B", "C"), result.get(qid));
+    }
+
+    @Test
+    void testGetQumlAnswers_FTB() throws Exception {
+        AssessmentUtilServiceV2Impl utilService = new AssessmentUtilServiceV2Impl();
+        String qid = "q3";
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, qid);
+        question.put(Constants.QUESTION_TYPE, Constants.FTB);
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.ANSWER, true);
+        option.put(Constants.VALUE, Map.of(Constants.BODY, "D"));
+        editorState.put(Constants.OPTIONS, List.of(option));
+        question.put(Constants.EDITOR_STATE, editorState);
+        Map<String, Object> questionMap = Map.of(qid, question);
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswers", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, List.of(qid), questionMap);
+        assertEquals(List.of("D"), result.get(qid));
+    }
+
+    @Test
+    void testGetQumlAnswers_MTF() throws Exception {
+        AssessmentUtilServiceV2Impl utilService = new AssessmentUtilServiceV2Impl();
+        String qid = "q4";
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, qid);
+        question.put(Constants.QUESTION_TYPE, Constants.MTF);
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.ANSWER, true);
+        option.put(Constants.VALUE, Map.of(Constants.VALUE, "E"));
+        editorState.put(Constants.OPTIONS, List.of(option));
+        question.put(Constants.EDITOR_STATE, editorState);
+        Map<String, Object> questionMap = Map.of(qid, question);
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswers", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, List.of(qid), questionMap);
+        assertEquals(List.of("E-true"), result.get(qid));
+    }
+
+    @Test
+    void testGetQumlAnswers_NoOptions() throws Exception {
+        AssessmentUtilServiceV2Impl utilService = new AssessmentUtilServiceV2Impl();
+        String qid = "q5";
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, qid);
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        Map<String, Object> editorState = new HashMap<>();
+        editorState.put(Constants.OPTIONS, Collections.emptyList());
+        question.put(Constants.EDITOR_STATE, editorState);
+        Map<String, Object> questionMap = Map.of(qid, question);
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswers", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, List.of(qid), questionMap);
+        assertEquals(Collections.emptyList(), result.get(qid));
+    }
+
+    @Test
+    void testGetQumlAnswers_EmptyQuestion() throws Exception {
+        AssessmentUtilServiceV2Impl utilService = new AssessmentUtilServiceV2Impl();
+        String qid = "q6";
+        Map<String, Object> questionMap = Map.of(qid, Collections.emptyMap());
+
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("getQumlAnswers", List.class, Map.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) method.invoke(utilService, List.of(qid), questionMap);
+        assertEquals(Collections.emptyList(), result.get(qid));
+    }
+
+    @Test
+    void testValidateQumlAssessmentV3_EmptyInputs() {
+        Map<String, Object> result = utilService.validateQumlAssessmentV3(null, null, null, null);
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testValidateQumlAssessment_MTF() throws Exception {
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.MTF);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.ANSWER, true);
+        option.put(Constants.VALUE, Map.of(Constants.VALUE, "MatchA"));
+        editorState.put(Constants.OPTIONS, List.of(option));
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+
+        // User answer should match the expected structure
+        Map<String, Object> userQ = new HashMap<>(q);
+        Map<String, Object> userOption = new HashMap<>(option);
+        userOption.put(Constants.SELECTED_ANSWER, "MatchA");
+        editorState.put(Constants.OPTIONS, List.of(userOption));
+        userQ.put(Constants.EDITOR_STATE, editorState);
+
+        List<Map<String, Object>> userQList = List.of(userQ);
+
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQList, qMap);
+        assertEquals(1, result.get(Constants.INCORRECT));
+    }
+
+    @Test
+    void testValidateQumlAssessment_FTB() throws Exception {
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.FTB);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.SELECTED_ANSWER, "fillthis");
+        option.put(Constants.ANSWER, true);
+        option.put(Constants.VALUE, Map.of(Constants.BODY, "fillthis"));
+        editorState.put(Constants.OPTIONS, List.of(option));
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+
+        List<Map<String, Object>> userQ = List.of(new HashMap<>(q));
+
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        assertEquals(1, result.get(Constants.CORRECT));
+    }
+
+    @Test
+    void testValidateQumlAssessment_BlankAnswer() {
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+        // No options selected
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.SELECTED_ANSWER, false); // Not selected
+        editorState.put(Constants.OPTIONS, List.of(option));
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+
+        List<Map<String, Object>> userQ = List.of(new HashMap<>(q));
+
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        assertEquals(1, result.get(Constants.BLANK));
+    }
+
+    @Test
+    void testValidateQumlAssessment_MultipleAnswersSorting() {
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.MCQ_MCA);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+
+        Map<String, Object> option1 = new HashMap<>();
+        option1.put(Constants.INDEX, "B");
+        option1.put(Constants.SELECTED_ANSWER, true);
+        option1.put(Constants.ANSWER, true);
+        option1.put(Constants.VALUE, Map.of(Constants.VALUE, "B"));
+
+        Map<String, Object> option2 = new HashMap<>();
+        option2.put(Constants.INDEX, "A");
+        option2.put(Constants.SELECTED_ANSWER, true);
+        option2.put(Constants.ANSWER, true);
+        option2.put(Constants.VALUE, Map.of(Constants.VALUE, "A"));
+
+        editorState.put(Constants.OPTIONS, List.of(option1, option2));
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+
+        List<Map<String, Object>> userQ = List.of(new HashMap<>(q));
+
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        assertEquals(1, result.get(Constants.CORRECT));
+    }
+
+    @Test
+    void testFetchQuestionMapDetails_Positive() throws Exception {
+        // Arrange
+        String questionId = "q123";
+
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, questionId);
+
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put(Constants.QUESTIONS, List.of(question));
+
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put(Constants.RESULT, resultMap);
+        responseMap.put(Constants.RESPONSE_CODE, Constants.OK);
+
+        // Stub serverProperties and outboundRequestHandlerService used inside readQuestionDetails
+        when(serverProperties.getAssessmentHost()).thenReturn("http://localhost/");
+        when(serverProperties.getAssessmentQuestionListPath()).thenReturn("api/question/list");
+        when(serverProperties.getSbApiKey()).thenReturn("Bearer dummy-token");
+
+        // Stub outbound service call
+        when(outboundRequestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(responseMap);
+
+        // Reflectively call the private method
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod("fetchQuestionMapDetails", String.class);
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, Object>> result =
+                (Map<String, Map<String, Object>>) method.invoke(utilService, questionId);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.containsKey(questionId));
+        assertEquals(questionId, result.get(questionId).get(Constants.IDENTIFIER));
+    }
+
+    @Test
+    void testFetchQuestionIdentifierValue_InvalidResponse() throws Exception {
+        List<String> identifiers = List.of("q1");
+        List<Object> questionList = new ArrayList<>();
+        String primaryCategory = "category";
+
+        Map<String, Object> badResponse = new HashMap<>();
+        badResponse.put(Constants.RESPONSE_CODE, "ERROR"); // Not OK
+
+        when(serverProperties.getAssessmentHost()).thenReturn("http://localhost/");
+        when(serverProperties.getAssessmentQuestionListPath()).thenReturn("api/question/list");
+        when(serverProperties.getSbApiKey()).thenReturn("Bearer dummy");
+
+        when(outboundRequestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(badResponse);
+
+        String result = utilService.fetchQuestionIdentifierValue(identifiers, questionList, primaryCategory);
+
+        assertTrue(result.contains("Failed to get Question Details from the Question List API"));
+    }
+
+    @Test
+    void testValidateContextLocking_CoursesNotCompleted() {
+        Map<String, Object> assessmentAllDetail = Map.of(Constants.CONTEXT_CATEGORY_TAG, Constants.FINAL_PROGRAM_ASSESSMENT);
+        String parentContextId = "parent123";
+        SBApiResponse response = new SBApiResponse();
+        String userId = "user1";
+
+        Map<String, Object> contentDetails = new HashMap<>();
+        contentDetails.put(Constants.CONTEXT_LOCKING_TYPE, Constants.COURSE_ASSESSMENT_ONLY);
+
+        Set<String> courseIds = Set.of("course1", "course2");
+
+        when(contentService.readContentFromCache(eq(parentContextId), any())).thenReturn(contentDetails);
+        when(contentService.readChildCoursesFromCache(parentContextId)).thenReturn(courseIds);
+
+        // Mock private method isAllCourseCompleted to return false
+        ReflectionTestUtils.setField(utilService, "cassandraOperation", cassandraOperation);
+
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+
+        assertEquals(Constants.USER_COURSES_NOT_COMPLETED, result);
+    }
+
+    @Test
+    void testValidateContextLocking_UnsupportedFeature() {
+        Map<String, Object> assessmentAllDetail = Map.of(Constants.CONTEXT_CATEGORY_TAG, Constants.FINAL_PROGRAM_ASSESSMENT);
+        String parentContextId = "parent123";
+        SBApiResponse response = new SBApiResponse();
+        String userId = "user1";
+
+        Map<String, Object> contentDetails = new HashMap<>();
+        contentDetails.put(Constants.CONTEXT_LOCKING_TYPE, "UNKNOWN_LOCK_TYPE");
+
+        when(contentService.readContentFromCache(eq(parentContextId), any())).thenReturn(contentDetails);
+
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+
+        assertEquals(Constants.UNSUPPORTED_FEATURE, result);
+    }
+
+    @Test
+    void testValidateContextLocking_ContentNotFoundError() {
+        Map<String, Object> assessmentAllDetail = Map.of(Constants.CONTEXT_CATEGORY_TAG, Constants.FINAL_PROGRAM_ASSESSMENT);
+        String parentContextId = "parent123";
+        SBApiResponse response = new SBApiResponse();
+        String userId = "user1";
+
+        when(contentService.readContentFromCache(eq(parentContextId), any())).thenReturn(Collections.emptyMap());
+
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+
+        assertEquals(Constants.CONTENT_NOT_FOUND, result);
+    }
+
+    @Test
+    void testValidateContextLocking_InvalidCourseRequest() {
+        Map<String, Object> assessmentAllDetail = Map.of(Constants.CONTEXT_CATEGORY_TAG, Constants.FINAL_PROGRAM_ASSESSMENT);
+        String parentContextId = ""; // blank
+        SBApiResponse response = new SBApiResponse();
+        String userId = "user1";
+
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+
+        assertEquals(Constants.INVALID_COURSE_REQUEST, result);
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestionV2_MTF() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.SELECTED_ANSWER, "AnswerA");
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        ReflectionTestUtils.invokeMethod(utilService,
+                "getMarkedIndexForEachQuestionV2", Constants.MTF, options, marked, "anyType");
+
+        assertEquals(List.of("1-answera"), marked);
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestionV2_FTB() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "2");
+        option.put(Constants.SELECTED_ANSWER, "AnswerB");
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        ReflectionTestUtils.invokeMethod(utilService,
+                "getMarkedIndexForEachQuestionV2", Constants.FTB, options, marked, "anyType");
+
+        assertEquals(List.of("2-AnswerB"), marked);
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestionV2_MCQ_SCA_QuestionWeightage() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "3");
+        option.put(Constants.SELECTED_ANSWER, true);
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        // Call the private method via reflection
+        ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getMarkedIndexForEachQuestionV2",
+                Constants.MCQ_SCA,
+                options,
+                marked,
+                Constants.QUESTION_WEIGHTAGE
+        );
+
+        // Assert outcome instead of verifying private method
+        assertFalse(marked.isEmpty(), "Marked list should be populated");
+    }
+
+
+
+    @Test
+    void testGetMarkedIndexForEachQuestionV2_MCQ_SCA_OptionWeightage() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "3");
+        option.put(Constants.SELECTED_ANSWER, "true");  // Use string if expected by logic
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        // No spy needed
+        ReflectionTestUtils.invokeMethod(utilService,
+                "getMarkedIndexForEachQuestionV2",
+                Constants.MCQ_SCA,
+                options,
+                marked,
+                Constants.OPTION_WEIGHTAGE);
+
+        // Assert that marked list got updated
+        assertFalse(marked.isEmpty(), "Marked list should not be empty for MCQ_SCA with OPTION_WEIGHTAGE");
+    }
+
+
+
+    @Test
+    void testGetMarkedIndexForEachQuestionV2_MCQ_MCA_W_OptionWeightage() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "4");
+        option.put(Constants.SELECTED_ANSWER, "true");
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        // No spy needed since we're not verifying private method
+        ReflectionTestUtils.invokeMethod(utilService,
+                "getMarkedIndexForEachQuestionV2", Constants.MCQ_MCA_W, options, marked, Constants.OPTION_WEIGHTAGE);
+
+        // Validate that marking happened as expected
+        assertFalse(marked.isEmpty());
+    }
+
+
+    @Test
+    void testGetMarkedIndexForEachQuestionV2_Default() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "5");
+        option.put(Constants.SELECTED_ANSWER, true);
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        // Case: Unknown type → default case, nothing happens
+        ReflectionTestUtils.invokeMethod(utilService,
+                "getMarkedIndexForEachQuestionV2", "UNKNOWN_TYPE", options, marked, "UNKNOWN_ASSESSMENT");
+
+        assertTrue(marked.isEmpty());
+    }
+
+
+    @Test
+    void testHandleqTypeQuestionV2_MCQ_SCA_OptionWeightage() {
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.SELECTED_ANSWER, true);
+        List<Map<String, Object>> options = List.of(option);
+
+        Map<String, Object> editorState = new HashMap<>();
+        editorState.put(Constants.OPTIONS, options);
+
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA);
+        question.put(Constants.EDITOR_STATE, editorState);
+
+        List<String> marked = new ArrayList<>();
+
+        // Inject ObjectMapper into the service instance
+        ObjectMapper objectMapper = new ObjectMapper();
+        ReflectionTestUtils.setField(utilService, "mapper", objectMapper);
+
+        // Invoke private method
+        ReflectionTestUtils.invokeMethod(
+                utilService,
+                "handleqTypeQuestionV2",
+                question,
+                marked,
+                Constants.OPTION_WEIGHTAGE
+        );
+
+        assertFalse(marked.isEmpty(), "Marked list should be filled with processed answers");
+    }
+
+    @Test
+    void testGetQumlAnswersV2_WithoutQuestionType_UsesOptionsList() {
+        // Arrange
+        List<String> questions = List.of("q1");
+
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.IS_CORRECT, true);
+        option.put(Constants.OPTION_ID, "opt123");
+
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, "q1");
+        question.put(Constants.OPTIONS, List.of(option)); // No QUESTION_TYPE key
+
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put("q1", question);
+
+        // Inject ObjectMapper if it's not already initialized
+        ObjectMapper mapper = new ObjectMapper();
+        ReflectionTestUtils.setField(utilService, "mapper", mapper);
+
+        // Act
+        Map<String, Object> result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getQumlAnswersV2",
+                questions,
+                questionMap
+        );
+
+        // Assert
+        assertTrue(result.containsKey("q1"));
+        List<String> correctAnswers = (List<String>) result.get("q1");
+        assertEquals(1, correctAnswers.size());
+        assertEquals("opt123", correctAnswers.get(0));
+    }
+
+    @Test
+    void testGetTotalMarks_PositiveAndNegativeCases() {
+        // Prepare maps
+        Map<String, Object> validMap = new HashMap<>();
+        validMap.put(Constants.TOTAL_MARKS, 10); // Integer (instanceof Number)
+
+        Map<String, Object> invalidMap = new HashMap<>();
+        invalidMap.put(Constants.TOTAL_MARKS, "ten"); // Not a Number
+
+        // Use Reflection to call private method
+        int result1 = ReflectionTestUtils.invokeMethod(utilService, "getTotalMarks", validMap);
+        int result2 = ReflectionTestUtils.invokeMethod(utilService, "getTotalMarks", invalidMap);
+
+        // Assertions
+        assertEquals(10, result1);  // Valid integer case
+        assertEquals(0, result2);   // Invalid type returns 0
+    }
+
+
+    @Test
+    void testGetAssessmentType_ReturnsExpectedValue() {
+        Map<String, Object> questionSetDetailsMap = new HashMap<>();
+        questionSetDetailsMap.put(Constants.ASSESSMENT_TYPE, "option-weightage");
+
+        String result = ReflectionTestUtils.invokeMethod(utilService, "getAssessmentType", questionSetDetailsMap);
+
+        assertEquals("option-weightage", result);
+    }
+
+    @Test
+    void testGetMinimumPassPercentage_ValuePresent() {
+        Map<String, Object> questionSetDetailsMap = new HashMap<>();
+        questionSetDetailsMap.put(Constants.MINIMUM_PASS_PERCENTAGE, 60);
+
+        int result = ReflectionTestUtils.invokeMethod(utilService, "getMinimumPassPercentage", questionSetDetailsMap);
+
+        assertEquals(60, result);
+    }
+
+    @Test
+    void testGetQuestionSetSectionScheme() {
+        // Prepare test data
+        Map<String, Object> expectedScheme = new HashMap<>();
+        expectedScheme.put("section1", "details");
+
+        Map<String, Object> questionSetDetailsMap = new HashMap<>();
+        questionSetDetailsMap.put(Constants.QUESTION_SECTION_SCHEME, expectedScheme);
+
+        // Ensure mapper is initialized
+        ObjectMapper mapper = new ObjectMapper();
+        ReflectionTestUtils.setField(utilService, "mapper", mapper);
+
+        // Invoke method
+        Map<String, Object> result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getQuestionSetSectionScheme",
+                questionSetDetailsMap
+        );
+
+        // Assertion
+        assertNotNull(result);
+        assertEquals("details", result.get("section1"));
+    }
+
+    @Test
+    void testGetNegativeMarksValue() {
+        Map<String, Object> questionSetDetailsMap = new HashMap<>();
+        questionSetDetailsMap.put(Constants.NEGATIVE_MARKING_PERCENTAGE, "25%");
+
+        int result = ReflectionTestUtils.invokeMethod(
+                AssessmentUtilServiceV2Impl.class, // replace with your actual class
+                "getNegativeMarksValue",
+                questionSetDetailsMap
+        );
+
+        assertEquals(25, result);
+    }
+
+    @Test
+    void testShuffleOptions_ShouldReturnShuffledCopy() {
+        // Arrange
+        List<Map<String, Object>> originalList = new ArrayList<>();
+        Map<String, Object> option1 = Map.of("index", 1, "value", "A");
+        Map<String, Object> option2 = Map.of("index", 2, "value", "B");
+        Map<String, Object> option3 = Map.of("index", 3, "value", "C");
+
+        originalList.add(option1);
+        originalList.add(option2);
+        originalList.add(option3);
+
+        // Act
+        List<Map<String, Object>> result = AssessmentUtilServiceV2Impl.shuffleOptions(originalList);
+
+        // Assert
+        assertNotNull(result, "Shuffled list should not be null");
+        assertEquals(3, result.size(), "Shuffled list should have same size as original");
+
+        // Should contain same elements regardless of order
+        assertTrue(result.containsAll(originalList), "Shuffled list should contain all original elements");
+
+        // Optional: Check if order is different (may occasionally fail due to chance)
+        boolean isShuffled = !result.equals(originalList);
+        // Allow for the rare chance that shuffle returns same order (don't fail the test on it)
+        System.out.println("Shuffled result: " + result);
+        System.out.println("Original list: " + originalList);
+    }
+
+    @Test
+    void testCalculatePassPercentage_QuestionWeightage() {
+        Map<String, Object> resultMap = new HashMap<>();
+        Double sectionMarks = 80.0;
+        Integer totalMarks = 100;
+        Integer correct = 0, blank = 0, inCorrect = 0;
+
+        // Act
+        ReflectionTestUtils.invokeMethod(
+                AssessmentUtilServiceV2Impl.class,
+                "calculatePassPercentage",
+                sectionMarks,
+                totalMarks,
+                correct,
+                blank,
+                inCorrect,
+                Constants.QUESTION_WEIGHTAGE,
+                resultMap
+        );
+
+        // Assert
+        assertEquals(80.0, resultMap.get(Constants.RESULT));
+        assertFalse(resultMap.containsKey(Constants.TOTAL), "TOTAL key should not be present in question weightage");
+    }
+
+    @Test
+    void testHandleCorrectAnswer_Success() {
+        // Given
+        Double sectionMarks = 5.0;
+
+        Map<String, Object> questionSetSectionScheme = new HashMap<>();
+        questionSetSectionScheme.put("level1", 10);  // level mapping to marks
+
+        Map<String, Object> proficiencyMap = new HashMap<>();
+        proficiencyMap.put(Constants.QUESTION_LEVEL, "level1");
+
+        // When
+        Double result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "handleCorrectAnswer",
+                sectionMarks,
+                questionSetSectionScheme,
+                proficiencyMap
+        );
+
+        // Then
+        assertEquals(15.0, result); // 5 + 10 = 15
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestion_MTF() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "1");
+        option.put(Constants.SELECTED_ANSWER, true);
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getMarkedIndexForEachQuestion",
+                Constants.MTF,
+                options,
+                marked,
+                Constants.QUESTION_WEIGHTAGE
+        );
+
+        assertEquals(1, marked.size());
+        assertEquals("1-true", marked.get(0));
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestion_FTB() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.SELECTED_ANSWER, "answer");
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getMarkedIndexForEachQuestion",
+                Constants.FTB,
+                options,
+                marked,
+                Constants.QUESTION_WEIGHTAGE
+        );
+
+        assertEquals(1, marked.size());
+        assertEquals("answer", marked.get(0));
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestion_MCQ_SCA_QuestionWeightage() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "2");
+        option.put(Constants.SELECTED_ANSWER, true);
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        // Mock or stub getMarkedIndexForQuestionWeightAge() if required
+        ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getMarkedIndexForEachQuestion",
+                Constants.MCQ_SCA,
+                options,
+                marked,
+                Constants.QUESTION_WEIGHTAGE
+        );
+
+        assertFalse(marked.isEmpty());
+    }
+
+    @Test
+    void testGetMarkedIndexForEachQuestion_MCQ_MCA_W_OptionWeightage() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.INDEX, "3");
+        option.put(Constants.SELECTED_ANSWER, true);
+        options.add(option);
+
+        List<String> marked = new ArrayList<>();
+
+        // Mock getMarkedIndexForOptionWeightAge() if needed
+        ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getMarkedIndexForEachQuestion",
+                Constants.MCQ_MCA_W,
+                options,
+                marked,
+                Constants.OPTION_WEIGHTAGE
+        );
+
+        assertFalse(marked.isEmpty());
+    }
+
+    @Test
+    void testGetOptionWeightages_withMCQTypeQuestions() {
+        // Arrange
+        String questionId = "q1";
+
+        Map<String, Object> valueMap = new HashMap<>();
+        valueMap.put(Constants.VALUE, "Option A");
+
+        Map<String, Object> option = new HashMap<>();
+        option.put(Constants.VALUE, valueMap);
+        option.put(Constants.ANSWER, 10);
+
+        List<Map<String, Object>> options = List.of(option);
+
+        Map<String, Object> editorState = new HashMap<>();
+        editorState.put(Constants.OPTIONS, options);
+
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.QUESTION_TYPE, Constants.MCQ_SCA); // Can test MCQ_MCA and MCQ_MCA_W similarly
+        question.put(Constants.EDITOR_STATE, editorState);
+        question.put(Constants.IDENTIFIER, questionId);
+
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(questionId, question);
+
+        List<String> questions = List.of(questionId);
+
+        // Act
+        Map<String, Object> result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getOptionWeightages",
+                questions,
+                questionMap
+        );
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.containsKey("q1"));
+        Map<String, Object> weightage = (Map<String, Object>) result.get("q1");
+        assertEquals(10, weightage.get("Option A"));
+    }
+
+    @Test
+    void testGetOptionWeightages_withUnsupportedQuestionType() {
+        String questionId = "q2";
+
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.QUESTION_TYPE, "essay"); // Not matched in switch-case
+        question.put(Constants.EDITOR_STATE, new HashMap<>());
+        question.put(Constants.IDENTIFIER, questionId);
+
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(questionId, question);
+
+        List<String> questions = List.of(questionId);
+
+        Map<String, Object> result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "getOptionWeightages",
+                questions,
+                questionMap
+        );
+
+        assertTrue(result.containsKey("q2"));
+        assertTrue(((Map<?, ?>) result.get("q2")).isEmpty());
+    }
+
+    @Test
+    void testCalculateScoreForOptionWeightage_WithNumericWeightage() {
+        // Arrange
+        Map<String, Object> question = new HashMap<>();
+        question.put(Constants.IDENTIFIER, "q1");
+
+        Map<String, Object> weightMap = new HashMap<>();
+        weightMap.put("OptionA", 2.5);
+
+        Map<String, Object> optionWeightages = new HashMap<>();
+        optionWeightages.put("q1", weightMap);
+
+        List<String> marked = List.of("OptionA");
+
+        // Act
+        Double result = ReflectionTestUtils.invokeMethod(
+                AssessmentUtilServiceV2Impl.class,
+                "calculateScoreForOptionWeightage",
+                question,
+                Constants.OPTION_WEIGHTAGE,
+                optionWeightages,
+                1.0,
+                marked
+        );
+
+        // Assert
+        assertEquals(3.5, result);
+    }
+
+    @Test
+    void testFetchRecursiveQuestionIds_WithNestedAndDirectQuestions() {
+        // Arrange
+        AssessmentUtilServiceV2Impl service = new AssessmentUtilServiceV2Impl();
+
+        Map<String, Object> question1 = new HashMap<>();
+        question1.put(Constants.OBJECT_TYPE, "Question");
+        question1.put(Constants.IDENTIFIER, "q1");
+
+        Map<String, Object> question2 = new HashMap<>();
+        question2.put(Constants.OBJECT_TYPE, "Question");
+        question2.put(Constants.IDENTIFIER, "q2");
+
+        Map<String, Object> innerSet = new HashMap<>();
+        innerSet.put(Constants.OBJECT_TYPE, Constants.QUESTION_SET);
+        innerSet.put(Constants.CHILDREN, List.of(question2));
+
+        Map<String, Object> outerSet = new HashMap<>();
+        outerSet.put(Constants.OBJECT_TYPE, Constants.QUESTION_SET);
+        outerSet.put(Constants.CHILDREN, List.of(innerSet, question1));
+
+        List<Map<String, Object>> children = List.of(outerSet);
+
+        // Act
+        List<String> result = ReflectionTestUtils.invokeMethod(service, "fetchRecursiveQuestionIds", children, new ArrayList<>());
+
+        // Assert
+        assertEquals(List.of("q2", "q1"), result);
+    }
+
+    @Test
+    void testFetchRecursiveQuestionIds_WithEmptyChildren() {
+        // Arrange
+        AssessmentUtilServiceV2Impl service = new AssessmentUtilServiceV2Impl();
+        List<Map<String, Object>> emptyChildren = new ArrayList<>();
+
+        // Act
+        List<String> result = ReflectionTestUtils.invokeMethod(service, "fetchRecursiveQuestionIds", emptyChildren, new ArrayList<>());
+
+        // Assert
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testFetchHierarchyFromAssessServc_Success() {
+        String qSetId = "qSet123";
+        String token = "dummyToken";
+
+        Map<String, Object> questionSet = Map.of("identifier", qSetId);
+        Map<String, Object> resultMap = Map.of(Constants.QUESTION_SET, questionSet);
+        Map<String, Object> mockApiResponse = Map.of(
+                Constants.RESPONSE_CODE, Constants.OK,
+                Constants.RESULT, resultMap
+        );
+
+        AssessmentUtilServiceV2Impl serviceSpy = Mockito.spy(new AssessmentUtilServiceV2Impl());
+        Mockito.doReturn(mockApiResponse).when(serviceSpy).getReadHierarchyApiResponse(qSetId, token);
+
+        Map<String, Object> result = serviceSpy.fetchHierarchyFromAssessServc(qSetId, token);
+
+        assertNotNull(result);
+        assertEquals(qSetId, result.get("identifier"));
+    }
+
+    @Test
+    void testFetchHierarchyFromAssessServc_FailureResponse() {
+        String qSetId = "qSet123";
+        String token = "dummyToken";
+
+        Map<String, Object> mockApiResponse = Map.of(
+                Constants.RESPONSE_CODE, "ERROR",
+                Constants.RESULT, Map.of()
+        );
+
+        AssessmentUtilServiceV2Impl serviceSpy = Mockito.spy(new AssessmentUtilServiceV2Impl());
+        Mockito.doReturn(mockApiResponse).when(serviceSpy).getReadHierarchyApiResponse(qSetId, token);
+
+        assertThrows(RuntimeException.class, () -> {
+            serviceSpy.fetchHierarchyFromAssessServc(qSetId, token);
+        });
+    }
+
+
+
+
+
+
+
 }
