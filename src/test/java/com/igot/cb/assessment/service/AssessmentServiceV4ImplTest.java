@@ -698,4 +698,84 @@ class AssessmentServiceV4ImplTest {
         assertTrue((Boolean) resp.getResult().get(Constants.STATUS_IS_IN_PROGRESS));
     }
 
+    @Test
+    void testReadQuestionList_EmptyIdentifierList() {
+        String token = "token";
+        String assessmentId = "assess1";
+
+        // request body with no question identifiers
+        Map<String, Object> searchMap = new HashMap<>();
+        Map<String, Object> reqMap = new HashMap<>();
+        reqMap.put(Constants.SEARCH, searchMap);
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.REQUEST, reqMap);
+        request.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+
+        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn("user1");
+        Map<String, Object> assessmentHierarchy = new HashMap<>();
+        assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token)))
+                .thenReturn(assessmentHierarchy);
+
+        // Mock existing user assessment data with empty string (simulate empty response)
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), eq(assessmentId)))
+                .thenReturn(List.of(Map.of(Constants.ASSESSMENT_READ_RESPONSE_KEY, "")));
+
+        // Execute
+        SBApiResponse response = service.readQuestionList(request, token, false);
+
+        // Verify
+        assertEquals(Constants.IDENTIFIER_LIST_IS_EMPTY, response.getParams().getErrmsg());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testReadQuestionList_Success() throws Exception {
+        String token = "token";
+        String assessmentId = "assess1";
+        List<String> identifierList = List.of("q1");
+
+        // Build requestBody
+        Map<String, Object> search = Map.of(Constants.IDENTIFIER, identifierList);
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+        request.put(Constants.REQUEST, Map.of(Constants.SEARCH, search));
+
+        // Setup mocks
+        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn("user1");
+
+        Map<String, Object> hierarchy = Map.of(Constants.PRIMARY_CATEGORY, "Assessment");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token)))
+                .thenReturn(hierarchy);
+
+        String assessmentJson = "{ \"primaryCategory\": \"Assessment\", \"children\": [{ \"childNodes\": [\"q1\"] }] }";
+        Map<String, Object> userAssessmentDetail = new HashMap<>();
+        userAssessmentDetail.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        userAssessmentDetail.put(Constants.CHILDREN, List.of(Map.of(Constants.CHILD_NODES, identifierList)));
+
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), eq(assessmentId)))
+                .thenReturn(List.of(Map.of(Constants.ASSESSMENT_READ_RESPONSE_KEY, assessmentJson)));
+
+        when(mapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(userAssessmentDetail);
+
+        Map<String, Object> redisMap = Map.of("q1", Map.of("id", "q1", "text", "Q1"));
+        when(assessUtilServ.readQListfromCache(identifierList, assessmentId, false, token))
+                .thenReturn(redisMap);
+
+        when(assessUtilServ.filterQuestionMapDetail(anyMap(), eq("Assessment")))
+                .thenReturn(Map.of("id", "q1"));
+
+        // Run the method
+        SBApiResponse response = service.readQuestionList(request, token, false);
+
+        // Assert
+        List<?> questions = (List<?>) response.getResult().get(Constants.QUESTIONS);
+        assertNotNull(questions);
+        assertEquals(1, questions.size());
+        assertEquals("q1", ((Map<?, ?>) questions.get(0)).get("id"));
+    }
+
+
 }

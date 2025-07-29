@@ -3,15 +3,12 @@ package com.igot.cb.assessment.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.assessment.repo.AssessmentRepository;
 import com.igot.cb.cassandra.utils.CassandraOperation;
@@ -22,13 +19,10 @@ import com.igot.cb.common.util.AccessTokenValidator;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.producer.Producer;
-import org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.commons.lang3.reflect.MethodUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.mockito.*;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -1114,7 +1108,7 @@ class AssessmentServiceV5ImplTest {
     }
 
     @Test
-    void testPrivate_createResponseMapWithProperStructure_NullResultMap() throws Exception {
+    void testPrivate_createResponseMapWithProperStructure_NullResultMap() {
         Map<String, Object> section = new HashMap<>();
         section.put(Constants.IDENTIFIER, "sec1");
         section.put(Constants.OBJECT_TYPE, "obj");
@@ -1737,7 +1731,6 @@ class AssessmentServiceV5ImplTest {
         Map<String, Object> fakeFinalRes = new HashMap<>();
         fakeFinalRes.put("score", 5);
         fakeFinalRes.put(Constants.TOTAL_SCORE, 10);
-       // doReturn(fakeFinalRes).when(spyService).calculateAssessmentFinalResults(any());
 
         // Act
         SBApiResponse response = spyService.submitAssessmentAsyncV6(submitRequest, "token", false);
@@ -1819,7 +1812,6 @@ class AssessmentServiceV5ImplTest {
         Map<String, Object> fakeFinalRes = new HashMap<>();
         fakeFinalRes.put("score", 5);
         fakeFinalRes.put(Constants.TOTAL_SCORE, 10);
-        // doReturn(fakeFinalRes).when(spyService).calculateAssessmentFinalResults(any());
 
         // Act
         SBApiResponse response = spyService.submitAssessmentAsyncV6(submitRequest, "token", false);
@@ -1859,7 +1851,7 @@ class AssessmentServiceV5ImplTest {
         when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn("user123");
 
         // Mock publish method on spy
-        doReturn(Collections.emptyMap()).when(spyService).publish(eq(assessmentId), eq(token));
+        doReturn(Collections.emptyMap()).when(spyService).publish(assessmentId, token);
 
         // Act
         SBApiResponse response = spyService.autoPublish(assessmentId, token);
@@ -2166,9 +2158,8 @@ class AssessmentServiceV5ImplTest {
         Map<String, Object> assessmentFilteredDetail = new HashMap<>();
 
         // Section-level mock data
-        Map<String, Object> question1 = Map.of(Constants.IDENTIFIER, "q1");
-        Map<String, Object> question2 = Map.of(Constants.IDENTIFIER, "q2");
-        List<Map<String, Object>> questions = List.of(question1, question2);
+        Map<String, Object> question1 = Map.of(Constants.IDENTIFIER, "q2");
+        List<Map<String, Object>> questions = List.of(question1);
 
         Map<String, Object> section = new HashMap<>();
         section.put(Constants.IDENTIFIER, "section1");
