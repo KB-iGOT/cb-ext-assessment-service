@@ -37,6 +37,7 @@ public class SunbirdConfig extends CassandraConfig {
                 getContactPoints(), getPort(), getKeyspaceName(), getLocalDataCenter(), sunbirdUser);
     }
 
+    @Primary
     @NotNull
     @Bean(name = "sunbirdTemplate")
     public CassandraAdminTemplate cassandraTemplate(@Autowired CqlSession cqlSession) {
