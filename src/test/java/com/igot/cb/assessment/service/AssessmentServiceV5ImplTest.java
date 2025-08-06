@@ -3,6 +3,7 @@ package com.igot.cb.assessment.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -174,24 +175,61 @@ class AssessmentServiceV5ImplTest {
     }
 
     @Test
-    void testSubmitAssessmentAsync_SuccessPracticeAssessment() {
+    void testSubmitAssessmentAsync_SuccessPracticeAssessment() throws IOException {
+        // Mock user token
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user");
+
+        // Prepare submit request
         Map<String, Object> submitRequest = new HashMap<>();
         submitRequest.put(Constants.IDENTIFIER, "assessmentId");
         submitRequest.put(Constants.LANGUAGE, "english");
+        submitRequest.put(Constants.COURSE_ID, "course123");
         submitRequest.put(Constants.CHILDREN, new ArrayList<>());
+
+        // Prepare assessment hierarchy
         Map<String, Object> assessmentHierarchy = new HashMap<>();
         assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
         assessmentHierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        assessmentHierarchy.put(Constants.SCORE_CUTOFF_TYPE, Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF); // Required
         assessmentHierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
         assessmentHierarchy.put(Constants.ASSESSMENT_TYPE, "defaultType");
+
+        // Course content response
+        Map<String, Object> courseMap = new HashMap<>();
+        courseMap.put(Constants.COURSE_CATEGORY, "Practice");
+
+        // Mocks
         when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
                 .thenReturn(assessmentHierarchy);
-        when(assessUtilServ.readAssessmentRecord("assessmentId", List.of(Constants.LANGUAGE)))
+
+        when(assessUtilServ.readAssessmentRecord(eq("assessmentId"), eq(List.of(Constants.LANGUAGE))))
                 .thenReturn("english");
+
+        when(assessUtilServ.readContentRecord(eq("course123"), anyList()))
+                .thenReturn("course123-baseLang");
+
+        when(contentService.readContent(eq("course123-baseLang")))
+                .thenReturn(courseMap);
+
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+
+        when(assessUtilServ.readQListfromCache(anyList(), anyString(), anyBoolean(), anyString()))
+                .thenReturn(new HashMap<>());
+
+        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap()))
+                .thenReturn(new HashMap<>());
+
+        when(contentService.updateContentProgress(anyString(), anyMap(), anyString(), any()))
+                .thenReturn(Constants.SUCCESS);
+
+        // Execute method under test
         SBApiResponse response = service.submitAssessmentAsync(submitRequest, "token", false);
+
+        // Verify
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
+
 
     @Test
     void testSubmitAssessmentAsync_InvalidSectionData() {
@@ -319,24 +357,61 @@ class AssessmentServiceV5ImplTest {
     }
 
     @Test
-    void testSubmitAssessmentAsync_SuccessWithDifferentAssessmentType() {
+    void testSubmitAssessmentAsync_SuccessWithDifferentAssessmentType() throws IOException {
+        // Mock token -> user
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user");
+
+        // Prepare request
         Map<String, Object> submitRequest = new HashMap<>();
         submitRequest.put(Constants.IDENTIFIER, "assessmentId");
         submitRequest.put(Constants.LANGUAGE, "english");
+        submitRequest.put(Constants.COURSE_ID, "course123");
         submitRequest.put(Constants.CHILDREN, new ArrayList<>());
+
+        // Prepare assessment hierarchy
         Map<String, Object> assessmentHierarchy = new HashMap<>();
         assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
         assessmentHierarchy.put(Constants.CHILDREN, new ArrayList<>());
         assessmentHierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 5);
         assessmentHierarchy.put(Constants.ASSESSMENT_TYPE, "questionWeightage");
+        assessmentHierarchy.put(Constants.SCORE_CUTOFF_TYPE, Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF); // Required
+
+        // Course details
+        Map<String, Object> courseMap = new HashMap<>();
+        courseMap.put(Constants.COURSE_CATEGORY, "Practice");
+
+        // Mocks
         when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
                 .thenReturn(assessmentHierarchy);
-        when(assessUtilServ.readAssessmentRecord("assessmentId", List.of(Constants.LANGUAGE)))
+
+        when(assessUtilServ.readAssessmentRecord(eq("assessmentId"), eq(List.of(Constants.LANGUAGE))))
                 .thenReturn("english");
+
+        when(assessUtilServ.readContentRecord(eq("course123"), anyList()))
+                .thenReturn("course123-baseLang");
+
+        when(contentService.readContent(eq("course123-baseLang")))
+                .thenReturn(courseMap);
+
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+
+        when(assessUtilServ.readQListfromCache(anyList(), anyString(), anyBoolean(), anyString()))
+                .thenReturn(new HashMap<>());
+
+        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap()))
+                .thenReturn(new HashMap<>());
+
+        when(contentService.updateContentProgress(anyString(), anyMap(), anyString(), any()))
+                .thenReturn(Constants.SUCCESS);
+
+        // Execute
         SBApiResponse response = service.submitAssessmentAsync(submitRequest, "token", false);
+
+        // Assert
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
+
 
     @Test
     void testSubmitAssessmentAsyncV6_InvalidUser() {
