@@ -362,6 +362,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     return outgoingResponse;
                 }
             }
+
+            submitRequest.put(Constants.COURSE_ID, assessUtilServ.readContentRecord(submitRequest.get(Constants.COURSE_ID).toString(), Arrays.asList(Constants.LANGUAGE_MAP_V1)));
+
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
             int retakeAttemptsConsumed;
@@ -1369,6 +1372,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     return outgoingResponse;
                 }
             }
+
+            submitRequest.put(Constants.COURSE_ID, assessUtilServ.readContentRecord(submitRequest.get(Constants.COURSE_ID).toString(), Arrays.asList(Constants.LANGUAGE_MAP_V1)));
+
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
             int retakeAttemptsConsumed;

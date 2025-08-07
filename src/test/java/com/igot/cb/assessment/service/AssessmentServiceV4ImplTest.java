@@ -18,6 +18,7 @@ import org.mockito.*;
 import org.springframework.test.util.ReflectionTestUtils;
 
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.*;
@@ -227,26 +228,52 @@ class AssessmentServiceV4ImplTest {
     }
 
     @Test
-    void testSubmitAssessmentAsync_Success_PracticeAssessment() {
+    void testSubmitAssessmentAsync_Success_PracticeAssessment() throws IOException {
+        // Mock token to userId
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
+
+        // Setup submit request
         Map<String, Object> submitRequest = new HashMap<>();
         submitRequest.put(Constants.IDENTIFIER, "assess1");
         submitRequest.put(Constants.LANGUAGE, "english");
+        submitRequest.put(Constants.COURSE_ID, "course123");
         submitRequest.put(Constants.CHILDREN, new ArrayList<>());
+
+        // Setup assessmentHierarchy
         Map<String, Object> assessmentHierarchy = new HashMap<>();
         assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
         assessmentHierarchy.put(Constants.CHILDREN, new ArrayList<>());
         assessmentHierarchy.put(Constants.SCORE_CUTOFF_TYPE, Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF);
+
+        // Setup course response
+        Map<String, Object> courseMap = new HashMap<>();
+        courseMap.put(Constants.COURSE_CATEGORY, "Practice");
+
+        // Mocks
         when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
                 .thenReturn(assessmentHierarchy);
         when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
                 .thenReturn(Collections.emptyList());
-        when(assessUtilServ.readAssessmentRecord(anyString(), anyList())).thenReturn("english");
-        when(contentService.readContent(anyString())).thenReturn(Collections.emptyMap());
-        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap())).thenReturn(new HashMap<>());
+        when(assessUtilServ.readAssessmentRecord(anyString(), anyList()))
+                .thenReturn("english");
+        when(assessUtilServ.readContentRecord(eq("course123"), anyList()))
+                .thenReturn("course123-baseLang");
+        when(contentService.readContent(eq("course123-baseLang")))
+                .thenReturn(courseMap);
+        when(assessUtilServ.readQListfromCache(anyList(), anyString(), anyBoolean(), anyString()))
+                .thenReturn(new HashMap<>());
+        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap()))
+                .thenReturn(new HashMap<>());
+        when(contentService.updateContentProgress(anyString(), anyMap(), anyString(), any()))
+                .thenReturn(Constants.SUCCESS);
+
+        // Call method under test
         SBApiResponse resp = service.submitAssessmentAsync(submitRequest, "token", false);
+
+        // Validate success
         assertEquals(Constants.SUCCESS, resp.getParams().getStatus());
     }
+
 
     @Test
     void testSubmitAssessmentAsync_Failed_InvalidUser() {
@@ -528,59 +555,122 @@ class AssessmentServiceV4ImplTest {
     }
 
     @Test
-    void testSubmitAssessmentAsync_PracticeAssessment_NoLanguage() {
+    void testSubmitAssessmentAsync_PracticeAssessment_NoLanguage() throws IOException {
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
+
+        // Setup submitRequest
         Map<String, Object> submitRequest = new HashMap<>();
         submitRequest.put(Constants.IDENTIFIER, "assess1");
         submitRequest.put(Constants.CHILDREN, new ArrayList<>());
-        Map<String, Object> assessmentHierarchy = new HashMap<>();
-        assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
-        assessmentHierarchy.put(Constants.CHILDREN, new ArrayList<>());
-        assessmentHierarchy.put(Constants.SCORE_CUTOFF_TYPE, Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF);
+        submitRequest.put(Constants.COURSE_ID, "course123");
+
+        // Mock: readAssessmentHierarchyFromCache
         when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
-                .thenReturn(assessmentHierarchy);
+                .thenAnswer(invocation -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
+                    map.put(Constants.CHILDREN, new ArrayList<>());
+                    map.put(Constants.SCORE_CUTOFF_TYPE, Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF);
+                    return map;
+                });
+
+        // Mock: no previously submitted records
         when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
                 .thenReturn(Collections.emptyList());
-        when(assessUtilServ.readAssessmentRecord(anyString(), anyList())).thenReturn("english");
-        when(contentService.readContent(anyString())).thenReturn(Collections.emptyMap());
-        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap())).thenReturn(new HashMap<>());
+
+        // Mock: language from DB
+        when(assessUtilServ.readAssessmentRecord(anyString(), anyList()))
+                .thenReturn("english");
+
+        // Mock: return course ID from language map
+        when(assessUtilServ.readContentRecord(eq("course123"), anyList()))
+                .thenReturn("course123-baseLang");
+
+        // Mock: content service course category
+        Map<String, Object> courseCategoryMap = new HashMap<>();
+        courseCategoryMap.put(Constants.COURSE_CATEGORY, "General");
+        when(contentService.readContent(eq("course123-baseLang")))
+                .thenReturn(courseCategoryMap);
+
+        // Mock: validation logic
+        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap()))
+                .thenReturn(new HashMap<>());
+
+        // Mock: question list from cache
+        when(assessUtilServ.readQListfromCache(anyList(), anyString(), anyBoolean(), anyString()))
+                .thenReturn(new HashMap<>());
+
+        // Mock: updateContentProgress for practice assessment
+        when(contentService.updateContentProgress(anyString(), anyMap(), anyString(), any()))
+                .thenReturn(Constants.SUCCESS);
+
+        // Call method under test
         SBApiResponse resp = service.submitAssessmentAsync(submitRequest, "token", false);
+
+        // Validate
         assertEquals(Constants.SUCCESS, resp.getParams().getStatus());
     }
 
+
     @Test
-    void testSubmitAssessmentAsync_SectionLevelScoreCutoff() {
+    void testSubmitAssessmentAsync_SectionLevelScoreCutoff() throws IOException {
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
+
+        // Submit request setup
         Map<String, Object> submitRequest = new HashMap<>();
         submitRequest.put(Constants.IDENTIFIER, "assess1");
+        submitRequest.put(Constants.COURSE_ID, "course123"); // Required for readContentRecord
+
+        // Section data
         List<Map<String, Object>> children = new ArrayList<>();
         Map<String, Object> section = new HashMap<>();
         section.put(Constants.IDENTIFIER, "section1");
-        section.put(Constants.CHILDREN, new ArrayList<>());
-        section.put(Constants.MINIMUM_PASS_PERCENTAGE, -1); //
+        section.put(Constants.CHILDREN, new ArrayList<>()); // Empty questions
+        section.put(Constants.MINIMUM_PASS_PERCENTAGE, 40); // Valid value
+        section.put(Constants.OBJECT_TYPE, "Section"); // Required by createResponseMapWithProperStructure
+        section.put(Constants.PRIMARY_CATEGORY, "SectionCategory"); // Required
         children.add(section);
         submitRequest.put(Constants.CHILDREN, children);
 
+        // Assessment hierarchy setup
         Map<String, Object> assessmentHierarchy = new HashMap<>();
         assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
         assessmentHierarchy.put(Constants.CHILDREN, children);
         assessmentHierarchy.put(Constants.SCORE_CUTOFF_TYPE, Constants.SECTION_LEVEL_SCORE_CUTOFF);
         assessmentHierarchy.put(Constants.EXPECTED_DURATION, 10);
-        Map<String, Object> existingData = new HashMap<>();
-        existingData.put(Constants.START_TIME, new Date()); // Add start time
-        existingData.put(Constants.STATUS, "IN_PROGRESS");
-        existingData.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{}");
 
+        // Existing data
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.START_TIME, new Date());
+        existingData.put(Constants.STATUS, Constants.NOT_SUBMITTED);
+        existingData.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{\"children\":[{\"identifier\":\"section1\",\"childNodes\":[]}]}");
+
+        // Mocks
         when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
                 .thenReturn(assessmentHierarchy);
         when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
                 .thenReturn(Collections.singletonList(existingData));
-        when(contentService.readContent(anyString())).thenReturn(Collections.emptyMap());
-        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap())).thenReturn(new HashMap<>());
+        when(assessUtilServ.readAssessmentRecord(anyString(), anyList())).thenReturn("english");
+        when(assessUtilServ.readContentRecord(eq("course123"), anyList()))
+                .thenReturn("course123-baseLang");
 
+        Map<String, Object> courseCategoryMap = new HashMap<>();
+        courseCategoryMap.put(Constants.COURSE_CATEGORY, "General");
+        when(contentService.readContent(eq("course123-baseLang")))
+                .thenReturn(courseCategoryMap);
+
+        when(assessUtilServ.readQListfromCache(anyList(), anyString(), anyBoolean(), anyString()))
+                .thenReturn(new HashMap<>());
+        when(assessUtilServ.validateQumlAssessment(anyList(), anyList(), anyMap()))
+                .thenReturn(new HashMap<>());
+
+        // Method call
         SBApiResponse resp = service.submitAssessmentAsync(submitRequest, "token", false);
+
+        // Assertion
         assertEquals(Constants.SUCCESS, resp.getParams().getStatus());
     }
+
 
     @Test
     void testSubmitAssessmentAsync_AssessmentSubmitFailed() {
@@ -697,5 +787,85 @@ class AssessmentServiceV4ImplTest {
         SBApiResponse resp = service.readAssessmentResultV4(request, token);
         assertTrue((Boolean) resp.getResult().get(Constants.STATUS_IS_IN_PROGRESS));
     }
+
+    @Test
+    void testReadQuestionList_EmptyIdentifierList() {
+        String token = "token";
+        String assessmentId = "assess1";
+
+        // request body with no question identifiers
+        Map<String, Object> searchMap = new HashMap<>();
+        Map<String, Object> reqMap = new HashMap<>();
+        reqMap.put(Constants.SEARCH, searchMap);
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.REQUEST, reqMap);
+        request.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+
+        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn("user1");
+        Map<String, Object> assessmentHierarchy = new HashMap<>();
+        assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token)))
+                .thenReturn(assessmentHierarchy);
+
+        // Mock existing user assessment data with empty string (simulate empty response)
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), eq(assessmentId)))
+                .thenReturn(List.of(Map.of(Constants.ASSESSMENT_READ_RESPONSE_KEY, "")));
+
+        // Execute
+        SBApiResponse response = service.readQuestionList(request, token, false);
+
+        // Verify
+        assertEquals(Constants.IDENTIFIER_LIST_IS_EMPTY, response.getParams().getErrmsg());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testReadQuestionList_Success() throws Exception {
+        String token = "token";
+        String assessmentId = "assess1";
+        List<String> identifierList = List.of("q1");
+
+        // Build requestBody
+        Map<String, Object> search = Map.of(Constants.IDENTIFIER, identifierList);
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+        request.put(Constants.REQUEST, Map.of(Constants.SEARCH, search));
+
+        // Setup mocks
+        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn("user1");
+
+        Map<String, Object> hierarchy = Map.of(Constants.PRIMARY_CATEGORY, "Assessment");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token)))
+                .thenReturn(hierarchy);
+
+        String assessmentJson = "{ \"primaryCategory\": \"Assessment\", \"children\": [{ \"childNodes\": [\"q1\"] }] }";
+        Map<String, Object> userAssessmentDetail = new HashMap<>();
+        userAssessmentDetail.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        userAssessmentDetail.put(Constants.CHILDREN, List.of(Map.of(Constants.CHILD_NODES, identifierList)));
+
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), eq(assessmentId)))
+                .thenReturn(List.of(Map.of(Constants.ASSESSMENT_READ_RESPONSE_KEY, assessmentJson)));
+
+        when(mapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(userAssessmentDetail);
+
+        Map<String, Object> redisMap = Map.of("q1", Map.of("id", "q1", "text", "Q1"));
+        when(assessUtilServ.readQListfromCache(identifierList, assessmentId, false, token))
+                .thenReturn(redisMap);
+
+        when(assessUtilServ.filterQuestionMapDetail(anyMap(), eq("Assessment")))
+                .thenReturn(Map.of("id", "q1"));
+
+        // Run the method
+        SBApiResponse response = service.readQuestionList(request, token, false);
+
+        // Assert
+        List<?> questions = (List<?>) response.getResult().get(Constants.QUESTIONS);
+        assertNotNull(questions);
+        assertEquals(1, questions.size());
+        assertEquals("q1", ((Map<?, ?>) questions.get(0)).get("id"));
+    }
+
 
 }

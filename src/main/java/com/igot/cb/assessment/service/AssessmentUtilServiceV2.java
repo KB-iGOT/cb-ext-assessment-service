@@ -64,4 +64,6 @@ public interface AssessmentUtilServiceV2 {
 	Instant parseStartTimeToInstant(Object startTimeObj);
 
 	Long parseStartTimeToLong(Object startTimeObj);
+
+	String readContentRecord(String courseId, List<String> fields);
 }

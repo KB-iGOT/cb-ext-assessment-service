@@ -1364,6 +1364,7 @@ public class Constants {
     public static final String PREFIX_VALIDATE_COMPLETED_COURSE = "AssessmentUtilServiceV2Impl:: isAllCourseCompleted:";
     public static final String PRE_ENROLLED_ASSESSMENT_KEY = "Pre Enrolment Assessment";
     public static final String LANGUAGE = "language";
+    public static final String LANGUAGE_MAP_V1 = "languageMapV1";
 
     private Constants() {
         throw new IllegalStateException("Utility class");

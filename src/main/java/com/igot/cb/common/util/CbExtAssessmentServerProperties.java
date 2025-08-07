@@ -45,13 +45,13 @@ public class CbExtAssessmentServerProperties {
     @Value("${sb.hub.graph.service.url}")
     private String sbHubGraphServiceUrl;
 
-    @Value("${spring.data.cassandra.sb.username}")
+    @Value("${spring.cassandra.username}")
     private String cassandraUserName;
 
-    @Value("${spring.data.cassandra.sb.password}")
+    @Value("${spring.cassandra.password}")
     private String cassandraPassword;
 
-    @Value("${spring.data.cassandra.sb.keyspace-name}")
+    @Value("${spring.cassandra.keyspace-name}")
     private String sbExtKeyspace;
 
     @Value("${sunbird.course.service.host}")

@@ -20,7 +20,10 @@ import java.util.Objects;
 
 @Configuration
 @ConfigurationProperties("spring.cassandra")
-@EnableCassandraRepositories(basePackages = { "org.sunbird" }, cassandraTemplateRef = "sunbirdTemplate")
+@EnableCassandraRepositories(
+        basePackages = { "org.sunbird", "com.igot.cb.assessment.repo" }, // ✅ Updated here
+        cassandraTemplateRef = "sunbirdTemplate"
+)
 public class SunbirdConfig extends CassandraConfig {
     private Logger logger = LoggerFactory.getLogger(SunbirdConfig.class);
     @Value("${spring.cassandra.username}")
@@ -34,6 +37,7 @@ public class SunbirdConfig extends CassandraConfig {
                 getContactPoints(), getPort(), getKeyspaceName(), getLocalDataCenter(), sunbirdUser);
     }
 
+    @Primary
     @NotNull
     @Bean(name = "sunbirdTemplate")
     public CassandraAdminTemplate cassandraTemplate(@Autowired CqlSession cqlSession) {

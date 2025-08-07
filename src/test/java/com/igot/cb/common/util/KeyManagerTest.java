@@ -1,8 +1,14 @@
 package com.igot.cb.common.util;
 
 import com.igot.cb.common.model.KeyData;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
+
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
@@ -73,4 +79,47 @@ class KeyManagerTest {
             throw new RuntimeException(e);
         }
     }
+
+    @Test
+    void testInit_LoadsValidPublicKeyFile(@TempDir Path tempDir) throws Exception {
+        // 1. Generate dummy public key PEM
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(2048);
+        KeyPair keyPair = keyGen.generateKeyPair();
+        PublicKey pubKey = keyPair.getPublic();
+
+        String pem = "-----BEGIN PUBLIC KEY-----\n" +
+                Base64.getEncoder().encodeToString(pubKey.getEncoded()) +
+                "\n-----END PUBLIC KEY-----";
+
+        // 2. Write it to a file in the temp directory
+        Path keyFile = tempDir.resolve("mykey.pub");
+        Files.write(keyFile, pem.getBytes(StandardCharsets.UTF_8));
+
+        // 3. Create KeyManager instance
+        KeyManager keyManager = new KeyManager();
+
+        // 4. Inject private field 'propertiesCache' via reflection
+        PropertiesCache mockCache = mock(PropertiesCache.class);
+        when(mockCache.getProperty(anyString())).thenReturn(tempDir.toString());
+        Field field = KeyManager.class.getDeclaredField("propertiesCache");
+        field.setAccessible(true);
+        field.set(keyManager, mockCache);
+
+        // 5. Inject 'keyMap' and 'logger' fields as well
+        Field keyMapField = KeyManager.class.getDeclaredField("keyMap");
+        keyMapField.setAccessible(true);
+        keyMapField.set(keyManager, new HashMap<>());
+
+        Field loggerField = KeyManager.class.getDeclaredField("logger");
+        loggerField.setAccessible(true);
+        loggerField.set(keyManager, mock(org.slf4j.Logger.class));
+
+        // 6. Execute init()
+        keyManager.init();
+
+        // 7. Assert that the key was loaded
+        assertTrue(((Map<?, ?>) keyMapField.get(keyManager)).containsKey("mykey.pub"));
+    }
+
 }
