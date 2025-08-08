@@ -11,6 +11,7 @@ import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -136,25 +139,40 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 
 		for (String questionId : questions) {
 			List<String> correctOption = new ArrayList<>();
-			//questionMap = fetchQuestionMapDetails(questionId);
 			Map<String, Object> question = (Map<String, Object>) questionMap.get(questionId);
+			if (MapUtils.isEmpty(question)) {
+				ret.put(questionId, correctOption);
+				continue;
+			}
 			if (question.containsKey(Constants.QUESTION_TYPE)) {
 				String questionType = ((String) question.get(Constants.QUESTION_TYPE)).toLowerCase();
 				Map<String, Object> editorStateObj = (Map<String, Object>) question.get(Constants.EDITOR_STATE);
+				if (MapUtils.isEmpty(editorStateObj)) {
+					ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
+					continue;
+				}
 				List<Map<String, Object>> options = (List<Map<String, Object>>) editorStateObj.get(Constants.OPTIONS);
+				if (CollectionUtils.isEmpty(options)) {
+					ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
+					continue;
+				}
 				switch (questionType) {
 					case Constants.MTF:
 						for (Map<String, Object> option : options) {
 							Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-							correctOption.add(valueObj.get(Constants.VALUE).toString() + "-"
-									+ option.get(Constants.ANSWER).toString().toLowerCase());
+							if (MapUtils.isNotEmpty(valueObj) && valueObj.get(Constants.VALUE) != null && option.get(Constants.ANSWER) != null) {
+								correctOption.add(valueObj.get(Constants.VALUE).toString() + "-"
+										+ option.get(Constants.ANSWER).toString().toLowerCase());
+							}
 						}
 						break;
 					case Constants.FTB:
 						for (Map<String, Object> option : options) {
-							if ((boolean) option.get(Constants.ANSWER)) {
+							if (Boolean.TRUE.equals(option.get(Constants.ANSWER))) {
 								Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-								correctOption.add(valueObj.get(Constants.BODY).toString());
+								if (MapUtils.isNotEmpty(valueObj) && valueObj.get(Constants.BODY) != null) {
+									correctOption.add(valueObj.get(Constants.BODY).toString());
+								}
 							}
 						}
 						break;
@@ -162,22 +180,28 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 					case Constants.MCQ_MCA:
 					case Constants.MCQ_SCA_TF:
 						for (Map<String, Object> option : options) {
-							if ((boolean) option.get(Constants.ANSWER)) {
+							if (Boolean.TRUE.equals(option.get(Constants.ANSWER))) {
 								Map<String, Object> valueObj = (Map<String, Object>) option.get(Constants.VALUE);
-								correctOption.add(valueObj.get(Constants.VALUE).toString());
+								if (MapUtils.isNotEmpty(valueObj) && valueObj.get(Constants.VALUE) != null) {
+									correctOption.add(valueObj.get(Constants.VALUE).toString());
+								}
 							}
 						}
 						break;
 					default:
 						break;
 				}
+				ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 			} else {
-				for (Map<String, Object> options : (List<Map<String, Object>>) question.get(Constants.OPTIONS)) {
-					if ((boolean) options.get(Constants.IS_CORRECT))
-						correctOption.add(options.get(Constants.OPTION_ID).toString());
+				List<Map<String, Object>> options = (List<Map<String, Object>>) question.get(Constants.OPTIONS);
+				if (!CollectionUtils.isEmpty(options)) {
+					for (Map<String, Object> opt : options) {
+						if (Boolean.TRUE.equals(opt.get(Constants.IS_CORRECT)) && opt.get(Constants.OPTION_ID) != null)
+							correctOption.add(opt.get(Constants.OPTION_ID).toString());
+					}
 				}
+				ret.put(question.get(Constants.IDENTIFIER) != null ? question.get(Constants.IDENTIFIER).toString() : questionId, correctOption);
 			}
-			ret.put(question.get(Constants.IDENTIFIER).toString(), correctOption);
 		}
 
 		return ret;
@@ -537,7 +561,14 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			for (Map.Entry<String, Object> optionWeightAgeFromOptions : optionWeightageMap.entrySet()) {
 				String submittedQuestionSetIndex = marked.get(0);
 				if (submittedQuestionSetIndex.equals(optionWeightAgeFromOptions.getKey())) {
-					sectionMarks = sectionMarks + (Integer) optionWeightAgeFromOptions.getValue();
+					Object value = optionWeightAgeFromOptions.getValue();
+					double weightage = 0;
+					if (value instanceof Number) {
+						weightage = ((Number) value).doubleValue();
+					} else if (value instanceof String) {
+						weightage = Double.parseDouble((String) value);
+					}
+					sectionMarks = sectionMarks + weightage;
 				}
 			}
 		}
@@ -871,7 +902,6 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				questionSetSectionScheme = getQuestionSetSectionScheme(questionSetDetailsMap);
 				negativeMarksValue = getNegativeMarksValue(questionSetDetailsMap);
 			}
-
 			for (Map<String, Object> question : userQuestionList) {
 				Map<String, Object> proficiencyMap = getProficiencyMap(questionMap, question);
 				List<String> marked = new ArrayList<>();
@@ -965,7 +995,12 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 * @return Total marks as an integer
 	 */
 	private int getTotalMarks(Map<String, Object> questionSetDetailsMap) {
-		return (int) questionSetDetailsMap.get(Constants.TOTAL_MARKS);
+		Object totalMarksObj = questionSetDetailsMap.get(Constants.TOTAL_MARKS);
+		if (totalMarksObj instanceof Number) {
+			return ((Number) totalMarksObj).intValue();
+		} else {
+			return 0;
+		}
 	}
 
 	private Map<String, Object> getQumlAnswersV2(List<String> questions, Map<String, Object> questionMap) {
@@ -1155,4 +1190,107 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		}
 		return true;
 	}
+
+	@Override
+	public String readAssessmentRecord(String assessmentIdentifier, List<String> fields) {
+		Map<String, String> headers = new HashMap<>();
+		try {
+			String fieldsStr = StringUtils.join(fields, ",");
+			StringBuilder sbUrl = new StringBuilder(serverProperties.getContentHost());
+			sbUrl.append(serverProperties.getCourseReadPath())
+					.append(assessmentIdentifier)
+					.append("?fields=").append(fieldsStr);
+
+			headers.put(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON);
+
+			Map<String, Object> response = outboundRequestHandlerService.fetchResultUsingGet(sbUrl.toString(), headers);
+			if (MapUtils.isNotEmpty(response)) {
+				response = (Map<String, Object>) response.get(Constants.RESULT);
+				if (MapUtils.isNotEmpty(response)) {
+					Object content = response.get(Constants.CONTENT);
+					if (content instanceof Map) {
+						Object languageObj = ((Map<?, ?>) content).get(Constants.LANGUAGE);
+						if (languageObj instanceof List && !((List<?>) languageObj).isEmpty()) {
+							return ((List<?>) languageObj).get(0).toString(); // ✅ Return the first language directly
+						}
+					}
+				} else {
+					logger.error("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in RESULT");
+				}
+			} else {
+				logger.error("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in response");
+			}
+		} catch (Exception e) {
+			logger.error("Error during assessment read for {}: {}", assessmentIdentifier, e.getMessage(), e);
+		}
+		return "";
+	}
+
+
+	public Instant parseStartTimeToInstant(Object startTimeObj) {
+		if (startTimeObj instanceof Long) {
+			return Instant.ofEpochMilli((Long) startTimeObj);
+		} else if (startTimeObj instanceof String) {
+			String startTimeStr = (String) startTimeObj;
+			if (startTimeStr.matches("\\d+")) {
+				return Instant.ofEpochMilli(Long.parseLong(startTimeStr));
+			} else {
+				return Instant.parse(startTimeStr);
+			}
+		} else if (startTimeObj instanceof Instant) {
+			return (Instant) startTimeObj;
+		} else if (startTimeObj instanceof Date) {
+			return ((Date) startTimeObj).toInstant();
+		} else {
+			throw new IllegalArgumentException("Unsupported start time type: " +
+					(startTimeObj != null ? startTimeObj.getClass().getName() : "null"));
+		}
+	}
+
+	public Long parseStartTimeToLong(Object startTimeObj) {
+		if (startTimeObj instanceof Date) {
+			return ((Date) startTimeObj).getTime();
+		} else if (startTimeObj instanceof Instant) {
+			return ((Instant) startTimeObj).toEpochMilli();
+		} else if (startTimeObj instanceof Long) {
+			return (Long) startTimeObj;
+		} else if (startTimeObj instanceof String) {
+			String str = (String) startTimeObj;
+			if (str.matches("\\d+")) {
+				return Long.parseLong(str);
+			} else {
+				return Instant.parse(str).toEpochMilli(); // ISO 8601 string
+			}
+		}
+        return 0L;
+    }
+
+	@Override
+	public String readContentRecord(String courseId, List<String> fields) {
+		try {
+			Map<String, Object> response = contentService.readContentFromCache(courseId, fields);
+			if (MapUtils.isNotEmpty(response)) {
+				Object languageMapObj = response.get(Constants.LANGUAGE_MAP_V1);
+				if (languageMapObj instanceof Map) {
+					Map<?, ?> languageMap = (Map<?, ?>) languageMapObj;
+					for (Object value : languageMap.values()) {
+						if (value instanceof Map) {
+							Map<?, ?> langDetails = (Map<?, ?>) value;
+							Object isBaseLang = langDetails.get("isBaseLang");
+							if (Boolean.TRUE.equals(isBaseLang)) {
+								return String.valueOf(langDetails.get("id"));
+							}
+						}
+						return courseId;
+					}
+				} else {
+					logger.error("AssessmentUtilServiceV2Impl:readAssessmentLanguage No data found in RESULT");
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Error during assessment read for {}: {}", courseId, e.getMessage(), e);
+		}
+		return courseId;
+	}
+
 }

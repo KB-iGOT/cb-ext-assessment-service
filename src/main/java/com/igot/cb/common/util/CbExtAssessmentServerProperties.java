@@ -45,13 +45,13 @@ public class CbExtAssessmentServerProperties {
     @Value("${sb.hub.graph.service.url}")
     private String sbHubGraphServiceUrl;
 
-    @Value("${spring.data.cassandra.sb.username}")
+    @Value("${spring.cassandra.username}")
     private String cassandraUserName;
 
-    @Value("${spring.data.cassandra.sb.password}")
+    @Value("${spring.cassandra.password}")
     private String cassandraPassword;
 
-    @Value("${spring.data.cassandra.sb.keyspace-name}")
+    @Value("${spring.cassandra.keyspace-name}")
     private String sbExtKeyspace;
 
     @Value("${sunbird.course.service.host}")
@@ -68,6 +68,14 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${es.username}")
     private String esUser;
+
+    public String getCourseReadPath() {
+        return courseReadPath;
+    }
+
+    public void setCourseReadPath(String courseReadPath) {
+        this.courseReadPath = courseReadPath;
+    }
 
     @Value("${es.password}")
     private String esPassword;
@@ -200,6 +208,9 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${kafka.topic.cbplan.content.request}")
     private String cbplanContentRequestKafkaTopic;
+
+    @Value("${course.read.path}")
+    private String courseReadPath;
 
     public String getRedisDataHostName() {
         return redisDataHostName;

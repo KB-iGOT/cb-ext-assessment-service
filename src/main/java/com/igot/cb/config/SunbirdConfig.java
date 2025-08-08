@@ -1,9 +1,9 @@
 package com.igot.cb.config;
 
-
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.CqlSessionBuilder;
-import org.antlr.v4.runtime.misc.NotNull;
+import jakarta.annotation.PostConstruct;
+import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,41 +19,46 @@ import java.net.InetSocketAddress;
 import java.util.Objects;
 
 @Configuration
-@ConfigurationProperties("spring.data.cassandra.sb")
-@EnableCassandraRepositories(basePackages = { "org.sunbird.assessment.repo" }, cassandraTemplateRef = "sunbirdTemplate")
+@ConfigurationProperties("spring.cassandra")
+@EnableCassandraRepositories(
+        basePackages = { "org.sunbird", "com.igot.cb.assessment.repo" }, // ✅ Updated here
+        cassandraTemplateRef = "sunbirdTemplate"
+)
 public class SunbirdConfig extends CassandraConfig {
-
     private Logger logger = LoggerFactory.getLogger(SunbirdConfig.class);
-
-    @Value("${spring.data.cassandra.sb.username}")
+    @Value("${spring.cassandra.username}")
     private String sunbirdUser;
-
-    @Value("${spring.data.cassandra.sb.password}")
+    @Value("${spring.cassandra.password}")
     private String sunbirdPassword;
 
-    @NotNull
+    @PostConstruct
+    public void logProperties() {
+        logger.info("Cassandra Config - ContactPoints: {}, Port: {}, Keyspace: {}, LocalDC: {}, Username: {}",
+                getContactPoints(), getPort(), getKeyspaceName(), getLocalDataCenter(), sunbirdUser);
+    }
+
     @Primary
+    @NotNull
     @Bean(name = "sunbirdTemplate")
     public CassandraAdminTemplate cassandraTemplate(@Autowired CqlSession cqlSession) {
         logger.info("Creating CassandraAdminTemplate for keyspace: {}", getKeyspaceName());
         return new CassandraAdminTemplate(cqlSession, cassandraConverter());
     }
-
     @Primary
     @Bean(name = "sunbirdSession")
     public CqlSession cqlSession() {
         logger.info("Creating CqlSession for keyspace: {}", getKeyspaceName());
+        CqlSessionBuilder builder = CqlSession.builder();
+        String[] contactPoints = getContactPoints().split(",");
 
-        CqlSessionBuilder builder = CqlSession.builder()
-                .addContactPoint(new InetSocketAddress(getContactPoints(), getPort()))
-                .withLocalDatacenter(Objects.requireNonNull(getLocalDataCenter()))
+        for (String contactPoint : contactPoints) {
+            builder.addContactPoint(new InetSocketAddress(contactPoint.trim(), getPort()));
+        }
+        builder.withLocalDatacenter(Objects.requireNonNull(getLocalDataCenter()))
                 .withKeyspace(getKeyspaceName());
-
         if (!sunbirdUser.isEmpty() && !sunbirdPassword.isEmpty()) {
             builder.withAuthCredentials(sunbirdUser, sunbirdPassword);
         }
-
         return builder.build();
     }
-
 }

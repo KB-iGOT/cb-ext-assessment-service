@@ -258,8 +258,10 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
             } else if (ObjectUtils.isEmpty(userQuestionSet)) {
                 if (!((String) assessmentAllDetail.get(Constants.PRIMARY_CATEGORY)).equalsIgnoreCase(Constants.PRACTICE_QUESTION_SET)) {
                     List<Map<String, Object>> existingDataList = assessmentRepository.fetchUserAssessmentDataFromDB(userId, assessmentIdFromRequest);
-                    String questionSetFromAssessmentString = (!existingDataList.isEmpty()) ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE) : "";
-                    if (!questionSetFromAssessmentString.isEmpty()) {
+                    String questionSetFromAssessmentString = CollectionUtils.isNotEmpty(existingDataList)
+                            ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE)
+                            : "";
+                    if (StringUtils.isNotBlank(questionSetFromAssessmentString)) {
                         userAssessmentAllDetail.putAll(new Gson().fromJson(questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
                         }.getType()));
                     } else {
@@ -332,7 +334,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                         }));
                     } else {
                         existingDataList = assessmentRepository.fetchUserAssessmentDataFromDB(userId, (String) submitRequest.get(Constants.IDENTIFIER));
-                        String questionSetFromAssessmentString = (!existingDataList.isEmpty()) ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE) : "";
+                        String questionSetFromAssessmentString = (!existingDataList.isEmpty()) ? (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE_KEY) : "";
                         if (!questionSetFromAssessmentString.isEmpty()) {
                             questionSetFromAssessment = new Gson().fromJson(questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
                             }.getType());
@@ -415,8 +417,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId, Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Long existingAssessmentStartTime = (Long) questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = Instant.ofEpochMilli(existingAssessmentStartTime);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId, (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED, startTime,null);
                 if (Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
                     Map<String, Object> kafkaResult = new HashMap<>();
@@ -720,10 +721,15 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                 List<Map<String, Object>> existingDataList = assessmentRepository.fetchUserAssessmentDataFromDB(userId, assessmentIdentifier);
                 Map<String, Object> assessmentAllDetail = new HashMap<>();
                 errMsg = fetchReadHierarchyDetails(assessmentAllDetail, token, assessmentIdentifier);
-                if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
-                    retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
+                if (Constants.PRE_ENROLLED_ASSESSMENT_KEY.equals(assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG))) {
+                    retakeAttemptsAllowed = 1;
+                    retakeAttemptsConsumed = 0;
+                } else {
+                    if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
+                        retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
+                    }
+                    retakeAttemptsConsumed = calculateAssessmentRetakeCount(existingDataList);
                 }
-                retakeAttemptsConsumed = calculateAssessmentRetakeCount(existingDataList);
             } else {
                 errMsg = Constants.USER_ID_DOESNT_EXIST;
             }

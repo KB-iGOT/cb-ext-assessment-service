@@ -83,14 +83,18 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                         HttpStatus.INTERNAL_SERVER_ERROR);
                 return response;
             }
-            if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
-                retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
-            }
-            
-            if (serverProperties.isAssessmentRetakeCountVerificationEnabled()) {
-                retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
-                // if(retakeAttemptsConsumed > 0)
-                    retakeAttemptsConsumed = retakeAttemptsConsumed-1;
+            Object contextCategory = assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
+            if (contextCategory != null && Constants.PRE_ENROLLED_ASSESSMENT_KEY.equals(contextCategory.toString())) {
+                retakeAttemptsAllowed = 1;
+                retakeAttemptsConsumed = 0;
+            } else {
+                if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
+                    retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
+                }
+                if (serverProperties.isAssessmentRetakeCountVerificationEnabled()) {
+                    retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
+                    retakeAttemptsConsumed = retakeAttemptsConsumed - 1;
+                }
             }
         } catch (Exception e) {
             errMsg = String.format("Error while calculating retake assessment. Exception: %s", e.getMessage());
@@ -330,6 +334,25 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
+            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
+            if (StringUtils.isBlank(assessmentLanguageReq)) {
+                assessmentLanguageReq = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if (StringUtils.isNotBlank(assessmentLanguageReq)) {
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq);
+                }
+            }else{
+                String assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
+                if(assessmentLanguageReq.equalsIgnoreCase(assessmentLanguage)){
+                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq.toLowerCase());
+                }else{
+                    errMsg = String.format("Assessment language mismatch. Expected: %s, Provided: %s", assessmentLanguage, assessmentLanguageReq);
+                    updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
+                    return outgoingResponse;
+                }
+            }
+
+            submitRequest.put(Constants.COURSE_ID, assessUtilServ.readContentRecord(submitRequest.get(Constants.COURSE_ID).toString(), Arrays.asList(Constants.LANGUAGE_MAP_V1)));
+
             String assessmentPrimaryCategory = (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY);
             Map<String,Object> courseCategoryMap=contentService.readContent((String) submitRequest.get(Constants.COURSE_ID));
             String courseCategory = "";
@@ -759,12 +782,16 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         }
 
         Object startTimeObj = existingAssessmentData.get(Constants.START_TIME);
-        if (!(startTimeObj instanceof Date)) {
+        Instant assessmentStartTime;
+        if (startTimeObj instanceof Date) {
+            assessmentStartTime = ((Date) startTimeObj).toInstant();
+        } else if (startTimeObj instanceof Instant) {
+            assessmentStartTime = (Instant) startTimeObj;
+        } else if (startTimeObj instanceof String) {
+            assessmentStartTime = Instant.parse((String) startTimeObj);
+        } else {
             return Constants.READ_ASSESSMENT_START_TIME_FAILED;
         }
-
-        Instant assessmentStartTime = ((Date) startTimeObj).toInstant();
-
         Integer expectedDuration = (Integer) assessmentHierarchy.get(Constants.EXPECTED_DURATION);
         int userSubmissionDuration = Integer.parseInt(serverProperties.getUserAssessmentSubmissionDuration());
 
@@ -893,8 +920,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                                          String userAuthToken, boolean shouldUpdateContentProgress) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Long existingAssessmentStartTime = (Long) questionSetFromAssessment.get(Constants.START_TIME);
-                Instant startTime = Instant.ofEpochMilli(existingAssessmentStartTime);
+                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
