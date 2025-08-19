@@ -66,4 +66,6 @@ public interface AssessmentUtilServiceV2 {
 	Long parseStartTimeToLong(Object startTimeObj);
 
 	String readContentRecord(String courseId, List<String> fields);
+
+    String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest);
 }

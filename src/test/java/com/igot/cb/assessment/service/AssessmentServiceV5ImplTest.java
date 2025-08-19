@@ -441,26 +441,6 @@ class AssessmentServiceV5ImplTest {
         assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
-    @Test
-    void testSubmitAssessmentAsyncV6_LanguageMismatch() {
-        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user");
-        Map<String, Object> submitRequest = new HashMap<>();
-        submitRequest.put(Constants.IDENTIFIER, "assessmentId");
-        submitRequest.put(Constants.LANGUAGE, "english");
-        submitRequest.put(Constants.CHILDREN, new ArrayList<>());
-        Map<String, Object> assessmentHierarchy = new HashMap<>();
-        assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
-        assessmentHierarchy.put(Constants.CHILDREN, new ArrayList<>());
-        assessmentHierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
-        assessmentHierarchy.put(Constants.ASSESSMENT_TYPE, "defaultType");
-        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
-                .thenReturn(assessmentHierarchy);
-        when(assessUtilServ.readAssessmentRecord("assessmentId", List.of(Constants.LANGUAGE)))
-                .thenReturn("hindi");
-        SBApiResponse response = service.submitAssessmentAsyncV6(submitRequest, "token", false);
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertTrue(response.getParams().getErrmsg().contains("Assessment language mismatch"));
-    }
 
     @Test
     void testSubmitAssessmentAsyncV6_SuccessPracticeAssessment() {

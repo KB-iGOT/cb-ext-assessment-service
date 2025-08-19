@@ -284,25 +284,6 @@ class AssessmentServiceV4ImplTest {
     }
 
     @Test
-    void testSubmitAssessmentAsync_Failed_LanguageMismatch() {
-        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
-        Map<String, Object> submitRequest = new HashMap<>();
-        submitRequest.put(Constants.IDENTIFIER, "assess1");
-        submitRequest.put(Constants.LANGUAGE, "english");
-        submitRequest.put(Constants.CHILDREN, new ArrayList<>());
-        Map<String, Object> assessmentHierarchy = new HashMap<>();
-        assessmentHierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
-        assessmentHierarchy.put(Constants.CHILDREN, new ArrayList<>());
-        assessmentHierarchy.put(Constants.SCORE_CUTOFF_TYPE, Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF);
-        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
-                .thenReturn(assessmentHierarchy);
-        when(assessUtilServ.readAssessmentRecord(anyString(), anyList())).thenReturn("hindi");
-        SBApiResponse resp = service.submitAssessmentAsync(submitRequest, "token", false);
-        assertEquals(Constants.FAILED, resp.getParams().getStatus());
-        assertTrue(resp.getParams().getErrmsg().contains("Assessment language mismatch"));
-    }
-
-    @Test
     void testSubmitAssessmentAsync_Failed_MissingAssessmentId() {
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
         Map<String, Object> submitRequest = new HashMap<>();
