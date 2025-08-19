@@ -346,24 +346,13 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
-            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
-            if (StringUtils.isBlank(assessmentLanguageReq)) {
-                assessmentLanguageReq = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
-                if (StringUtils.isNotBlank(assessmentLanguageReq)) {
-                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq);
-                }
-            }else{
-                String assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
-                if(assessmentLanguageReq.equalsIgnoreCase(assessmentLanguage)){
-                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq.toLowerCase());
-                }else{
-                    errMsg = String.format("Assessment language mismatch. Expected: %s, Provided: %s", assessmentLanguage, assessmentLanguageReq);
-                    updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
-                    return outgoingResponse;
-                }
-            }
 
-            submitRequest.put(Constants.COURSE_ID, assessUtilServ.readContentRecord(submitRequest.get(Constants.COURSE_ID).toString(), Arrays.asList(Constants.LANGUAGE_MAP_V1)));
+            errMsg = assessUtilServ.validateAssessmentLanguageAndNodes(submitRequest);
+
+            if (StringUtils.isNotBlank(errMsg)) {
+                updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
+                return outgoingResponse;
+            }
 
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;
@@ -1356,24 +1345,13 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
                 return outgoingResponse;
             }
-            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
-            if (StringUtils.isBlank(assessmentLanguageReq)) {
-                assessmentLanguageReq = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
-                if (StringUtils.isNotBlank(assessmentLanguageReq)) {
-                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq);
-                }
-            }else{
-                String assessmentLanguage = assessUtilServ.readAssessmentRecord(assessmentIdFromRequest, List.of(Constants.LANGUAGE));
-                if(assessmentLanguageReq.equalsIgnoreCase(assessmentLanguage)){
-                    submitRequest.put(Constants.LANGUAGE, assessmentLanguageReq.toLowerCase());
-                }else{
-                    errMsg = String.format("Assessment language mismatch. Expected: %s, Provided: %s", assessmentLanguage, assessmentLanguageReq);
-                    updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
-                    return outgoingResponse;
-                }
-            }
 
-            submitRequest.put(Constants.COURSE_ID, assessUtilServ.readContentRecord(submitRequest.get(Constants.COURSE_ID).toString(), Arrays.asList(Constants.LANGUAGE_MAP_V1)));
+            errMsg = assessUtilServ.validateAssessmentLanguageAndNodes(submitRequest);
+
+            if (StringUtils.isNotBlank(errMsg)) {
+                updateErrorDetails(outgoingResponse, errMsg, HttpStatus.BAD_REQUEST);
+                return outgoingResponse;
+            }
 
             Object contextCategory = assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG);
             int maxAssessmentRetakeAttempts;

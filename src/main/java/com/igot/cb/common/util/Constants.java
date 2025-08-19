@@ -245,7 +245,7 @@ public class Constants {
     public static final String TABLE_USER_WORK_ALLOCATION_MAPPING = "user_work_allocation_mapping";
     public static final String TABLE_MANDATORY_USER_CONTENT = "mandatory_user_content";
     public static final String TABLE_ORGANIZATION = "organisation";
-    public static final String TABLE_USER_ENROLMENT = "user_enrolments";
+    public static final String TABLE_USER_ENROLMENT = "user_enrolments_v2";
     public static final String TABLE_USER = "user";
     public static final String TABLE_USER_ROLES = "user_roles";
     public static final String TABLE_COURSE_BATCH = "course_batch";
@@ -1365,6 +1365,9 @@ public class Constants {
     public static final String PRE_ENROLLED_ASSESSMENT_KEY = "Pre Enrolment Assessment";
     public static final String LANGUAGE = "language";
     public static final String LANGUAGE_MAP_V1 = "languageMapV1";
+    public static final String MULTILINGUAL_COURSE = "Multilingual Course";
+    public static final String COURSEID_ERROR = "CourseId should not be multilingual course";
+    public static final String LEAF_NODES = "leafNodes";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
