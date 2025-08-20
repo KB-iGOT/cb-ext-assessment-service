@@ -1293,4 +1293,56 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		return courseId;
 	}
 
+    @Override
+    public String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) {
+        logger.info("Validating assessment language and nodes for request: {}", submitRequest);
+        try {
+            String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
+            String assessmentIdFromRequest = (String) submitRequest.get(Constants.IDENTIFIER);
+
+            Map<String, Object> contentRead = contentService.readContent(submitRequest.get(Constants.COURSE_ID).toString());
+            if (MapUtils.isNotEmpty(contentRead)) {
+
+                String courseCategory = (String) contentRead.get(Constants.COURSE_CATEGORY);
+                List<String> leafNodes = (List<String>) contentRead.get(Constants.LEAF_NODES);
+
+                if (StringUtils.isNotBlank(courseCategory) &&
+                        courseCategory.equalsIgnoreCase(Constants.MULTILINGUAL_COURSE)) {
+                    return Constants.COURSEID_ERROR + submitRequest.get(Constants.COURSE_ID);
+                }
+
+                String baseLanguage = ((List<String>) contentRead.get(Constants.LANGUAGE)).get(0);
+                if (StringUtils.isBlank(assessmentLanguageReq)) {
+                    submitRequest.put(Constants.LANGUAGE, baseLanguage);
+                } else if (!assessmentLanguageReq.equalsIgnoreCase(baseLanguage)) {
+                    Map<String, Object> languageMapV1 = (Map<String, Object>) contentRead.get(Constants.LANGUAGE_MAP_V1);
+                    Map<String, Object> langData = (Map<String, Object>) languageMapV1.get(assessmentLanguageReq.toLowerCase());
+
+                    if (MapUtils.isEmpty(langData)) {
+                        return "Requested language not available: " + assessmentLanguageReq;
+                    }
+
+                    String mlCourseId = (String) langData.get(Constants.ID);
+                    Map<String, Object> mlCourseContent = contentService.readContent(mlCourseId);
+                    List<String> mlLeafNodes = (List<String>) mlCourseContent.get(Constants.LEAF_NODES);
+
+                    if (CollectionUtils.isEmpty(mlLeafNodes) || !mlLeafNodes.contains(assessmentIdFromRequest)) {
+                        return "Assessment " + assessmentIdFromRequest +
+                                " not found in multilingual course " + mlCourseId;
+                    }
+                } else {
+                    if (CollectionUtils.isEmpty(leafNodes) || !leafNodes.contains(assessmentIdFromRequest)) {
+                        return "Assessment " + assessmentIdFromRequest +
+                                " not found in base course " + submitRequest.get(Constants.COURSE_ID).toString();
+
+                    }
+                }
+            }
+            return "";
+        } catch (Exception e) {
+            logger.error("Error during assessment language and nodes validation: {}", e.getMessage(), e);
+            return "Error during assessment language and nodes validation: " + e.getMessage();
+        }
+    }
+
 }
