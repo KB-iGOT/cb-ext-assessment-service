@@ -1314,9 +1314,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
                 String baseLanguage = ((List<String>) contentRead.get(Constants.LANGUAGE)).get(0);
                 if (StringUtils.isBlank(assessmentLanguageReq)) {
                     submitRequest.put(Constants.LANGUAGE, baseLanguage);
-                }
-
-                if (!assessmentLanguageReq.equalsIgnoreCase(baseLanguage)) {
+                } else if (!assessmentLanguageReq.equalsIgnoreCase(baseLanguage)) {
                     Map<String, Object> languageMapV1 = (Map<String, Object>) contentRead.get(Constants.LANGUAGE_MAP_V1);
                     Map<String, Object> langData = (Map<String, Object>) languageMapV1.get(assessmentLanguageReq.toLowerCase());
 
