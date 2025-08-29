@@ -2172,8 +2172,9 @@ class AssessmentServiceV5ImplTest {
 
         String userId = "user123";
         String primaryCategory = "Competency Assessment";
-        String courseCategory = "Other"; // Not Standalone Assessment
+        String courseCategory = "Other"; // Not "Standalone Assessment"
         String token = "authToken";
+        String contextCategory = ""; // Not PRE_ENROLLED_ASSESSMENT
 
         Instant fakeInstant = Instant.parse("2024-07-15T10:15:30Z");
 
@@ -2182,29 +2183,31 @@ class AssessmentServiceV5ImplTest {
         when(assessmentRepository.updateUserAssesmentDataToDB(eq(userId), eq("assessmentId123"),
                 anyMap(), eq(result), eq(Constants.SUBMITTED), eq(fakeInstant), isNull()))
                 .thenReturn(true);
-
-        // Correct usage of doNothing() on void methods
         when(contentService.updateContentProgress(eq(token), anyMap(), eq(userId), any(SBApiResponse.class)))
                 .thenReturn(Constants.SUCCESS);
         when(serverProperties.getAssessmentSubmitTopic()).thenReturn("assessment-submit-topic");
+
         doNothing().when(producer).push(anyString(), any());
 
         ReflectionTestUtils.setField(service, "kafkaProducer", producer);
-        // Reflective method invocation for private method
+
+        // Reflectively invoke the updated private method
         Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
                 "writeDataToDatabaseAndTriggerKafkaEvent",
-                Map.class, String.class, Map.class, Map.class, String.class, String.class, String.class
+                Map.class, String.class, Map.class, Map.class, String.class, String.class, String.class, String.class
         );
         method.setAccessible(true);
-        method.invoke(service, submitRequest, userId, questionSetFromAssessment, result, primaryCategory, courseCategory, token);
+        method.invoke(service, submitRequest, userId, questionSetFromAssessment, result,
+                primaryCategory, courseCategory, token, contextCategory);
 
         // Assert interactions
         verify(assessmentRepository, times(1)).updateUserAssesmentDataToDB(eq(userId), eq("assessmentId123"),
                 anyMap(), eq(result), eq(Constants.SUBMITTED), eq(fakeInstant), isNull());
 
         verify(contentService, times(1)).updateContentProgress(eq(token), anyMap(), eq(userId), any(SBApiResponse.class));
-        verify(producer, times(1)).push(eq(serverProperties.getAssessmentSubmitTopic()), any());
+        verify(producer, times(1)).push(eq("assessment-submit-topic"), any());
     }
+
 
     @Test
     void testReadSectionLevelParams_WithShufflePath() throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {

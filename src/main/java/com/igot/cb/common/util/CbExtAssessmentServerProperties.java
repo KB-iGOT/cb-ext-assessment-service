@@ -647,6 +647,28 @@ public class CbExtAssessmentServerProperties {
     @Value("${sub.sector.category.fields}")
     private String subSectorFields;
 
+    @Value("${cb.ext.course.service.host}")
+    private String extCourseServiceHost;
+
+    @Value("${content.state.update.endpoint}")
+    private String contentStateUpdate;
+
+    public String getContentStateUpdate() {
+        return contentStateUpdate;
+    }
+
+    public void setContentStateUpdate(String contentStateUpdate) {
+        this.contentStateUpdate = contentStateUpdate;
+    }
+
+    public String getExtCourseServiceHost() {
+        return extCourseServiceHost;
+    }
+
+    public void setExtCourseServiceHost(String extCourseServiceHost) {
+        this.extCourseServiceHost = extCourseServiceHost;
+    }
+
     public String getRedisWheeboxKey() {
         return redisWheeboxKey;
     }
