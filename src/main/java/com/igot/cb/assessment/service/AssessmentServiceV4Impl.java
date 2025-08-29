@@ -1008,11 +1008,6 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             missingAttribs.add(Constants.ASSESSMENT_ID_KEY);
         }
 
-        if (!requestBody.containsKey(Constants.BATCH_ID)
-                || StringUtils.isBlank((String) requestBody.get(Constants.BATCH_ID))) {
-            missingAttribs.add(Constants.BATCH_ID);
-        }
-
         if (!requestBody.containsKey(Constants.COURSE_ID)
                 || StringUtils.isBlank((String) requestBody.get(Constants.COURSE_ID))) {
             missingAttribs.add(Constants.COURSE_ID);
