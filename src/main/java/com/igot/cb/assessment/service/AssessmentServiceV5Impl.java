@@ -422,7 +422,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                                             });
                                 }
                                 writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, finalRes,
-                                        (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), courseCategory,userAuthToken);
+                                        (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), courseCategory,userAuthToken,(String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                             }
                             else if (Constants.PRACTICE_QUESTION_SET.equalsIgnoreCase(assessmentPrimaryCategory)){
                                 SBApiResponse contentUpdateResponse = new SBApiResponse();
@@ -464,7 +464,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                                     });
                         }
                         writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result,
-                                (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),courseCategory, userAuthToken);
+                                (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),courseCategory, userAuthToken, (String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                     } else if (Constants.PRACTICE_QUESTION_SET.equalsIgnoreCase(assessmentPrimaryCategory)){
                         SBApiResponse contentUpdateResponse = new SBApiResponse();
                         String response =contentService.updateContentProgress(userAuthToken,submitRequest,userId,contentUpdateResponse);
@@ -823,7 +823,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
     }
 
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId,
-                                                         Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory, String userAuthToken) {
+                                                         Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory, String userAuthToken,String contextCategory) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
@@ -833,7 +833,11 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 //If the assessment is of the type of Standalone assessment it should be mandatory to pass to generate the certificate and updateContentProgess
                 if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && ((boolean) result.get(Constants.PASS) || !"Standalone Assessment".equalsIgnoreCase(courseCategory))) {
                     SBApiResponse contentUpdateResponse = new SBApiResponse();
-                    contentService.updateContentProgress(userAuthToken,submitRequest,userId,contentUpdateResponse);
+                    if(StringUtils.isNotBlank(contextCategory) && contextCategory.equalsIgnoreCase(Constants.PRE_ENROLLED_ASSESSMENT_KEY)){
+                        contentService.updatePreEnrolledAssessment(userAuthToken, submitRequest, userId, contentUpdateResponse);
+                    }else {
+                        contentService.updateContentProgress(userAuthToken, submitRequest, userId, contentUpdateResponse);
+                    }
                     Map<String, Object> kafkaResult = new HashMap<>();
                     kafkaResult.put(Constants.CONTENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));
                     kafkaResult.put(Constants.COURSE_ID,
@@ -1421,7 +1425,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                                         });
                             }
                             writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, finalRes,
-                                    (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), courseCategory, userAuthToken);
+                                    (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), courseCategory, userAuthToken, (String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                         } else if (Constants.PRACTICE_QUESTION_SET.equalsIgnoreCase(assessmentPrimaryCategory)){
                             SBApiResponse contentUpdateResponse = new SBApiResponse();
                             String response=contentService.updateContentProgress(userAuthToken,submitRequest,userId,contentUpdateResponse);
@@ -1462,7 +1466,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                                 });
                     }
                     writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result,
-                            (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), courseCategory, userAuthToken);
+                            (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), courseCategory, userAuthToken, (String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                 } else if (Constants.PRACTICE_QUESTION_SET.equalsIgnoreCase(assessmentPrimaryCategory)){
                     SBApiResponse contentUpdateResponse = new SBApiResponse();
                     String response=contentService.updateContentProgress(userAuthToken,submitRequest,userId,contentUpdateResponse);

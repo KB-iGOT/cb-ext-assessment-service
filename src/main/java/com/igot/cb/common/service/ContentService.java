@@ -19,4 +19,5 @@ public interface ContentService {
 
     public Map<String, Object> readContent(String contentId);
 
+    String updatePreEnrolledAssessment(String userAuthToken, Map<String, Object> submitRequest, String userId, SBApiResponse contentUpdateResponse);
 }

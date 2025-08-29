@@ -393,7 +393,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                             });
                                 }
                                 writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, finalRes,
-                                        (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),courseCategory,userAuthToken,true);
+                                        (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),courseCategory,userAuthToken,true,(String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                             } else if (Constants.PRACTICE_QUESTION_SET.equalsIgnoreCase(assessmentPrimaryCategory)){
                                 SBApiResponse contentUpdateResponse = new SBApiResponse();
                                 String response=contentService.updateContentProgress(userAuthToken,submitRequest,userId,contentUpdateResponse);
@@ -431,7 +431,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                                     });
                         }
                         writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result,
-                                (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),courseCategory,userAuthToken,true);
+                                (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),courseCategory,userAuthToken,true,(String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                     } else {
                         SBApiResponse contentUpdateResponse = new SBApiResponse();
                         String response=contentService.updateContentProgress(userAuthToken,submitRequest,userId,contentUpdateResponse);
@@ -545,7 +545,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                             Map<String, Object> finalResult = calculateAssessmentFinalResults(result);
                             finalResult.put(Constants.STATUS_IS_IN_PROGRESS, false);
                             writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment,
-                                    finalResult, (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),null,null,false);
+                                    finalResult, (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),null,null,false,(String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                         }
                         case Constants.SECTION_LEVEL_SCORE_CUTOFF: {
                             result.putAll(createResponseMapWithProperStructure(hierarchySection,
@@ -565,7 +565,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 Map<String, Object> result = calculateSectionFinalResults(sectionLevelsResults);
                 result.put(Constants.STATUS_IS_IN_PROGRESS, false);
                 writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result,
-                        (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),null,null,false);
+                        (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY),null,null,false,(String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
             }
         } catch (Exception e) {
             errMsg = String.format("Failed to process assessent submit request. Exception: ", e.getMessage());
@@ -906,7 +906,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
 
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId,
             Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory,String courseCategory,
-                                                         String userAuthToken, boolean shouldUpdateContentProgress) {
+                                                         String userAuthToken, boolean shouldUpdateContentProgress, String contextCategory ) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
@@ -916,7 +916,11 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && ((boolean) result.get(Constants.PASS) || !"Standalone Assessment".equalsIgnoreCase(courseCategory))) {
                     if (shouldUpdateContentProgress) {
                         SBApiResponse contentUpdateResponse = new SBApiResponse();
-                        contentService.updateContentProgress(userAuthToken, submitRequest, userId, contentUpdateResponse);
+                        if(StringUtils.isNotBlank(contextCategory) && contextCategory.equalsIgnoreCase(Constants.PRE_ENROLLED_ASSESSMENT_KEY)){
+                            contentService.updatePreEnrolledAssessment(userAuthToken, submitRequest, userId, contentUpdateResponse);
+                        }else {
+                            contentService.updateContentProgress(userAuthToken, submitRequest, userId, contentUpdateResponse);
+                        }
                     }
                     Map<String, Object> kafkaResult = new HashMap<>();
                     kafkaResult.put(Constants.CONTENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));

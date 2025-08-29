@@ -1368,6 +1368,7 @@ public class Constants {
     public static final String MULTILINGUAL_COURSE = "Multilingual Course";
     public static final String COURSEID_ERROR = "CourseId should not be multilingual course";
     public static final String LEAF_NODES = "leafNodes";
+    public static final String PROGRESS_DETAILS = "progressdetails";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
