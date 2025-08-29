@@ -2073,9 +2073,8 @@ class AssessmentServiceV5ImplTest {
     }
 
     @Test
-    void testValidateAssessmentReadResult_MissingBatchIdOnly() throws Exception {
+    void testValidateAssessmentReadResult_MissingAssessmentId() throws Exception {
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put(Constants.ASSESSMENT_ID_KEY, "assess123");
         requestBody.put(Constants.COURSE_ID, "course123");
 
         Map<String, Object> request = new HashMap<>();
@@ -2086,7 +2085,8 @@ class AssessmentServiceV5ImplTest {
         method.setAccessible(true);
 
         String result = (String) method.invoke(service, request);
-        assertTrue(result.contains(Constants.BATCH_ID));
+        assertTrue(result.contains(Constants.ASSESSMENT_ID_KEY));
+        assertFalse(result.contains(Constants.COURSE_ID));
     }
 
     @Test
