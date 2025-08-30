@@ -205,13 +205,18 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         || assessmentStartTime.compareTo(existingAssessmentEndTime.toInstant()) > 0) {
                     logger.info(
                             "Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly ");
-                    if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
-                        int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) +1;
-                        int retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
-                        if(retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                            errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
-                            updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
-                            return response;
+                    Object contextCategory = assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
+                    if (contextCategory != null && Constants.PRE_ENROLLED_ASSESSMENT_KEY.equals(contextCategory.toString())) {
+                        logger.debug(" Context category is pre-enrolled assessment ");
+                    } else {
+                        if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
+                            int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) + 1;
+                            int retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
+                            if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
+                                errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+                                updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+                                return response;
+                            }
                         }
                     }
                     errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
