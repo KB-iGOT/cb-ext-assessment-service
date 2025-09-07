@@ -1,11 +1,32 @@
 package com.igot.cb.cassandra.utils;
 
 
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.bindMarker;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.*;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import com.datastax.oss.driver.api.querybuilder.relation.Relation;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
+import com.datastax.oss.driver.api.querybuilder.select.SelectFrom;
 import com.datastax.oss.driver.api.querybuilder.term.Term;
 import com.datastax.oss.driver.api.querybuilder.update.Assignment;
 import com.datastax.oss.driver.api.querybuilder.update.Update;
@@ -14,22 +35,6 @@ import com.datastax.oss.driver.api.querybuilder.update.UpdateWithAssignments;
 import com.igot.cb.common.helper.cassandra.CassandraConnectionManager;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.Constants;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.bindMarker;
-import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
 
 @Component
 public class CassandraOperationImpl implements CassandraOperation {
@@ -128,7 +133,7 @@ public class CassandraOperationImpl implements CassandraOperation {
 		try {
 			session = connectionManager.getSession(keyspaceName);
 			Select selectQuery = null;
-			selectQuery = processQuery(keyspaceName, tableName, propertyMap, fields);
+			selectQuery = processQueryWithoutFiltering(keyspaceName, tableName, propertyMap, fields);
 
 			String queryString = selectQuery.toString();
 			SimpleStatement statement = SimpleStatement.newInstance(queryString);
@@ -168,6 +173,31 @@ public class CassandraOperationImpl implements CassandraOperation {
 			throw e;
 		}
 		return response;
+	}
+
+	private Select processQueryWithoutFiltering(String keyspaceName, String tableName, Map<String, Object> propertyMap,
+			List<String> fields) {
+		SelectFrom from = QueryBuilder.selectFrom(keyspaceName, tableName);
+
+		Select selectQuery = CollectionUtils.isNotEmpty(fields)
+				? from.columns(fields.toArray(new String[0]))
+				: from.all();
+
+		if (MapUtils.isNotEmpty(propertyMap)) {
+			for (Map.Entry<String, Object> e : propertyMap.entrySet()) {
+				Object v = e.getValue();
+				if (v instanceof List && CollectionUtils.isNotEmpty((List<?>) v)) {
+					List<Term> terms = ((List<?>) v).stream()
+							.map(QueryBuilder::literal)
+							.collect(Collectors.toList());
+					selectQuery = selectQuery.whereColumn(e.getKey()).in(terms);
+				} else {
+					selectQuery = selectQuery.whereColumn(e.getKey())
+							.isEqualTo(QueryBuilder.literal(v));
+				}
+			}
+		}
+		return selectQuery;
 	}
 }
 
