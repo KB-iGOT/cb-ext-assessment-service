@@ -831,7 +831,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
                 //If the assessment is of the type of Standalone assessment it should be mandatory to pass to generate the certificate and updateContentProgess
-                if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && ((boolean) result.get(Constants.PASS) || !"Standalone Assessment".equalsIgnoreCase(courseCategory))) {
+                List<String> mandatoryCourseCategoriesList = serverProperties.getMandatoryCourseCategoriesForCertificateGeneration();
+                if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && ((boolean) result.get(Constants.PASS) || mandatoryCourseCategoriesList.stream().noneMatch(c -> c.equalsIgnoreCase(courseCategory)))) {
                     SBApiResponse contentUpdateResponse = new SBApiResponse();
                     if(StringUtils.isNotBlank(contextCategory) && contextCategory.equalsIgnoreCase(Constants.PRE_ENROLLED_ASSESSMENT_KEY)){
                         contentService.updatePreEnrolledAssessment(userAuthToken, submitRequest, userId, contentUpdateResponse);
