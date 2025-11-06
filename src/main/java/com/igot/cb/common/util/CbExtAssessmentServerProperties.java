@@ -1064,6 +1064,9 @@ public class CbExtAssessmentServerProperties {
     @Value("${redis.jedis.pool.block-when-exhausted}")
     private boolean blockWhenExhausted;
 
+    @Value("${mandatory.course.categories.for.certificate.generation}")
+    private String mandatoryCourseCategoriesForCertificateGeneration;
+
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
     }
@@ -3602,6 +3605,11 @@ public class CbExtAssessmentServerProperties {
 
     public void setBlockWhenExhausted(boolean blockWhenExhausted) {
         this.blockWhenExhausted = blockWhenExhausted;
+    }
+
+
+    public List<String> getMandatoryCourseCategoriesForCertificateGeneration() {
+        return Arrays.asList(mandatoryCourseCategoriesForCertificateGeneration.split(",", -1));
     }
 
 }
