@@ -103,7 +103,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                                 questionSetFromAssessment = mapper.readValue(userQuestionSet, new TypeReference<Map<String, Object>>() {
                                 });
                             } else {
-                                String questionSetFromAssessmentString = (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE);
+                                String questionSetFromAssessmentString = (String) existingDataList.get(0).get(Constants.ASSESSMENT_READ_RESPONSE_KEY);
                                 questionSetFromAssessment = new Gson().fromJson(questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
                                 }.getType());
                                 questionSetFromAssessment.put(Constants.START_TIME, assessmentStartTime.toEpochMilli());
