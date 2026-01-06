@@ -209,9 +209,19 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) +1;
                         int retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
                         if(retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                            errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
-                            updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
-                            return response;
+                            if (!assessUtilServ.isCoolOffPeriodConfigured(assessmentAllDetail)) {
+                                errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+                                updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+                                return response;
+                            }
+                            String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
+                                    assessmentAllDetail, existingDataList);
+                            if (StringUtils.isNotBlank(coolOffValidationError)) {
+                                logger.warn("Cool-off period active - User: {}, Assessment: {}", userId, assessmentIdentifier);
+                                updateErrorDetails(response, coolOffValidationError, HttpStatus.INTERNAL_SERVER_ERROR);
+                                return response;
+                            }
+                            logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
                         }
                     }
                     errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);

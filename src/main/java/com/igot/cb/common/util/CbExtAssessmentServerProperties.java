@@ -270,6 +270,9 @@ public class CbExtAssessmentServerProperties {
     @Value("${assessment.read.min.question.params}")
     private String assessmentMinQuestionParams;
 
+    @Value("${assessment.cooloff.error.message}")
+    private String assessmentCoolOffErrorMessage;
+
     @Value("${user.assessment.submission.duration}")
     private String userAssessmentSubmissionDuration;
 
@@ -1769,6 +1772,14 @@ public class CbExtAssessmentServerProperties {
 
     public void setAssessmentMinQuestionParams(String assessmentMinQuestionParams) {
         this.assessmentMinQuestionParams = assessmentMinQuestionParams;
+    }
+
+    public String getAssessmentCoolOffErrorMessage() {
+        return assessmentCoolOffErrorMessage;
+    }
+
+    public void setAssessmentCoolOffErrorMessage(String assessmentCoolOffErrorMessage) {
+        this.assessmentCoolOffErrorMessage = assessmentCoolOffErrorMessage;
     }
 
     public String getUserRegistrationIndex() {

@@ -68,4 +68,26 @@ public interface AssessmentUtilServiceV2 {
 	String readContentRecord(String courseId, List<String> fields);
 
     String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest);
+
+	/**
+	 * Checks if cool-off period is configured and valid for an assessment.
+	 *
+	 * @param assessmentAllDetail the complete assessment hierarchy containing cool-off configuration
+	 * @return true if cool-off period exists and is a valid Integer greater than 0, false otherwise
+	 */
+	boolean isCoolOffPeriodConfigured(Map<String, Object> assessmentAllDetail);
+
+	/**
+	 * Validates if the user is within the cool-off period for retaking an assessment.
+	 * The cool-off period prevents immediate retakes after exhausting retry attempts.
+	 *
+	 * @param userId                  the user's unique identifier
+	 * @param assessmentIdentifier    the assessment's unique identifier
+	 * @param assessmentAllDetail     the complete assessment hierarchy containing cool-off configuration
+	 * @param userAssessmentDataList  list of user's previous assessment attempts, ordered by most recent first
+	 * @return empty string if validation passes, error message if cool-off period is active or validation fails
+	 */
+	String 	validateCoolOffPeriod(String userId, String assessmentIdentifier,
+								 Map<String, Object> assessmentAllDetail,
+								 List<Map<String, Object>> userAssessmentDataList);
 }

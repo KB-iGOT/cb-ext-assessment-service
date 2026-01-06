@@ -24,6 +24,7 @@ import org.springframework.util.ObjectUtils;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -1345,4 +1346,95 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
         }
     }
 
+	/**
+	 * Checks if cool-off period is configured and valid for an assessment.
+	 *
+	 * @param assessmentAllDetail the complete assessment hierarchy containing cool-off configuration
+	 * @return true if cool-off period exists and is a valid Integer greater than 0, false otherwise
+	 */
+	@Override
+	public boolean isCoolOffPeriodConfigured(Map<String, Object> assessmentAllDetail) {
+		try {
+			Object coolOffPeriodObj = assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
+			if (!(coolOffPeriodObj instanceof Integer)) {
+				return false;
+			}
+			int coolOffPeriodDays = (Integer) coolOffPeriodObj;
+			return coolOffPeriodDays > 0;
+		} catch (Exception e) {
+			logger.error("Error checking cool-off period configuration. Exception: {}", e.getMessage(), e);
+			return false;
+		}
+	}
+
+	/**
+	 * Validates if the user is within the cool-off period for retaking an assessment.
+	 * The cool-off period prevents immediate retakes after exhausting retry attempts.
+	 * 
+	 * Note: This method assumes coolOffPeriod is already validated by the caller (isCoolOffPeriodConfigured).
+	 *
+	 * @param userId                  the user's unique identifier
+	 * @param assessmentIdentifier    the assessment's unique identifier
+	 * @param assessmentAllDetail     the complete assessment hierarchy containing cool-off configuration
+	 * @param userAssessmentDataList  list of user's previous assessment attempts, ordered by most recent first
+	 * @return empty string if validation passes, error message if cool-off period is active
+	 */
+	@Override
+	public String validateCoolOffPeriod(String userId, String assessmentIdentifier,
+										 Map<String, Object> assessmentAllDetail,
+										 List<Map<String, Object>> userAssessmentDataList) {
+		try {
+			int coolOffPeriodDays = (Integer) assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
+			if (userAssessmentDataList.isEmpty()) {
+				logger.debug("No assessment history - User: {}, Assessment: {}", userId, assessmentIdentifier);
+				return "";
+			}
+			Map<String, Object> latestAssessment = userAssessmentDataList.get(0);
+			Object endTimeObj = latestAssessment.get(Constants.END_TIME);
+			if (endTimeObj == null) {
+				logger.warn("No end time in latest assessment - User: {}, Assessment: {}", userId, assessmentIdentifier);
+				return "";
+			}
+			Instant latestEndTime = convertToInstant(endTimeObj, userId, assessmentIdentifier);
+			if (latestEndTime == null) {
+				return "";
+			}
+			Instant coolOffEndTime = latestEndTime.plus(coolOffPeriodDays, ChronoUnit.DAYS);
+			Instant currentTime = Instant.now();
+			if (currentTime.isBefore(coolOffEndTime)) {
+				long remainingDays = ChronoUnit.DAYS.between(currentTime, coolOffEndTime);
+				logger.info("Cool-off active - User: {}, Assessment: {}, Remaining: {} days",
+						userId, assessmentIdentifier, remainingDays + 1);
+				return serverProperties.getAssessmentCoolOffErrorMessage()
+						.replace("{remainingDays}", String.valueOf(remainingDays + 1))
+						.replace("{coolOffPeriod}", String.valueOf(coolOffPeriodDays));
+			}
+			logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
+			return "";
+		} catch (Exception e) {
+			logger.error("Cool-off validation error - User: {}, Assessment: {}, Exception: {}",
+					userId, assessmentIdentifier, e.getMessage(), e);
+			return "";
+		}
+	}
+
+	/**
+	 * Converts an object to Instant, handling multiple input types.
+	 *
+	 * @param endTimeObj the end time object to convert
+	 * @param userId the user's unique identifier
+	 * @param assessmentIdentifier the assessment's unique identifier
+	 * @return Instant representation of the end time, or null if conversion fails
+	 */
+	private Instant convertToInstant(Object endTimeObj, String userId, String assessmentIdentifier) {
+		if (endTimeObj instanceof Instant instant) {
+			return instant;
+		}
+		if (endTimeObj instanceof Date date) {
+			return date.toInstant();
+		}
+		logger.error("Unexpected end time format: {} - User: {}, Assessment: {}",
+				endTimeObj.getClass().getSimpleName(), userId, assessmentIdentifier);
+		return null;
+	}
 }

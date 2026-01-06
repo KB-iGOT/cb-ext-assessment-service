@@ -1,0 +1,15 @@
+
+*.class
+*.properties
+*.lst
+*.MF
+*.original
+*.jar
+*.html
+*.txt
+*.xml
+*.css
+*.gif
+*.js
+*.csv
+*.exec
