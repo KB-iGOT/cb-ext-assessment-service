@@ -26,6 +26,7 @@ import org.springframework.util.ObjectUtils;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static com.igot.cb.common.util.ProjectUtil.createDefaultResponse;
@@ -1479,5 +1480,464 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return outgoingResponse;
+    }
+
+
+    /**
+     * Reads assessment data for learning pathway context.
+     * This method handles the complete assessment read flow including:
+     * - User authentication and validation
+     * - Assessment hierarchy retrieval
+     * - Practice question set handling
+     * - Assessment state management (first-time, in-progress, completed/expired)
+     * 
+     * @param assessmentIdentifier The unique identifier of the assessment to be read
+     * @param token The authentication token for user validation
+     * @param editMode Flag indicating whether the assessment is in edit mode
+     * @param parentContextId The parent context identifier for learning pathway
+     * @return SBApiResponse containing assessment data or error details
+     */
+    @Override
+    public SBApiResponse learningPathWayAssessmentRead(String assessmentIdentifier, String token, boolean editMode, String parentContextId) {
+        logger.info("Learning pathway assessment read started - Assessment: {}, EditMode: {}", assessmentIdentifier, editMode);
+        SBApiResponse response = createDefaultResponse(Constants.API_READ_ASSESSMENT);
+        try {
+            String userId = validateAndExtractUserId(token, response);
+            if (StringUtils.isBlank(userId)) {
+                logger.warn("User validation failed for assessment: {}", assessmentIdentifier);
+                return response;
+            }
+            Map<String, Object> assessmentAllDetail = fetchAssessmentHierarchy(assessmentIdentifier, editMode, token);
+            if (MapUtils.isEmpty(assessmentAllDetail)) {
+                logger.error("Failed to fetch assessment hierarchy for assessment: {}", assessmentIdentifier);
+                updateErrorDetails(response, Constants.ASSESSMENT_HIERARCHY_READ_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+                return response;
+            }
+            
+            if (isPracticeQuestionSetOrEditMode(assessmentAllDetail, editMode)) {
+                logger.debug("Handling practice question set/edit mode for assessment: {}", assessmentIdentifier);
+                response.getResult().put(Constants.QUESTION_SET, readAssessmentLevelData(assessmentAllDetail));
+                return response;
+            }
+            return handleAssessmentRead(userId, assessmentIdentifier, assessmentAllDetail, parentContextId, response);
+        } catch (Exception e) {
+            logger.error("Error reading learning pathway assessment: {}, Exception: {}", assessmentIdentifier, e.getMessage(), e);
+            updateErrorDetails(response, "Error while reading learning pathway assessment", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
+    }
+
+    /**
+     * Validates the authentication token and extracts the user ID.
+     * 
+     * @param token The authentication token to validate
+     * @param response The response object to update in case of validation failure
+     * @return The extracted user ID if validation succeeds, null otherwise
+     */
+    private String validateAndExtractUserId(String token, SBApiResponse response) {
+        String userId = accessTokenValidator.fetchUserIdFromAccessToken(token);
+        if (StringUtils.isBlank(userId)) {
+            logger.warn("Failed to extract user ID from token");
+            updateErrorDetails(response, Constants.USER_ID_DOESNT_EXIST, HttpStatus.INTERNAL_SERVER_ERROR);
+            return null;
+        }
+        return userId;
+    }
+
+    /**
+     * Fetches assessment hierarchy based on the mode (edit or cached).
+     * In edit mode, fetches directly from assessment service.
+     * Otherwise, retrieves from cache for performance optimization.
+     * 
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param editMode Flag indicating whether to fetch from service or cache
+     * @param token The authentication token for API calls
+     * @return Map containing assessment hierarchy details
+     */
+    private Map<String, Object> fetchAssessmentHierarchy(String assessmentIdentifier, boolean editMode, String token) {
+        if (editMode) {
+            logger.debug("Fetching assessment hierarchy from service (editMode) for: {}", assessmentIdentifier);
+            return assessUtilServ.fetchHierarchyFromAssessServc(assessmentIdentifier, token);
+        }
+        return assessUtilServ.readAssessmentHierarchyFromCache(assessmentIdentifier, editMode, token);
+    }
+
+    /**
+     * Checks if the assessment is a practice question set or in edit mode.
+     * Practice question sets and edit mode assessments are handled differently
+     * as they don't require state management or database tracking.
+     * 
+     * @param assessmentAllDetail Map containing assessment details
+     * @param editMode Flag indicating edit mode status
+     * @return true if practice question set or edit mode, false otherwise
+     */
+    private boolean isPracticeQuestionSetOrEditMode(Map<String, Object> assessmentAllDetail, boolean editMode) {
+        return Constants.PRACTICE_QUESTION_SET.equalsIgnoreCase(
+                (String) assessmentAllDetail.get(Constants.PRIMARY_CATEGORY)) || editMode;
+    }
+
+    /**
+     * Orchestrates the assessment read flow based on user's assessment history.
+     * Routes to appropriate handler for first-time or existing assessment reads.
+     * 
+     * @param userId The authenticated user's ID
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param assessmentAllDetail Map containing complete assessment hierarchy
+     * @param parentContextId The parent context identifier for learning pathway
+     * @param response The response object to populate with assessment data
+     * @return SBApiResponse with assessment data or error details
+     */
+    private SBApiResponse handleAssessmentRead(String userId, String assessmentIdentifier,
+                                               Map<String, Object> assessmentAllDetail,
+                                               String parentContextId, SBApiResponse response) {
+        List<Map<String, Object>> existingDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
+                userId, assessmentIdentifier);
+        Instant assessmentStartTime = Instant.now();
+        
+        if (existingDataList.isEmpty()) {
+            logger.info("First-time assessment read - User: {}, Assessment: {}", userId, assessmentIdentifier);
+            return handleFirstTimeAssessmentRead(userId, assessmentIdentifier, assessmentAllDetail,
+                    parentContextId, assessmentStartTime, response);
+        }
+        
+        logger.info("Existing assessment found ({} records) - User: {}, Assessment: {}", existingDataList.size(), userId, assessmentIdentifier);
+        return handleExistingAssessmentRead(userId, assessmentIdentifier, assessmentAllDetail,
+                parentContextId, existingDataList, assessmentStartTime, response);
+    }
+
+    /**
+     * Handles the first-time assessment read for a user.
+     * Creates a new assessment attempt with start/end times and persists to database.
+     * Validates expected duration and context locking before proceeding.
+     * 
+     * @param userId The authenticated user's ID
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param assessmentAllDetail Map containing complete assessment hierarchy
+     * @param parentContextId The parent context identifier for learning pathway
+     * @param assessmentStartTime The timestamp when assessment reading begins
+     * @param response The response object to populate with assessment data
+     * @return SBApiResponse with initialized assessment data or error details
+     */
+    private SBApiResponse handleFirstTimeAssessmentRead(String userId, String assessmentIdentifier,
+                                                        Map<String, Object> assessmentAllDetail,
+                                                        String parentContextId, Instant assessmentStartTime,
+                                                        SBApiResponse response) {
+        if (assessmentAllDetail.get(Constants.EXPECTED_DURATION) == null) {
+            logger.error("Expected duration missing for assessment: {}", assessmentIdentifier);
+            updateErrorDetails(response, Constants.ASSESSMENT_INVALID, HttpStatus.INTERNAL_SERVER_ERROR);
+            return response;
+        }
+        
+        String errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        if (StringUtils.isNotEmpty(errMsg)) {
+            logger.warn("Context locking failed - User: {}, Assessment: {}", userId, assessmentIdentifier);
+            return response;
+        }
+        
+        int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
+        Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration, assessmentStartTime, 0);
+        logger.debug("Assessment window: {} to {} ({} sec)", assessmentStartTime, assessmentEndTime, expectedDuration);
+        
+        Map<String, Object> assessmentData = readAssessmentLevelData(assessmentAllDetail);
+        assessmentData.put(Constants.START_TIME, assessmentStartTime);
+        assessmentData.put(Constants.END_TIME, assessmentEndTime);
+        response.getResult().put(Constants.QUESTION_SET, assessmentData);
+        
+        boolean isAssessmentUpdatedToDB = assessmentRepository.addUserAssesmentDataToDB(userId,
+                assessmentIdentifier, assessmentStartTime, assessmentEndTime,
+                (Map<String, Object>) (response.getResult().get(Constants.QUESTION_SET)),
+                Constants.NOT_SUBMITTED);
+        if (!isAssessmentUpdatedToDB) {
+            logger.error("DB persist failed - User: {}, Assessment: {}", userId, assessmentIdentifier);
+            updateErrorDetails(response, Constants.ASSESSMENT_DATA_START_TIME_NOT_UPDATED, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
+    }
+
+    /**
+     * Handles assessment read when user has existing assessment data.
+     * Determines the current assessment state (in-progress, completed, expired)
+     * and routes to appropriate handler.
+     * 
+     * @param userId The authenticated user's ID
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param assessmentAllDetail Map containing complete assessment hierarchy
+     * @param parentContextId The parent context identifier for learning pathway
+     * @param existingDataList List of existing assessment records from database
+     * @param assessmentStartTime The current timestamp for comparison
+     * @param response The response object to populate with assessment data
+     * @return SBApiResponse with assessment data based on current state
+     */
+    private SBApiResponse handleExistingAssessmentRead(String userId, String assessmentIdentifier,
+                                                       Map<String, Object> assessmentAllDetail,
+                                                       String parentContextId,
+                                                       List<Map<String, Object>> existingDataList,
+                                                       Instant assessmentStartTime, SBApiResponse response) {
+        Map<String, Object> existingData = existingDataList.get(0);
+        Instant existingAssessmentEndTime = extractEndTime(existingData);
+        String status = (String) existingData.get(Constants.STATUS);
+        
+        if (isAssessmentInProgress(assessmentStartTime, existingAssessmentEndTime, status)) {
+            logger.debug("Assessment in-progress - User: {}, EndTime: {}", userId, existingAssessmentEndTime);
+            return handleInProgressAssessment(existingData, assessmentStartTime, existingAssessmentEndTime, response);
+        }
+        
+        if (isAssessmentCompletedOrExpired(assessmentStartTime, existingAssessmentEndTime, status)) {
+            logger.info("Assessment completed/expired - User: {}, Status: {}", userId, status);
+            return handleCompletedOrExpiredAssessment(userId, assessmentIdentifier, assessmentAllDetail,
+                    parentContextId, assessmentStartTime, response);
+        }
+        
+        logger.warn("Unexpected assessment state - User: {}, Status: {}", userId, status);
+        return response;
+    }
+
+    /**
+     * Checks if an assessment is currently in progress.
+     * An assessment is considered in-progress if current time is before end time
+     * and status is NOT_SUBMITTED.
+     * 
+     * @param currentTime The current timestamp
+     * @param endTime The assessment end timestamp
+     * @param status The current assessment status
+     * @return true if assessment is in progress, false otherwise
+     */
+    private boolean isAssessmentInProgress(Instant currentTime, Instant endTime, String status) {
+        return currentTime.isBefore(endTime) && Constants.NOT_SUBMITTED.equalsIgnoreCase(status);
+    }
+
+    /**
+     * Extracts end time from existing assessment data.
+     * Handles multiple date formats (Instant and Date) using pattern matching.
+     * 
+     * @param existingData Map containing existing assessment data
+     * @return Instant representing the assessment end time
+     */
+    private Instant extractEndTime(Map<String, Object> existingData) {
+        Object endTimeObj = existingData.get(Constants.END_TIME);
+        if (endTimeObj instanceof Instant instant) {
+            return instant;
+        }
+        return ((Date) endTimeObj).toInstant();
+    }
+
+    /**
+     * Handles the response for an in-progress assessment.
+     * Retrieves the previously saved question set and updates timestamps.
+     * 
+     * @param existingData Map containing existing assessment data from database
+     * @param assessmentStartTime The current timestamp (used for tracking)
+     * @param existingAssessmentEndTime The originally calculated end time
+     * @param response The response object to populate with assessment data
+     * @return SBApiResponse containing the in-progress assessment data
+     */
+    private SBApiResponse handleInProgressAssessment(Map<String, Object> existingData,
+                                                     Instant assessmentStartTime,
+                                                     Instant existingAssessmentEndTime,
+                                                     SBApiResponse response) {
+        String questionSetFromAssessmentString = (String) existingData.get(Constants.ASSESSMENT_READ_RESPONSE_KEY);
+        Map<String, Object> questionSetFromAssessment = new Gson().fromJson(
+                questionSetFromAssessmentString, new TypeToken<HashMap<String, Object>>() {
+                }.getType());
+        questionSetFromAssessment.put(Constants.START_TIME, assessmentStartTime.toEpochMilli());
+        questionSetFromAssessment.put(Constants.END_TIME, existingAssessmentEndTime);
+        response.getResult().put(Constants.QUESTION_SET, questionSetFromAssessment);
+        return response;
+    }
+
+    /**
+     * Checks if an assessment is completed or expired.
+     * An assessment is considered completed/expired if:
+     * - It was submitted before the end time, OR
+     * - The current time is after the end time (expired)
+     * 
+     * @param currentTime The current timestamp
+     * @param endTime The assessment end timestamp
+     * @param status The current assessment status
+     * @return true if assessment is completed or expired, false otherwise
+     */
+    private boolean isAssessmentCompletedOrExpired(Instant currentTime, Instant endTime, String status) {
+        boolean submittedBeforeEndTime = currentTime.isBefore(endTime) && Constants.SUBMITTED.equalsIgnoreCase(status);
+        boolean expired = currentTime.isAfter(endTime);
+        return submittedBeforeEndTime || expired;
+    }
+
+    /**
+     * Handles completed or expired assessment scenarios.
+     * Creates a new assessment attempt if retake validation passes.
+     * Validates retake attempts, cool-off period, and context locking before
+     * initializing a fresh assessment session.
+     * 
+     * @param userId The authenticated user's ID
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param assessmentAllDetail Map containing complete assessment hierarchy
+     * @param parentContextId The parent context identifier for learning pathway
+     * @param assessmentStartTime The timestamp for the new assessment attempt
+     * @param response The response object to populate with assessment data
+     * @return SBApiResponse with new assessment data or error details
+     */
+    private SBApiResponse handleCompletedOrExpiredAssessment(String userId, String assessmentIdentifier,
+                                                             Map<String, Object> assessmentAllDetail,
+                                                             String parentContextId,
+                                                             Instant assessmentStartTime,
+                                                             SBApiResponse response) {
+        logger.info("Creating new assessment attempt - User: {}, Assessment: {}", userId, assessmentIdentifier);
+        
+        if (!validateRetakeAttempts(userId, assessmentIdentifier, assessmentAllDetail, response)) {
+            return response;
+        }
+        
+        String errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        if (StringUtils.isNotBlank(errMsg)) {
+            logger.warn("Context locking failed for retake - User: {}, Assessment: {}", userId, assessmentIdentifier);
+            return response;
+        }
+        
+        Map<String, Object> assessmentData = readAssessmentLevelData(assessmentAllDetail);
+        int expectedDuration = (Integer) assessmentAllDetail.get(Constants.EXPECTED_DURATION);
+        Instant assessmentEndTime = calculateAssessmentSubmitTime(expectedDuration, assessmentStartTime, 0);
+        
+        assessmentData.put(Constants.START_TIME, assessmentStartTime);
+        assessmentData.put(Constants.END_TIME, assessmentEndTime);
+        response.getResult().put(Constants.QUESTION_SET, assessmentData);
+        
+        boolean isAssessmentUpdatedToDB = assessmentRepository.addUserAssesmentDataToDB(
+                userId, assessmentIdentifier, assessmentStartTime, assessmentEndTime,
+                assessmentData, Constants.NOT_SUBMITTED);
+        if (!isAssessmentUpdatedToDB) {
+            logger.error("DB persist failed for retake - User: {}, Assessment: {}", userId, assessmentIdentifier);
+            updateErrorDetails(response, Constants.ASSESSMENT_DATA_START_TIME_NOT_UPDATED, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
+    }
+
+    /**
+     * Validates if user is allowed to retake the assessment.
+     * Checks:
+     * - Maximum retake attempts configured for the assessment
+     * - Number of attempts already consumed by the user
+     * - Cool-off period restrictions if applicable
+     * 
+     * Optimized to fetch user assessment data once and reuse for both
+     * retry count calculation and cool-off validation.
+     * 
+     * @param userId The authenticated user's ID
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param assessmentAllDetail Map containing assessment configuration
+     * @param response The response object to update with error details if validation fails
+     * @return true if user can retake the assessment, false otherwise
+     */
+    private boolean validateRetakeAttempts(String userId, String assessmentIdentifier,
+                                           Map<String, Object> assessmentAllDetail,
+                                           SBApiResponse response) {
+        Object maxAttemptsObj = assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
+        if (maxAttemptsObj == null) {
+            return true;
+        }
+        
+        int retakeAttemptsAllowed = (int) maxAttemptsObj + 1;
+        List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(userId, assessmentIdentifier);
+        int retakeAttemptsConsumed = (int) userAssessmentDataList.stream()
+                .filter(userData -> userData.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
+                        && null != userData.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY))
+                .count();
+        
+        logger.info("Retake validation - User: {}, Assessment: {}, Consumed: {}/{}", 
+                    userId, assessmentIdentifier, retakeAttemptsConsumed, retakeAttemptsAllowed);
+        
+        if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
+            Object coolOffPeriodObj = assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
+            if (coolOffPeriodObj != null) {
+                String coolOffValidationError = validateCoolOffPeriod(userId, assessmentIdentifier, assessmentAllDetail, userAssessmentDataList);
+                if (StringUtils.isNotBlank(coolOffValidationError)) {
+                    updateErrorDetails(response, coolOffValidationError, HttpStatus.INTERNAL_SERVER_ERROR);
+                    return false;
+                }
+                logger.info("Cool-off period passed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
+                return true;
+            } else {
+                logger.warn("Retake attempts exhausted - User: {}, Assessment: {}", userId, assessmentIdentifier);
+                updateErrorDetails(response, Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED, HttpStatus.INTERNAL_SERVER_ERROR);
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * Validates the cool-off period for assessment retakes.
+     * Cool-off period is a time restriction that prevents users from immediately
+     * retaking an assessment after exhausting their retry attempts.
+     * 
+     * Algorithm:
+     * 1. Retrieves cool-off period configuration (in days)
+     * 2. Fetches latest assessment end time from pre-fetched data
+     * 3. Calculates cool-off end time = latestEndTime + coolOffPeriodDays
+     * 4. Compares current time with cool-off end time
+     * 5. Returns error message with remaining days if still in cool-off period
+     * 
+     * Note: Accepts pre-fetched user assessment data list to avoid redundant database calls.
+     * 
+     * @param userId The authenticated user's ID
+     * @param assessmentIdentifier The unique identifier of the assessment
+     * @param assessmentAllDetail Map containing assessment configuration including coolOffPeriod
+     * @param userAssessmentDataList Pre-fetched list of user's assessment attempts
+     * @return Empty string if validation passes, error message otherwise
+     */
+    private String validateCoolOffPeriod(String userId, String assessmentIdentifier,
+                                         Map<String, Object> assessmentAllDetail,
+                                         List<Map<String, Object>> userAssessmentDataList) {
+        try {
+            Object coolOffPeriodObj = assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
+            if (coolOffPeriodObj == null) {
+                return Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+            }
+            
+            int coolOffPeriodDays = (coolOffPeriodObj instanceof Integer integer)
+                    ? integer
+                    : Integer.parseInt(coolOffPeriodObj.toString());
+            
+            if (coolOffPeriodDays <= 0 || userAssessmentDataList.isEmpty()) {
+                return Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+            }
+            
+            Map<String, Object> latestAssessment = userAssessmentDataList.get(0);
+            Object endTimeObj = latestAssessment.get(Constants.END_TIME);
+            if (endTimeObj == null) {
+                logger.warn("No end time in latest assessment - User: {}, Assessment: {}", userId, assessmentIdentifier);
+                return Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+            }
+            
+            Instant latestEndTime;
+            if (endTimeObj instanceof Instant instant) {
+                latestEndTime = instant;
+            } else if (endTimeObj instanceof Date date) {
+                latestEndTime = date.toInstant();
+            } else {
+                logger.error("Unexpected end time format: {} - User: {}, Assessment: {}", 
+                            endTimeObj.getClass().getSimpleName(), userId, assessmentIdentifier);
+                return Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+            }
+            
+            Instant coolOffEndTime = latestEndTime.plus(coolOffPeriodDays, ChronoUnit.DAYS);
+            Instant currentTime = Instant.now();
+            
+            if (currentTime.isBefore(coolOffEndTime)) {
+                long remainingDays = ChronoUnit.DAYS.between(currentTime, coolOffEndTime);
+                logger.info("Cool-off active - User: {}, Assessment: {}, Remaining: {} days", 
+                           userId, assessmentIdentifier, remainingDays + 1);
+                return serverProperties.getAssessmentCoolOffErrorMessage()
+                        .replace("{remainingDays}", String.valueOf(remainingDays + 1))
+                        .replace("{coolOffPeriod}", String.valueOf(coolOffPeriodDays));
+            }
+            
+            logger.info("Cool-off completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
+            return "";
+        } catch (Exception e) {
+            logger.error("Cool-off validation error - User: {}, Assessment: {}, Exception: {}", 
+                        userId, assessmentIdentifier, e.getMessage(), e);
+            return Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+        }
     }
 }

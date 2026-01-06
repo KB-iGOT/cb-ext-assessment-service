@@ -1067,6 +1067,10 @@ public class CbExtAssessmentServerProperties {
     @Value("${mandatory.course.categories.for.certificate.generation}")
     private String mandatoryCourseCategoriesForCertificateGeneration;
 
+    @Value("${learningpathway.assessment.cooloff.error.message}")
+    private String assessmentCoolOffErrorMessage;
+
+
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
     }
@@ -3612,4 +3616,11 @@ public class CbExtAssessmentServerProperties {
         return Arrays.asList(mandatoryCourseCategoriesForCertificateGeneration.split(",", -1));
     }
 
+    public String getAssessmentCoolOffErrorMessage() {
+        return assessmentCoolOffErrorMessage;
+    }
+
+    public void setAssessmentCoolOffErrorMessage(String assessmentCoolOffErrorMessage) {
+        this.assessmentCoolOffErrorMessage = assessmentCoolOffErrorMessage;
+    }
 }

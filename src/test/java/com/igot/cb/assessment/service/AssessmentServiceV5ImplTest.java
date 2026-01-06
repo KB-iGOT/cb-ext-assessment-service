@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -2280,5 +2281,729 @@ class AssessmentServiceV5ImplTest {
         assertEquals(-1, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 2 - 1 = 1
     }
 
+
+    @Test
+    void testLearningPathwayAssessmentRead_NullUserId() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn(null);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.USER_ID_DOESNT_EXIST, response.getParams().getErrmsg());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_BlankUserId() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("");
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.USER_ID_DOESNT_EXIST, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_HierarchyFetchFails() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(Collections.emptyMap());
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_HIERARCHY_READ_FAILED, response.getParams().getErrmsg());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_HierarchyFetchReturnsNull() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(null);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_HIERARCHY_READ_FAILED, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_PracticeQuestionSet() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult().get(Constants.QUESTION_SET));
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_EditModeTrue() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        when(assessUtilServ.fetchHierarchyFromAssessServc(anyString(), anyString()))
+                .thenReturn(hierarchy);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", true, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult().get(Constants.QUESTION_SET));
+        verify(assessUtilServ).fetchHierarchyFromAssessServc("assess123", "token");
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_ExceptionHandling() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenThrow(new RuntimeException("Database connection failed"));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertTrue(response.getParams().getErrmsg().contains("Error while reading learning pathway assessment"));
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_FirstTime_MissingExpectedDuration() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_INVALID, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_FirstTime_ContextLockingFails() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("Context is locked");
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_FirstTime_DBUpdateFails() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(false);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_DATA_START_TIME_NOT_UPDATED, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_FirstTime_Success() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(true);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult().get(Constants.QUESTION_SET));
+        Map<String, Object> questionSet = (Map<String, Object>) response.getResult().get(Constants.QUESTION_SET);
+        assertNotNull(questionSet.get(Constants.START_TIME));
+        assertNotNull(questionSet.get(Constants.END_TIME));
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_InProgress_InstantEndTime() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        Instant futureEndTime = Instant.now().plusSeconds(1800);
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, futureEndTime);
+        existingData.put(Constants.STATUS, Constants.NOT_SUBMITTED);
+        existingData.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{\"foo\":\"bar\"}");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult().get(Constants.QUESTION_SET));
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_InProgress_DateEndTime() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        Date futureEndTime = Date.from(Instant.now().plusSeconds(1800));
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, futureEndTime);
+        existingData.put(Constants.STATUS, Constants.NOT_SUBMITTED);
+        existingData.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{\"test\":\"data\"}");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        Map<String, Object> questionSet = (Map<String, Object>) response.getResult().get(Constants.QUESTION_SET);
+        assertNotNull(questionSet);
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_Expired_RetakeAllowed() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+        Date pastEndTime = Date.from(Instant.now().minusSeconds(3600));
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, pastEndTime);
+        existingData.put(Constants.STATUS, Constants.NOT_SUBMITTED);
+        existingData.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{\"foo\":\"bar\"}");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(true);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult().get(Constants.QUESTION_SET));
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_Submitted_BeforeEndTime_RetakeAllowed() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 2);
+        Date futureEndTime = Date.from(Instant.now().plusSeconds(1800));
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, futureEndTime);
+        existingData.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{\"foo\":\"bar\"}");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(true);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_RetakeAttemptsExceeded() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        Date pastEndTime = Date.from(Instant.now().minusSeconds(3600));
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, pastEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, pastEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_Active() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        when(serverProperties.getAssessmentCoolOffErrorMessage())
+                .thenReturn("Assessment retry attempts exhausted. Please wait {remainingDays} more day(s) before retaking. Cool-off period: {coolOffPeriod} days.");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, 7); // 7 days cool-off
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>()); // Add CHILDREN to avoid NPE
+        Instant recentEndTime = Instant.now().minus(3, ChronoUnit.DAYS);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, recentEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, recentEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        String errorMsg = response.getParams().getErrmsg();
+        assertTrue(errorMsg.contains("Please wait") || errorMsg.contains("day(s)"), 
+                "Expected error message to contain cool-off period info but got: " + errorMsg);
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_Completed() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, 7); // 7 days cool-off
+        Instant oldEndTime = Instant.now().minus(10, ChronoUnit.DAYS);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, oldEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, oldEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(true);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertNotNull(response.getResult().get(Constants.QUESTION_SET));
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_DateType() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        when(serverProperties.getAssessmentCoolOffErrorMessage())
+                .thenReturn("Assessment retry attempts exhausted. Please wait {remainingDays} more day(s) before retaking. Cool-off period: {coolOffPeriod} days.");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, 5);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>()); // Add CHILDREN to avoid NPE
+        Date recentEndTime = Date.from(Instant.now().minus(2, ChronoUnit.DAYS));
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, recentEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, recentEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        String errorMsg = response.getParams().getErrmsg();
+        assertTrue(errorMsg.contains("Please wait") || errorMsg.contains("day(s)"), 
+                "Expected error message to contain cool-off period info but got: " + errorMsg);
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_NullEndTime() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, 7);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, null); // Null end time
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, null);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertTrue(response.getParams().getErrmsg().equals(Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED) ||
+                  response.getParams().getErrmsg().contains("Error while reading"),
+                  "Expected retry attempts crossed or general error but got: " + response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_InvalidEndTimeType() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, 7);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, "2024-01-01"); // Invalid type (String)
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, "2024-01-01");
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertTrue(response.getParams().getErrmsg().equals(Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED) ||
+                  response.getParams().getErrmsg().contains("Error while reading"),
+                  "Expected retry attempts crossed or general error but got: " + response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_ZeroDays() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, 0); // Zero days - treated as no cool-off, attempts exhausted
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        Instant recentEndTime = Instant.now().minus(1, ChronoUnit.DAYS);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, recentEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, recentEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_NegativeDays() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, -5); // Negative days - treated as no cool-off, attempts exhausted
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        Instant recentEndTime = Instant.now().minus(1, ChronoUnit.DAYS);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, recentEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, recentEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_CoolOffPeriod_ExceptionHandling() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 1);
+        hierarchy.put(Constants.COOL_OFF_PERIOD, "invalid"); // Invalid type to trigger exception
+        Instant recentEndTime = Instant.now().minus(1, ChronoUnit.DAYS);
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, recentEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, recentEndTime);
+        existingData2.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response2");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertTrue(response.getParams().getErrmsg().equals(Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED) ||
+                  response.getParams().getErrmsg().contains("Error while reading"),
+                  "Expected retry attempts crossed or general error but got: " + response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_NoMaxAttemptsConfigured() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        Date pastEndTime = Date.from(Instant.now().minusSeconds(3600));
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, pastEndTime);
+        existingData.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(true);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_SomeAttemptsWithoutSubmitResponse() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+        Date pastEndTime = Date.from(Instant.now().minusSeconds(3600));
+        Map<String, Object> existingData1 = new HashMap<>();
+        existingData1.put(Constants.END_TIME, pastEndTime);
+        existingData1.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response1");
+        Map<String, Object> existingData2 = new HashMap<>();
+        existingData2.put(Constants.END_TIME, pastEndTime);
+        existingData2.put(Constants.STATUS, Constants.NOT_SUBMITTED);
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData1, existingData2));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(true);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_RetakeAttempt_ContextLockingFails() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+        Date pastEndTime = Date.from(Instant.now().minusSeconds(3600));
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, pastEndTime);
+        existingData.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("Context is locked for another assessment");
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void testLearningPathwayAssessmentRead_RetakeAttempt_DBUpdateFails() {
+        when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user123");
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.EXPECTED_DURATION, 3600);
+        hierarchy.put(Constants.CHILDREN, new ArrayList<>());
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+        Date pastEndTime = Date.from(Instant.now().minusSeconds(3600));
+        Map<String, Object> existingData = new HashMap<>();
+        existingData.put(Constants.END_TIME, pastEndTime);
+        existingData.put(Constants.STATUS, Constants.SUBMITTED);
+        existingData.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "response");
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), anyString()))
+                .thenReturn(hierarchy);
+        when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
+                .thenReturn(List.of(existingData));
+        when(assessUtilServ.validateContextLocking(anyMap(), anyString(), any(), anyString()))
+                .thenReturn("");
+        when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
+                .thenReturn(false);
+        SBApiResponse response = service.learningPathWayAssessmentRead("assess123", "token", false, "ctx");
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.ASSESSMENT_DATA_START_TIME_NOT_UPDATED, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testValidateAndExtractUserId_ValidToken() throws Exception {
+        when(accessTokenValidator.fetchUserIdFromAccessToken("validToken")).thenReturn("user123");
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "validateAndExtractUserId", String.class, SBApiResponse.class);
+        method.setAccessible(true);
+        SBApiResponse response = new SBApiResponse();
+        String userId = (String) method.invoke(service, "validToken", response);
+        assertEquals("user123", userId);
+        // When validation succeeds, the method doesn't modify the response object
+        // So we only verify the userId is returned correctly
+    }
+
+    @Test
+    void testFetchAssessmentHierarchy_EditMode() throws Exception {
+        Map<String, Object> hierarchy = Map.of("test", "data");
+        when(assessUtilServ.fetchHierarchyFromAssessServc("assess123", "token"))
+                .thenReturn(hierarchy);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "fetchAssessmentHierarchy", String.class, boolean.class, String.class);
+        method.setAccessible(true);
+        Map<String, Object> result = (Map<String, Object>) method.invoke(
+                service, "assess123", true, "token");
+        assertEquals(hierarchy, result);
+        verify(assessUtilServ).fetchHierarchyFromAssessServc("assess123", "token");
+    }
+
+    @Test
+    void testFetchAssessmentHierarchy_NonEditMode() throws Exception {
+        Map<String, Object> hierarchy = Map.of("test", "data");
+        when(assessUtilServ.readAssessmentHierarchyFromCache("assess123", false, "token"))
+                .thenReturn(hierarchy);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "fetchAssessmentHierarchy", String.class, boolean.class, String.class);
+        method.setAccessible(true);
+        Map<String, Object> result = (Map<String, Object>) method.invoke(
+                service, "assess123", false, "token");
+        assertEquals(hierarchy, result);
+        verify(assessUtilServ).readAssessmentHierarchyFromCache("assess123", false, "token");
+    }
+
+    @Test
+    void testIsPracticeQuestionSetOrEditMode_PracticeQuestionSet() throws Exception {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.PRIMARY_CATEGORY, Constants.PRACTICE_QUESTION_SET);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isPracticeQuestionSetOrEditMode", Map.class, boolean.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, assessmentDetail, false);
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsPracticeQuestionSetOrEditMode_EditMode() throws Exception {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isPracticeQuestionSetOrEditMode", Map.class, boolean.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, assessmentDetail, true);
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsAssessmentInProgress_CurrentTimeBeforeEndTime() throws Exception {
+        Instant currentTime = Instant.now();
+        Instant endTime = currentTime.plusSeconds(3600);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isAssessmentInProgress", Instant.class, Instant.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, currentTime, endTime, Constants.NOT_SUBMITTED);
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsAssessmentInProgress_CurrentTimeAfterEndTime() throws Exception {
+        Instant currentTime = Instant.now();
+        Instant endTime = currentTime.minusSeconds(3600);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isAssessmentInProgress", Instant.class, Instant.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, currentTime, endTime, Constants.NOT_SUBMITTED);
+        assertFalse(result);
+    }
+
+    @Test
+    void testIsAssessmentInProgress_StatusSubmitted() throws Exception {
+        Instant currentTime = Instant.now();
+        Instant endTime = currentTime.plusSeconds(3600);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isAssessmentInProgress", Instant.class, Instant.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, currentTime, endTime, Constants.SUBMITTED);
+        assertFalse(result);
+    }
+
+    @Test
+    void testIsAssessmentCompletedOrExpired_SubmittedBeforeEndTime() throws Exception {
+        Instant currentTime = Instant.now();
+        Instant endTime = currentTime.plusSeconds(3600);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isAssessmentCompletedOrExpired", Instant.class, Instant.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, currentTime, endTime, Constants.SUBMITTED);
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsAssessmentCompletedOrExpired_Expired() throws Exception {
+        Instant currentTime = Instant.now();
+        Instant endTime = currentTime.minusSeconds(3600);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isAssessmentCompletedOrExpired", Instant.class, Instant.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, currentTime, endTime, Constants.NOT_SUBMITTED);
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsAssessmentCompletedOrExpired_InProgress() throws Exception {
+        Instant currentTime = Instant.now();
+        Instant endTime = currentTime.plusSeconds(3600);
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod(
+                "isAssessmentCompletedOrExpired", Instant.class, Instant.class, String.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, currentTime, endTime, Constants.NOT_SUBMITTED);
+        assertFalse(result);
+    }
 
 }

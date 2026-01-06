@@ -274,4 +274,15 @@ public class AssessmentController {
         SBApiResponse submitResponse = assessmentServiceV5.submitAssessmentAsyncV6(requestBody, authUserToken,edit);
         return new ResponseEntity<>(submitResponse, submitResponse.getResponseCode());
     }
+
+    @GetMapping("/learningpathway/assessment/v1/read/{assessmentIdentifier}")
+    public ResponseEntity<SBApiResponse> learningPathWayAssessmentRead(
+            @PathVariable("assessmentIdentifier") String assessmentIdentifier,
+            @RequestHeader(Constants.X_AUTH_TOKEN) String token,
+            @RequestParam(name = "editMode" ,required = false) String editMode,
+            @RequestParam (name = "parentContextId" ,required = false) String parentContextId) {
+        boolean edit = !StringUtils.isEmpty(editMode) && Boolean.parseBoolean(editMode);
+        SBApiResponse readResponse = assessmentServiceV5.learningPathWayAssessmentRead(assessmentIdentifier, token, edit, parentContextId);
+        return new ResponseEntity<>(readResponse, readResponse.getResponseCode());
+    }
 }

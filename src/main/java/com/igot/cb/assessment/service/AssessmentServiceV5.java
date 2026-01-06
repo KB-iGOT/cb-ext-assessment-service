@@ -25,4 +25,6 @@ public interface AssessmentServiceV5 {
 	
 	public SBApiResponse submitAssessmentAsyncV6(Map<String, Object> data, String userAuthToken,boolean editMode);
 
+	SBApiResponse learningPathWayAssessmentRead(String assessmentIdentifier, String token, boolean editMode, String parentContextId);
+
 	}

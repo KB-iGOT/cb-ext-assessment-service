@@ -1369,6 +1369,7 @@ public class Constants {
     public static final String COURSEID_ERROR = "CourseId should not be multilingual course";
     public static final String LEAF_NODES = "leafNodes";
     public static final String PROGRESS_DETAILS = "progressdetails";
+    public static final String COOL_OFF_PERIOD = "coolOffPeriod";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
