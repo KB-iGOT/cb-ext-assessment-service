@@ -1353,25 +1353,22 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 * @return true if cool-off period exists and is a valid Integer greater than 0, false otherwise
 	 */
 	@Override
-	public boolean isCoolOffPeriodConfigured(Map<String, Object> assessmentAllDetail) {
-		try {
-			Object coolOffPeriodObj = assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
-			if (!(coolOffPeriodObj instanceof Integer)) {
-				return false;
-			}
-			int coolOffPeriodDays = (Integer) coolOffPeriodObj;
-			return coolOffPeriodDays > 0;
-		} catch (Exception e) {
-			logger.error("Error checking cool-off period configuration. Exception: {}", e.getMessage(), e);
+	public boolean hasCoolOffPeriod(Map<String, Object> assessmentAllDetail) {
+		if (!assessmentAllDetail.containsKey(Constants.COOL_OFF_PERIOD)) {
 			return false;
 		}
+		Object coolOffPeriodObj = assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
+		if (coolOffPeriodObj instanceof Integer coolOffPeriodDays) {
+			return coolOffPeriodDays > 0;
+		}
+		return false;
 	}
 
 	/**
 	 * Validates if the user is within the cool-off period for retaking an assessment.
 	 * The cool-off period prevents immediate retakes after exhausting retry attempts.
 	 * 
-	 * Note: This method assumes coolOffPeriod is already validated by the caller (isCoolOffPeriodConfigured).
+	 * Note: This method assumes coolOffPeriod is already validated by the caller (hasCoolOffPeriod).
 	 *
 	 * @param userId                  the user's unique identifier
 	 * @param assessmentIdentifier    the assessment's unique identifier
@@ -1387,17 +1384,17 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			int coolOffPeriodDays = (Integer) assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
 			if (userAssessmentDataList.isEmpty()) {
 				logger.debug("No assessment history - User: {}, Assessment: {}", userId, assessmentIdentifier);
-				return "";
+				return Constants.EMPTY;
 			}
 			Map<String, Object> latestAssessment = userAssessmentDataList.get(0);
 			Object endTimeObj = latestAssessment.get(Constants.END_TIME);
 			if (endTimeObj == null) {
 				logger.warn("No end time in latest assessment - User: {}, Assessment: {}", userId, assessmentIdentifier);
-				return "";
+				return Constants.EMPTY;
 			}
 			Instant latestEndTime = convertToInstant(endTimeObj, userId, assessmentIdentifier);
 			if (latestEndTime == null) {
-				return "";
+				return Constants.EMPTY;
 			}
 			Instant coolOffEndTime = latestEndTime.plus(coolOffPeriodDays, ChronoUnit.DAYS);
 			Instant currentTime = Instant.now();
@@ -1410,12 +1407,11 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						.replace("{coolOffPeriod}", String.valueOf(coolOffPeriodDays));
 			}
 			logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
-			return "";
 		} catch (Exception e) {
 			logger.error("Cool-off validation error - User: {}, Assessment: {}, Exception: {}",
 					userId, assessmentIdentifier, e.getMessage(), e);
-			return "";
 		}
+		return Constants.EMPTY;
 	}
 
 	/**

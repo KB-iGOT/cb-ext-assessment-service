@@ -209,7 +209,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) +1;
                         int retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
                         if(retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                            if (!assessUtilServ.isCoolOffPeriodConfigured(assessmentAllDetail)) {
+                            if (!assessUtilServ.hasCoolOffPeriod(assessmentAllDetail)) {
                                 errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
                                 updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
                                 return response;

@@ -75,7 +75,7 @@ public interface AssessmentUtilServiceV2 {
 	 * @param assessmentAllDetail the complete assessment hierarchy containing cool-off configuration
 	 * @return true if cool-off period exists and is a valid Integer greater than 0, false otherwise
 	 */
-	boolean isCoolOffPeriodConfigured(Map<String, Object> assessmentAllDetail);
+	boolean hasCoolOffPeriod(Map<String, Object> assessmentAllDetail);
 
 	/**
 	 * Validates if the user is within the cool-off period for retaking an assessment.

@@ -100,7 +100,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                             .count();
                     retakeAttemptsConsumed = retakeAttemptsConsumed - 1;
                     if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                        if (!assessUtilServ.isCoolOffPeriodConfigured(assessmentAllDetail)) {
+                        if (!assessUtilServ.hasCoolOffPeriod(assessmentAllDetail)) {
                             errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
                         } else {
                             String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
