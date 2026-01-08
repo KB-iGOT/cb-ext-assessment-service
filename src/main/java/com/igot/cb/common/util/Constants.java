@@ -629,6 +629,7 @@ public class Constants {
     public static final String ASSESSMENT_READ_RESPONSE = "assessmentreadresponse";
     public static final String API_SUBMIT_ASSESSMENT = "api.submit.asssessment";
     public static final String MAX_ASSESSMENT_RETAKE_ATTEMPTS = "maxAssessmentRetakeAttempts";
+    public static final String COOL_OFF_PERIOD = "coolOffPeriod";
     public static final String TOTAL_RETAKE_ATTEMPTS_ALLOWED = "attemptsAllowed";
     public static final String RETAKE_ATTEMPTS_CONSUMED = "attemptsMade";
     public static final String API_RETAKE_ASSESSMENT_GET = "api.assessmment.attempt";
