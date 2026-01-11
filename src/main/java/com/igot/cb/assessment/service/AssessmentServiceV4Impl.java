@@ -173,7 +173,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 if(null == assessmentAllDetail.get(Constants.EXPECTED_DURATION)){
                     errMsg = Constants.ASSESSMENT_INVALID; }
                 else {
-                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
                     if (StringUtils.isNotBlank(errMsg)) {
                         return response;
                     }
@@ -215,7 +215,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                         || assessmentStartTime.compareTo(existingAssessmentEndTime.toInstant()) > 0) {
                     logger.info(
                             "Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly ");
-                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
                     if (StringUtils.isNotBlank(errMsg)) {
                         return response;
                     }

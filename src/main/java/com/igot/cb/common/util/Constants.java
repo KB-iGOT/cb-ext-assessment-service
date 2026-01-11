@@ -1370,6 +1370,14 @@ public class Constants {
     public static final String COURSEID_ERROR = "CourseId should not be multilingual course";
     public static final String LEAF_NODES = "leafNodes";
     public static final String PROGRESS_DETAILS = "progressdetails";
+    public static final String FINAL_MILESTONE_ASSESSMENT = "Final Milestone Assessment";
+    public static final String MILESTONES_V1 = "milestones_v1";
+    public static final String ASSESSMENT_DETAIL = "assessmentDetail";
+    public static final String COURSES_KEY = "courses";
+    public static final String IS_MANDATORY = "isMandatory";
+    public static final String LANG_CONTENT_STATUS = "langContentStatus";
+    public static final String RECENT_LANGUAGE = "recentLanguage";
+    public static final int CONTENT_STATUS_COMPLETED = 2;
 
     private Constants() {
         throw new IllegalStateException("Utility class");

@@ -160,7 +160,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 if(null == assessmentAllDetail.get(Constants.EXPECTED_DURATION)){
                     errMsg = Constants.ASSESSMENT_INVALID; }
                 else {
-                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId,assessmentIdentifier);
                     if (StringUtils.isNotBlank(errMsg)) {
                         return response;
                     }
@@ -224,7 +224,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                             logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
                         }
                     }
-                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
                     if (StringUtils.isNotBlank(errMsg)) {
                         return response;
                     }

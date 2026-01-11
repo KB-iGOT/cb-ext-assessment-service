@@ -514,6 +514,7 @@ class AssessmentServiceV5ImplTest {
 
     @Test
     void testReadAssessment_FirstTimeRead_ContextLockError() {
+        String assessmentIdentifier = "assess1";
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
         Map<String, Object> hierarchy = new HashMap<>();
         hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
@@ -522,14 +523,15 @@ class AssessmentServiceV5ImplTest {
                 .thenReturn(hierarchy);
         when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
                 .thenReturn(Collections.emptyList());
-        when(assessUtilServ.validateContextLocking(anyMap(), any(), any(), anyString()))
+        when(assessUtilServ.validateContextLocking(anyMap(), any(), any(), anyString(), eq(assessmentIdentifier)))
                 .thenReturn("LOCKED");
-        SBApiResponse response = service.readAssessment("assess1", "token", false, null);
+        SBApiResponse response = service.readAssessment(assessmentIdentifier, "token", false, null);
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
     }
 
     @Test
     void testReadAssessment_FirstTimeRead_DBUpdateFails() {
+        String assessmentIdentifier = "assess1";
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
         Map<String, Object> hierarchy = new HashMap<>();
         hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
@@ -539,11 +541,11 @@ class AssessmentServiceV5ImplTest {
                 .thenReturn(hierarchy);
         when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
                 .thenReturn(Collections.emptyList());
-        when(assessUtilServ.validateContextLocking(anyMap(), any(), any(), anyString()))
+        when(assessUtilServ.validateContextLocking(anyMap(), any(), any(), anyString(), eq(assessmentIdentifier)))
                 .thenReturn("");
         when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
                 .thenReturn(false);
-        SBApiResponse response = service.readAssessment("assess1", "token", false, null);
+        SBApiResponse response = service.readAssessment(assessmentIdentifier, "token", false, null);
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.ASSESSMENT_DATA_START_TIME_NOT_UPDATED, response.getParams().getErrmsg());
     }
@@ -590,6 +592,7 @@ class AssessmentServiceV5ImplTest {
 
     @Test
     void testReadAssessment_ExistingData_RetakeNormal() {
+        String assessmentIdentifier = "assess1";
         when(accessTokenValidator.fetchUserIdFromAccessToken(anyString())).thenReturn("user1");
         Map<String, Object> hierarchy = new HashMap<>();
         hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
@@ -604,11 +607,11 @@ class AssessmentServiceV5ImplTest {
         existing.put(Constants.ASSESSMENT_READ_RESPONSE_KEY, "{\"foo\":\"bar\"}");
         when(assessUtilServ.readUserSubmittedAssessmentRecords(anyString(), anyString()))
                 .thenReturn(List.of(existing));
-        when(assessUtilServ.validateContextLocking(anyMap(), any(), any(), anyString()))
+        when(assessUtilServ.validateContextLocking(anyMap(), any(), any(), anyString(), eq(assessmentIdentifier)))
                 .thenReturn("");
         when(assessmentRepository.addUserAssesmentDataToDB(anyString(), anyString(), any(), any(), anyMap(), anyString()))
                 .thenReturn(true);
-        SBApiResponse response = service.readAssessment("assess1", "token", false, null);
+        SBApiResponse response = service.readAssessment(assessmentIdentifier, "token", false, null);
         assertNotNull(response.getResult().get(Constants.QUESTION_SET));
     }
 
