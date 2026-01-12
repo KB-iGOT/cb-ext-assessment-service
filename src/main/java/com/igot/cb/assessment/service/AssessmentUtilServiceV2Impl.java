@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.igot.cb.common.util.ProjectUtil.updateErrorDetails;
 
@@ -1126,7 +1127,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		logger.info("Marks or index retrieved successfully.");
 	}
 
-	public String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId, SBApiResponse response, String userId) {
+	public String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId, SBApiResponse response, String userId, String assessmentIdentifier) {
 		String errMsg = "";
 		String contextCategory = (String) assessmentAllDetail.get(Constants.CONTEXT_CATEGORY_TAG);
 		logger.info("{} AssessmentContextCategory: {}, parentContextId: {}",Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, contextCategory, parentContextId);
@@ -1161,6 +1162,8 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
 				return errMsg;
 			}
+		} else if (Constants.FINAL_MILESTONE_ASSESSMENT.equalsIgnoreCase(contextCategory)) {
+			errMsg = validateContextLockingForLearningPathway(parentContextId, response, userId,assessmentIdentifier);
 		}
 		return errMsg;
 	}
@@ -1432,5 +1435,357 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		logger.error("Unexpected end time format: {} - User: {}, Assessment: {}",
 				endTimeObj.getClass().getSimpleName(), userId, assessmentIdentifier);
 		return null;
+	}
+
+	public String validateContextLockingForLearningPathway(String parentContextId, SBApiResponse response, String userId, String assessmentIdentifier) {
+		if (StringUtils.isBlank(parentContextId)) {
+			updateErrorDetails(response, Constants.INVALID_COURSE_REQUEST, HttpStatus.BAD_REQUEST);
+			return Constants.INVALID_COURSE_REQUEST;
+		}
+		Map<String, Object> contentDetails = contentService.readContent(parentContextId);
+		if (MapUtils.isEmpty(contentDetails)) {
+			updateErrorDetails(response, Constants.CONTENT_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+			return Constants.CONTENT_NOT_FOUND;
+		}
+		List<Map<String, Object>> milestones = (List<Map<String, Object>>) contentDetails.get(Constants.MILESTONES_V1);
+		if (CollectionUtils.isEmpty(milestones)) {
+			logger.warn("{} No milestones found for pathway: {}", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, parentContextId);
+			updateErrorDetails(response, Constants.CONTENT_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+			return Constants.CONTENT_NOT_FOUND;
+		}
+		MilestoneInfo targetMilestoneInfo = findMilestoneByAssessmentWithIndex(milestones, assessmentIdentifier);
+		if (targetMilestoneInfo == null) {
+			logger.warn("{} Assessment {} not found in milestones", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, assessmentIdentifier);
+			String errMsg = "Assessment not found in learning pathway milestones";
+			updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
+			return errMsg;
+		}
+		String previousMilestoneError = validatePreviousMilestoneCompletion(milestones, targetMilestoneInfo.index, userId, response);
+		if (StringUtils.isNotBlank(previousMilestoneError)) {
+			return previousMilestoneError;
+		}
+		Set<String> mandatoryCourseIds = extractMandatoryCourseIds(targetMilestoneInfo.milestone);
+		return validateMandatoryCourseCompletion(mandatoryCourseIds, userId, response);
+	}
+
+	/**
+	 * Inner class to hold milestone information with its index.
+	 */
+	private static class MilestoneInfo {
+		Map<String, Object> milestone;
+		int index;
+		MilestoneInfo(Map<String, Object> milestone, int index) {
+			this.milestone = milestone;
+			this.index = index;
+		}
+	}
+
+	/**
+	 * Validates that the previous milestone's assessment has been completed.
+	 * For the first milestone (index 0), no validation is needed.
+	 *
+	 * @param milestones the list of all milestones
+	 * @param currentMilestoneIndex the index of the current milestone
+	 * @param userId the user's unique identifier
+	 * @param response the API response object
+	 * @return empty string if validation passes, error message otherwise
+	 */
+	private String validatePreviousMilestoneCompletion(List<Map<String, Object>> milestones, int currentMilestoneIndex, 
+			String userId, SBApiResponse response) {
+		if (currentMilestoneIndex == 0) {
+			return Constants.EMPTY;
+		}
+		Map<String, Object> previousMilestone = milestones.get(currentMilestoneIndex - 1);
+		String previousAssessmentId = extractAssessmentIdentifier(previousMilestone);
+		if (StringUtils.isBlank(previousAssessmentId)) {
+			logger.debug("{} Previous milestone (index {}) has no assessment identifier", 
+				Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, currentMilestoneIndex - 1);
+			return Constants.EMPTY;
+		}
+		if (!isAssessmentPassed(userId, previousAssessmentId)) {
+			String errMsg = "Previous milestone assessment must be completed before attempting this assessment";
+			logger.warn("{} User {} failed validation - previous assessment {} not completed",
+				Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId, previousAssessmentId);
+			updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
+			return errMsg;
+		}
+		return Constants.EMPTY;
+	}
+
+	/**
+	 * Extracts the assessment identifier from a milestone.
+	 *
+	 * @param milestone the milestone map
+	 * @return the assessment identifier, or null if not found
+	 */
+	private String extractAssessmentIdentifier(Map<String, Object> milestone) {
+		Map<String, Object> assessmentDetail = (Map<String, Object>) milestone.get(Constants.ASSESSMENT_DETAIL);
+		if (MapUtils.isEmpty(assessmentDetail)) {
+			return null;
+		}
+		return (String) assessmentDetail.get(Constants.IDENTIFIER);
+	}
+
+	/**
+	 * Finds the milestone that contains the specified assessment and returns it with its index.
+	 *
+	 * @param milestones the list of milestones to search
+	 * @param assessmentIdentifier the assessment identifier to match
+	 * @return MilestoneInfo containing the milestone and its index, or null if not found
+	 */
+	private MilestoneInfo findMilestoneByAssessmentWithIndex(List<Map<String, Object>> milestones, String assessmentIdentifier) {
+		return IntStream.range(0, milestones.size())
+			.filter(i -> assessmentIdentifier.equals(extractAssessmentIdentifier(milestones.get(i))))
+			.mapToObj(i -> new MilestoneInfo(milestones.get(i), i))
+			.findFirst()
+			.orElse(null);
+	}
+
+	/**
+	 * Checks if user has completed and passed the specified assessment.
+	 * Verifies completion status in user_enrolments_v2 table by checking:
+	 * 1. Enrolment is active
+	 * 2. Assessment status is 2 (completed) in lang_contentstatus for the recentlanguage
+	 *
+	 * @param userId the user's unique identifier
+	 * @param assessmentId the assessment identifier to check
+	 * @return true if assessment is passed/completed, false otherwise
+	 */
+	private boolean isAssessmentPassed(String userId, String assessmentId) {
+		List<Map<String, Object>> enrolmentRecords = fetchUserEnrolmentRecords(userId);
+		if (CollectionUtils.isEmpty(enrolmentRecords)) {
+			logger.debug("{} No enrolment records found - userId: {}",
+				Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId);
+			return false;
+		}
+		return enrolmentRecords.stream()
+			.anyMatch(enrolmentRecord -> isAssessmentCompletedInEnrolment(enrolmentRecord, assessmentId, userId));
+	}
+
+	/**
+	 * Fetches user enrolment records from user_enrolments_v2 table.
+	 *
+	 * @param userId the user's unique identifier
+	 * @return list of enrolment records
+	 */
+	private List<Map<String, Object>> fetchUserEnrolmentRecords(String userId) {
+		Map<String, Object> propertyMap = new HashMap<>();
+		propertyMap.put(Constants.USER_ID_CONSTANT, userId);
+		List<String> fields = Arrays.asList(
+			Constants.USER_ID_CONSTANT,
+			Constants.COURSE_ID,
+			Constants.BATCH_ID,
+			Constants.LANG_CONTENT_STATUS,
+			Constants.ACTIVE,
+			Constants.RECENT_LANGUAGE
+		);
+		return cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+				Constants.KEYSPACE_SUNBIRD_COURSES,
+				Constants.TABLE_USER_ENROLMENT,
+				propertyMap,
+				fields
+			);
+	}
+
+	/**
+	 * Checks if the assessment is completed (status = 2) in the enrolment record.
+	 * Validates: active = true, recentlanguage exists, and status = 2 for that language.
+	 */
+	private boolean isAssessmentCompletedInEnrolment(Map<String, Object> enrolmentRecord, String assessmentId, String userId) {
+		if (!isEnrolmentActive(enrolmentRecord, userId, assessmentId)) {
+			return false;
+		}
+		String recentLanguage = getRecentLanguage(enrolmentRecord, userId, assessmentId);
+		if (recentLanguage == null) {
+			return false;
+		}
+		return isAssessmentStatusCompleted(enrolmentRecord, assessmentId, userId, recentLanguage);
+	}
+ 
+	/**
+	 * Validates if the enrolment is active (handles Boolean or String type).
+	 */
+	private boolean isEnrolmentActive(Map<String, Object> enrolmentRecord, String userId, String assessmentId) {
+		Object activeObj = enrolmentRecord.get(Constants.ACTIVE);
+		if (activeObj == null) {
+			logger.debug("{} No active field - userId: {}, assessmentId: {}",
+				Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId, assessmentId);
+			return false;
+		}
+		boolean isActive = activeObj instanceof Boolean booleanValue
+			? booleanValue
+			: Boolean.parseBoolean(activeObj.toString());
+		
+		if (!isActive) {
+			logger.debug("{} Enrolment not active - userId: {}, assessmentId: {}",
+				Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId, assessmentId);
+		}
+		return isActive;
+	}
+
+	/**
+	 * Extracts recent language from the enrolment record.
+	 */
+	private String getRecentLanguage(Map<String, Object> enrolmentRecord, String userId, String assessmentId) {
+		Object recentLanguageObj = enrolmentRecord.get(Constants.RECENT_LANGUAGE);
+		if (recentLanguageObj == null) {
+			logger.debug("{} No {} - userId: {}, assessmentId: {}",
+				Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, Constants.RECENT_LANGUAGE, userId, assessmentId);
+			return null;
+		}
+		return recentLanguageObj.toString();
+	}
+
+	/**
+	 * Verifies if assessment status is completed (= 2) for the specified language.
+	 */
+	private boolean isAssessmentStatusCompleted(Map<String, Object> enrolmentRecord, String assessmentId,
+			String userId, String recentLanguage) {
+		Object langContentStatusObj = enrolmentRecord.get(Constants.LANG_CONTENT_STATUS);
+		if (langContentStatusObj == null) {
+			return false;
+		}
+		
+		try {
+			Map<String, Map<String, Integer>> langContentStatus = 
+				(Map<String, Map<String, Integer>>) langContentStatusObj;
+			Map<String, Integer> contentStatusMap = langContentStatus.get(recentLanguage);
+			
+			if (contentStatusMap == null) {
+				logger.debug("{} Language '{}' not found in lang_contentstatus - userId: {}, assessmentId: {}",
+					Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, recentLanguage, userId, assessmentId);
+				return false;
+			}
+			
+			Integer status = contentStatusMap.get(assessmentId);
+			boolean isCompleted = status != null && status.equals(Constants.CONTENT_STATUS_COMPLETED);
+			
+			if (isCompleted) {
+				logger.debug("{} Assessment completed - userId: {}, assessmentId: {}, language: {}, status: {}",
+					Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId, assessmentId, recentLanguage, status);
+			}
+			return isCompleted;
+		} catch (Exception e) {
+			logger.warn("{} Error checking lang_contentstatus - userId: {}, assessmentId: {}, error: {}",
+					Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId, assessmentId, e.getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Extracts mandatory course IDs from a milestone.
+	 *
+	 * @param milestone the milestone containing courses
+	 * @return set of mandatory course IDs
+	 */
+	private Set<String> extractMandatoryCourseIds(Map<String, Object> milestone) {
+		List<Map<String, Object>> courses = (List<Map<String, Object>>) milestone.get(Constants.COURSES_KEY);
+		if (CollectionUtils.isEmpty(courses)) {
+			return Collections.emptySet();
+		}
+		return courses.stream()
+			.filter(this::isMandatoryCourse)
+			.map(course -> (String) course.get(Constants.COURSE_ID))
+			.filter(StringUtils::isNotBlank)
+			.collect(Collectors.toSet());
+	}
+
+	/**
+	 * Checks if a course is mandatory.
+	 *
+	 * @param course the course map
+	 * @return true if the course is mandatory, false otherwise
+	 */
+	private boolean isMandatoryCourse(Map<String, Object> course) {
+		Object isMandatoryObj = course.get(Constants.IS_MANDATORY);
+		if (isMandatoryObj instanceof Boolean booleanValue) {
+			return booleanValue;
+		}
+		if (isMandatoryObj instanceof String stringValue) {
+			return Boolean.parseBoolean(stringValue);
+		}
+		return false;
+	}
+
+	/**
+	 * Validates if user has completed all mandatory courses.
+	 *
+	 * @param mandatoryCourseIds set of mandatory course IDs
+	 * @param userId the user's unique identifier
+	 * @param response the API response object
+	 * @return empty string if validation passes, error message otherwise
+	 */
+	private String validateMandatoryCourseCompletion(Set<String> mandatoryCourseIds, String userId, SBApiResponse response) {
+		if (mandatoryCourseIds.isEmpty()) {
+			return Constants.EMPTY;
+		}
+		if (!isAllCourseCompletedV2(userId, new ArrayList<>(mandatoryCourseIds))) {
+			String errMsg = Constants.USER_COURSES_NOT_COMPLETED;
+			logger.warn("{} User {} has not completed mandatory courses", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, userId);
+			updateErrorDetails(response, errMsg, HttpStatus.BAD_REQUEST);
+			return errMsg;
+		}
+		return Constants.EMPTY;
+	}
+
+	/**
+	 * Validates if all courses in the list are completed by the user (V2 with active check).
+	 * Checks both completion status and active status.
+	 *
+	 * @param userId the user's unique identifier
+	 * @param courseIds list of course identifiers to validate
+	 * @return true if all courses are completed and active, false otherwise
+	 */
+	private boolean isAllCourseCompletedV2(String userId, List<String> courseIds) {
+		if (courseIds == null || courseIds.isEmpty()) {
+			return false;
+		}
+
+		List<Map<String, Object>> enrolments = fetchCourseEnrolments(userId, courseIds);
+		if (CollectionUtils.isEmpty(enrolments) || enrolments.size() < courseIds.size()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("{} Failed to fetch enrolment list - userId: {}, courseIds: {}",
+						Constants.PREFIX_VALIDATE_COMPLETED_COURSE, userId, courseIds);
+			}
+			return false;
+		}
+
+		return enrolments.stream()
+				.allMatch(enrolment -> isCourseEnrolmentActiveAndCompleted(enrolment, userId));
+	}
+
+	/**
+	 * Fetches course enrolments with active and status fields.
+	 */
+	private List<Map<String, Object>> fetchCourseEnrolments(String userId, List<String> courseIds) {
+		Map<String, Object> propertyMap = new HashMap<>();
+		propertyMap.put(Constants.USER_ID_CONSTANT, userId);
+		propertyMap.put(Constants.COURSE_ID, courseIds);
+		return cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+				Constants.KEYSPACE_SUNBIRD_COURSES,
+				Constants.TABLE_USER_ENROLMENT,
+				propertyMap,
+				Arrays.asList(Constants.USER_ID_CONSTANT, Constants.COURSE_ID, Constants.STATUS, Constants.ACTIVE));
+	}
+
+	/**
+	 * Validates if a course enrolment is both active and completed.
+	 */
+	private boolean isCourseEnrolmentActiveAndCompleted(Map<String, Object> enrolment, String userId) {
+		String courseId = (String) enrolment.get(Constants.COURSE_ID);
+		Object activeObj = enrolment.get(Constants.ACTIVE);
+		if (activeObj != null) {
+			boolean isActive = activeObj instanceof Boolean booleanValue
+					? booleanValue
+					: Boolean.parseBoolean(activeObj.toString());
+			if (!isActive) {
+				return false;
+			}
+		}
+		if (Constants.ASSESSMENT_STATUS_COMPLETED != (int) enrolment.get(Constants.STATUS)) {
+			logger.debug("Course not completed : {} {}", userId, courseId);
+			return false;
+		}
+		return true;
 	}
 }
