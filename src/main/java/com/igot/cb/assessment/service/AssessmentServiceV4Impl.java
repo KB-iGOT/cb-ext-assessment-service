@@ -92,8 +92,27 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                     retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
                 }
                 if (serverProperties.isAssessmentRetakeCountVerificationEnabled()) {
-                    retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
+                    List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
+                            userId, assessmentIdentifier);
+                    retakeAttemptsConsumed = (int) userAssessmentDataList.stream()
+                            .filter(userData -> userData.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
+                                    && null != userData.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY))
+                            .count();
                     retakeAttemptsConsumed = retakeAttemptsConsumed - 1;
+                    if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
+                        if (!assessUtilServ.hasCoolOffPeriod(assessmentAllDetail)) {
+                            errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+                        } else {
+                            String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
+                                    assessmentAllDetail, userAssessmentDataList);
+                            if (StringUtils.isNotBlank(coolOffValidationError)) {
+                                updateErrorDetails(response, coolOffValidationError, HttpStatus.BAD_REQUEST);
+                                logger.info("AssessmentServiceV4Impl::retakeAssessment... Completed with cool-off error");
+                                return response;
+                            }
+                            logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
@@ -154,7 +173,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 if(null == assessmentAllDetail.get(Constants.EXPECTED_DURATION)){
                     errMsg = Constants.ASSESSMENT_INVALID; }
                 else {
-                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
                     if (StringUtils.isNotBlank(errMsg)) {
                         return response;
                     }
@@ -196,7 +215,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                         || assessmentStartTime.compareTo(existingAssessmentEndTime.toInstant()) > 0) {
                     logger.info(
                             "Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly ");
-                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+                    errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
                     if (StringUtils.isNotBlank(errMsg)) {
                         return response;
                     }
@@ -579,14 +598,6 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         response.setResponseCode(responseCode);
     }
 
-    private int calculateAssessmentRetakeCount(String userId, String assessmentId) {
-        List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(userId,
-                assessmentId);
-        return (int) userAssessmentDataList.stream()
-                .filter(userData -> userData.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
-                        && null != userData.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY))
-                .count();
-    }
 
     private Instant calculateAssessmentSubmitTime(int expectedDurationInSeconds, Instant assessmentStartTime,
                                                   int bufferTimeInSeconds) {

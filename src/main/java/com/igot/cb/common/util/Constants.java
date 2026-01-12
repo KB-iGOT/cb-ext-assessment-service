@@ -629,6 +629,7 @@ public class Constants {
     public static final String ASSESSMENT_READ_RESPONSE = "assessmentreadresponse";
     public static final String API_SUBMIT_ASSESSMENT = "api.submit.asssessment";
     public static final String MAX_ASSESSMENT_RETAKE_ATTEMPTS = "maxAssessmentRetakeAttempts";
+    public static final String COOL_OFF_PERIOD = "coolOffPeriod";
     public static final String TOTAL_RETAKE_ATTEMPTS_ALLOWED = "attemptsAllowed";
     public static final String RETAKE_ATTEMPTS_CONSUMED = "attemptsMade";
     public static final String API_RETAKE_ASSESSMENT_GET = "api.assessmment.attempt";
@@ -1369,6 +1370,14 @@ public class Constants {
     public static final String COURSEID_ERROR = "CourseId should not be multilingual course";
     public static final String LEAF_NODES = "leafNodes";
     public static final String PROGRESS_DETAILS = "progressdetails";
+    public static final String FINAL_MILESTONE_ASSESSMENT = "Final Milestone Assessment";
+    public static final String MILESTONES_V1 = "milestones_v1";
+    public static final String ASSESSMENT_DETAIL = "assessmentDetail";
+    public static final String COURSES_KEY = "courses";
+    public static final String IS_MANDATORY = "isMandatory";
+    public static final String LANG_CONTENT_STATUS = "langContentStatus";
+    public static final String RECENT_LANGUAGE = "recentLanguage";
+    public static final int CONTENT_STATUS_COMPLETED = 2;
 
     private Constants() {
         throw new IllegalStateException("Utility class");

@@ -318,10 +318,11 @@ class AssessmentUtilServiceV2ImplTest {
         String parentContextId = "parent1";
         SBApiResponse response = new SBApiResponse();
         String userId = "user1";
+        String assessmentIdentifier = "assessment1";
 
         when(contentService.readContentFromCache(parentContextId, null)).thenReturn(Collections.emptyMap());
 
-        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
         assertEquals(Constants.CONTENT_NOT_FOUND, result);
     }
 
@@ -1068,6 +1069,7 @@ class AssessmentUtilServiceV2ImplTest {
         String parentContextId = "parent123";
         SBApiResponse response = new SBApiResponse();
         String userId = "user1";
+        String assessmentIdentifier = "assessment1";
 
         Map<String, Object> contentDetails = new HashMap<>();
         contentDetails.put(Constants.CONTEXT_LOCKING_TYPE, Constants.COURSE_ASSESSMENT_ONLY);
@@ -1080,7 +1082,7 @@ class AssessmentUtilServiceV2ImplTest {
         // Mock private method isAllCourseCompleted to return false
         ReflectionTestUtils.setField(utilService, "cassandraOperation", cassandraOperation);
 
-        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
 
         assertEquals(Constants.USER_COURSES_NOT_COMPLETED, result);
     }
@@ -1091,13 +1093,14 @@ class AssessmentUtilServiceV2ImplTest {
         String parentContextId = "parent123";
         SBApiResponse response = new SBApiResponse();
         String userId = "user1";
+        String assessmentIdentifier = "assessment1";
 
         Map<String, Object> contentDetails = new HashMap<>();
         contentDetails.put(Constants.CONTEXT_LOCKING_TYPE, "UNKNOWN_LOCK_TYPE");
 
         when(contentService.readContentFromCache(eq(parentContextId), any())).thenReturn(contentDetails);
 
-        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
 
         assertEquals(Constants.UNSUPPORTED_FEATURE, result);
     }
@@ -1108,10 +1111,11 @@ class AssessmentUtilServiceV2ImplTest {
         String parentContextId = "parent123";
         SBApiResponse response = new SBApiResponse();
         String userId = "user1";
+        String assessmentIdentifier = "assessment1";
 
         when(contentService.readContentFromCache(eq(parentContextId), any())).thenReturn(Collections.emptyMap());
 
-        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
 
         assertEquals(Constants.CONTENT_NOT_FOUND, result);
     }
@@ -1122,8 +1126,9 @@ class AssessmentUtilServiceV2ImplTest {
         String parentContextId = ""; // blank
         SBApiResponse response = new SBApiResponse();
         String userId = "user1";
+        String assessmentIdentifier = "assessment1";
 
-        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId);
+        String result = utilService.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
 
         assertEquals(Constants.INVALID_COURSE_REQUEST, result);
     }
@@ -2186,6 +2191,354 @@ class AssessmentUtilServiceV2ImplTest {
 
         assertEquals("q1", output.get("identifier"));
         assertTrue(output.containsKey(Constants.EDITOR_STATE));
+    }
+
+    
+
+    @Test
+    void testIsEnrolmentActive_WithBooleanTrue() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, true);
+        boolean result = invokePrivateMethod("isEnrolmentActive",
+            enrolmentRecord, "user123", "assessment123");
+        assertTrue(result, "Should return true when active is Boolean true");
+    }
+
+    @Test
+    void testIsEnrolmentActive_WithBooleanFalse() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, false);
+        boolean result = invokePrivateMethod("isEnrolmentActive",
+            enrolmentRecord, "user123", "assessment123");
+        assertFalse(result, "Should return false when active is Boolean false");
+    }
+
+    @Test
+    void testIsEnrolmentActive_WithStringTrue() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, "true");
+        boolean result = invokePrivateMethod("isEnrolmentActive",
+            enrolmentRecord, "user123", "assessment123");
+        assertTrue(result, "Should return true when active is String 'true'");
+    }
+
+    @Test
+    void testIsEnrolmentActive_WithStringFalse() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, "false");
+        boolean result = invokePrivateMethod("isEnrolmentActive",
+            enrolmentRecord, "user123", "assessment123");
+        assertFalse(result, "Should return false when active is String 'false'");
+    }
+
+    @Test
+    void testIsEnrolmentActive_WithNull() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        boolean result = invokePrivateMethod("isEnrolmentActive",
+            enrolmentRecord, "user123", "assessment123");
+        assertFalse(result, "Should return false when active field is null");
+    }
+
+    @Test
+    void testGetRecentLanguage_Success() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.RECENT_LANGUAGE, "english");
+        String result = invokePrivateMethod("getRecentLanguage",
+            enrolmentRecord, "user123", "assessment123");
+        assertEquals("english", result, "Should return the recent language");
+    }
+
+    @Test
+    void testGetRecentLanguage_Null() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        String result = invokePrivateMethod("getRecentLanguage",
+            enrolmentRecord, "user123", "assessment123");
+        assertNull(result, "Should return null when recent_language field is missing");
+    }
+
+    @Test
+    void testIsAssessmentStatusCompleted_Success() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        Map<String, Integer> assessmentStatus = new HashMap<>();
+        assessmentStatus.put("assessment123", 2); // Status 2 = completed
+        Map<String, Map<String, Integer>> langContentStatus = new HashMap<>();
+        langContentStatus.put("english", assessmentStatus);
+        enrolmentRecord.put(Constants.LANG_CONTENT_STATUS, langContentStatus);
+        boolean result = invokePrivateMethod("isAssessmentStatusCompleted",
+            enrolmentRecord, "assessment123", "user123", "english");
+        assertTrue(result, "Should return true when assessment status is 2");
+    }
+
+    @Test
+    void testIsAssessmentStatusCompleted_NotCompleted() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        Map<String, Integer> assessmentStatus = new HashMap<>();
+        assessmentStatus.put("assessment123", 1); // Status 1 = in progress
+        Map<String, Map<String, Integer>> langContentStatus = new HashMap<>();
+        langContentStatus.put("english", assessmentStatus);
+        enrolmentRecord.put(Constants.LANG_CONTENT_STATUS, langContentStatus);
+        boolean result = invokePrivateMethod("isAssessmentStatusCompleted",
+            enrolmentRecord, "assessment123", "user123", "english");
+        assertFalse(result, "Should return false when assessment status is not 2");
+    }
+
+    @Test
+    void testIsAssessmentStatusCompleted_LanguageNotFound() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        Map<String, Integer> assessmentStatus = new HashMap<>();
+        assessmentStatus.put("assessment123", 2);
+        Map<String, Map<String, Integer>> langContentStatus = new HashMap<>();
+        langContentStatus.put("hindi", assessmentStatus); // Different language
+        enrolmentRecord.put(Constants.LANG_CONTENT_STATUS, langContentStatus);
+        boolean result = invokePrivateMethod("isAssessmentStatusCompleted",
+            enrolmentRecord, "assessment123", "user123", "english");
+        assertFalse(result, "Should return false when language not found");
+    }
+
+    @Test
+    void testIsAssessmentStatusCompleted_AssessmentNotFound() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        Map<String, Integer> assessmentStatus = new HashMap<>();
+        assessmentStatus.put("other_assessment", 2);
+        Map<String, Map<String, Integer>> langContentStatus = new HashMap<>();
+        langContentStatus.put("english", assessmentStatus);
+        enrolmentRecord.put(Constants.LANG_CONTENT_STATUS, langContentStatus);
+        boolean result = invokePrivateMethod("isAssessmentStatusCompleted",
+            enrolmentRecord, "assessment123", "user123", "english");
+        assertFalse(result, "Should return false when assessment not found in map");
+    }
+
+    @Test
+    void testIsAssessmentStatusCompleted_NullLangContentStatus() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        boolean result = invokePrivateMethod("isAssessmentStatusCompleted",
+            enrolmentRecord, "assessment123", "user123", "english");
+        assertFalse(result, "Should return false when lang_contentstatus is null");
+    }
+
+    @Test
+    void testIsAssessmentCompletedInEnrolment_AllConditionsMet() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, true);
+        enrolmentRecord.put(Constants.RECENT_LANGUAGE, "english");
+        Map<String, Integer> assessmentStatus = new HashMap<>();
+        assessmentStatus.put("assessment123", 2);
+        Map<String, Map<String, Integer>> langContentStatus = new HashMap<>();
+        langContentStatus.put("english", assessmentStatus);
+        enrolmentRecord.put(Constants.LANG_CONTENT_STATUS, langContentStatus);
+        boolean result = invokePrivateMethod("isAssessmentCompletedInEnrolment",
+            enrolmentRecord, "assessment123", "user123");
+        assertTrue(result, "Should return true when all conditions are met");
+    }
+
+    @Test
+    void testIsAssessmentCompletedInEnrolment_NotActive() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, false);
+        enrolmentRecord.put(Constants.RECENT_LANGUAGE, "english");
+        boolean result = invokePrivateMethod("isAssessmentCompletedInEnrolment",
+            enrolmentRecord, "assessment123", "user123");
+        assertFalse(result, "Should return false when enrolment is not active");
+    }
+
+    @Test
+    void testIsAssessmentCompletedInEnrolment_NoRecentLanguage() {
+        Map<String, Object> enrolmentRecord = new HashMap<>();
+        enrolmentRecord.put(Constants.ACTIVE, true);
+        boolean result = invokePrivateMethod("isAssessmentCompletedInEnrolment",
+            enrolmentRecord, "assessment123", "user123");
+        assertFalse(result, "Should return false when recent_language is missing");
+    }
+
+    @Test
+    void testIsCourseEnrolmentActiveAndCompleted_BothConditionsMet() {
+        Map<String, Object> enrolment = new HashMap<>();
+        enrolment.put(Constants.COURSE_ID, "course123");
+        enrolment.put(Constants.ACTIVE, true);
+        enrolment.put(Constants.STATUS, 2); // ASSESSMENT_STATUS_COMPLETED
+        boolean result = invokePrivateMethod("isCourseEnrolmentActiveAndCompleted",
+            enrolment, "user123");
+        assertTrue(result, "Should return true when both active and completed");
+    }
+
+    @Test
+    void testIsCourseEnrolmentActiveAndCompleted_NotActive() {
+        Map<String, Object> enrolment = new HashMap<>();
+        enrolment.put(Constants.COURSE_ID, "course123");
+        enrolment.put(Constants.ACTIVE, false);
+        enrolment.put(Constants.STATUS, 2);
+        boolean result = invokePrivateMethod("isCourseEnrolmentActiveAndCompleted",
+            enrolment, "user123");
+        assertFalse(result, "Should return false when course is not active");
+    }
+
+    @Test
+    void testIsCourseEnrolmentActiveAndCompleted_NotCompleted() {
+        Map<String, Object> enrolment = new HashMap<>();
+        enrolment.put(Constants.COURSE_ID, "course123");
+        enrolment.put(Constants.ACTIVE, true);
+        enrolment.put(Constants.STATUS, 1); // Not completed
+        boolean result = invokePrivateMethod("isCourseEnrolmentActiveAndCompleted",
+            enrolment, "user123");
+        assertFalse(result, "Should return false when course is not completed");
+    }
+
+    @Test
+    void testIsAllCourseCompletedV2_AllCoursesValid() {
+        String userId = "user123";
+        List<String> courseIds = Arrays.asList("course1", "course2");
+        List<Map<String, Object>> enrolments = new ArrayList<>();
+        Map<String, Object> enrolment1 = new HashMap<>();
+        enrolment1.put(Constants.COURSE_ID, "course1");
+        enrolment1.put(Constants.ACTIVE, true);
+        enrolment1.put(Constants.STATUS, 2);
+        enrolments.add(enrolment1);
+        Map<String, Object> enrolment2 = new HashMap<>();
+        enrolment2.put(Constants.COURSE_ID, "course2");
+        enrolment2.put(Constants.ACTIVE, true);
+        enrolment2.put(Constants.STATUS, 2);
+        enrolments.add(enrolment2);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            eq(Constants.KEYSPACE_SUNBIRD_COURSES),
+            eq(Constants.TABLE_USER_ENROLMENT),
+            any(),
+            anyList()
+        )).thenReturn(enrolments);
+        boolean result = invokePrivateMethod("isAllCourseCompletedV2", userId, courseIds);
+        assertTrue(result, "Should return true when all courses are active and completed");
+    }
+
+    @Test
+    void testIsAllCourseCompletedV2_OneCourseNotActive() {
+        String userId = "user123";
+        List<String> courseIds = Arrays.asList("course1", "course2");
+        List<Map<String, Object>> enrolments = new ArrayList<>();
+        Map<String, Object> enrolment1 = new HashMap<>();
+        enrolment1.put(Constants.COURSE_ID, "course1");
+        enrolment1.put(Constants.ACTIVE, true);
+        enrolment1.put(Constants.STATUS, 2);
+        enrolments.add(enrolment1);
+        Map<String, Object> enrolment2 = new HashMap<>();
+        enrolment2.put(Constants.COURSE_ID, "course2");
+        enrolment2.put(Constants.ACTIVE, false); // Not active
+        enrolment2.put(Constants.STATUS, 2);
+        enrolments.add(enrolment2);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            eq(Constants.KEYSPACE_SUNBIRD_COURSES),
+            eq(Constants.TABLE_USER_ENROLMENT),
+            any(),
+            anyList()
+        )).thenReturn(enrolments);
+        boolean result = invokePrivateMethod("isAllCourseCompletedV2", userId, courseIds);
+        assertFalse(result, "Should return false when one course is not active");
+    }
+
+    @Test
+    void testIsAllCourseCompletedV2_OneCourseNotCompleted() {
+        String userId = "user123";
+        List<String> courseIds = Arrays.asList("course1", "course2");
+        List<Map<String, Object>> enrolments = new ArrayList<>();
+        Map<String, Object> enrolment1 = new HashMap<>();
+        enrolment1.put(Constants.COURSE_ID, "course1");
+        enrolment1.put(Constants.ACTIVE, true);
+        enrolment1.put(Constants.STATUS, 2);
+        enrolments.add(enrolment1);
+        Map<String, Object> enrolment2 = new HashMap<>();
+        enrolment2.put(Constants.COURSE_ID, "course2");
+        enrolment2.put(Constants.ACTIVE, true);
+        enrolment2.put(Constants.STATUS, 1);
+        enrolments.add(enrolment2);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            eq(Constants.KEYSPACE_SUNBIRD_COURSES),
+            eq(Constants.TABLE_USER_ENROLMENT),
+            any(),
+            anyList()
+        )).thenReturn(enrolments);
+        boolean result = invokePrivateMethod("isAllCourseCompletedV2", userId, courseIds);
+        assertFalse(result, "Should return false when one course is not completed");
+    }
+
+    @Test
+    void testIsAllCourseCompletedV2_EmptyCourseIds() {
+        String userId = "user123";
+        List<String> courseIds = new ArrayList<>();
+        boolean result = invokePrivateMethod("isAllCourseCompletedV2", userId, courseIds);
+        assertFalse(result, "Should return false when course IDs list is empty");
+    }
+
+    @Test
+    void testIsAllCourseCompletedV2_NullCourseIds() {
+        String userId = "user123";
+        List<String> courseIds = null;
+        boolean result = invokePrivateMethod("isAllCourseCompletedV2", userId, courseIds);
+        assertFalse(result, "Should return false when course IDs list is null");
+    }
+
+    @Test
+    void testIsAllCourseCompletedV2_InsufficientEnrolments() {
+        String userId = "user123";
+        List<String> courseIds = Arrays.asList("course1", "course2", "course3");
+        List<Map<String, Object>> enrolments = new ArrayList<>();
+        Map<String, Object> enrolment1 = new HashMap<>();
+        enrolment1.put(Constants.COURSE_ID, "course1");
+        enrolment1.put(Constants.ACTIVE, true);
+        enrolment1.put(Constants.STATUS, 2);
+        enrolments.add(enrolment1);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+            eq(Constants.KEYSPACE_SUNBIRD_COURSES),
+            eq(Constants.TABLE_USER_ENROLMENT),
+            any(),
+            anyList()
+        )).thenReturn(enrolments);
+        boolean result = invokePrivateMethod("isAllCourseCompletedV2", userId, courseIds);
+        assertFalse(result, "Should return false when enrolments size < courseIds size");
+    }
+
+    private <T> T invokePrivateMethod(String methodName, Object... args) {
+        try {
+            Class<?>[] paramTypes = new Class<?>[args.length];
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] == null) {
+                    paramTypes[i] = null;
+                } else if (args[i] instanceof String) {
+                    paramTypes[i] = String.class;
+                } else if (args[i] instanceof Map) {
+                    paramTypes[i] = Map.class;
+                } else if (args[i] instanceof List) {
+                    paramTypes[i] = List.class;
+                } else {
+                    paramTypes[i] = args[i].getClass();
+                }
+            }
+            Method method = findMethod(methodName, paramTypes);
+            method.setAccessible(true);
+            return (T) method.invoke(utilService, args);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to invoke method: " + methodName, e);
+        }
+    }
+    
+    private Method findMethod(String methodName, Class<?>[] paramTypes) throws NoSuchMethodException {
+        Method[] methods = AssessmentUtilServiceV2Impl.class.getDeclaredMethods();
+        for (Method method : methods) {
+            if (method.getName().equals(methodName) && method.getParameterCount() == paramTypes.length) {
+                Class<?>[] methodParamTypes = method.getParameterTypes();
+                boolean matches = true;
+                for (int i = 0; i < paramTypes.length; i++) {
+                    if (paramTypes[i] == null) {
+                        continue;
+                    }
+                    if (!methodParamTypes[i].isAssignableFrom(paramTypes[i])) {
+                        matches = false;
+                        break;
+                    }
+                }
+                if (matches) {
+                    return method;
+                }
+            }
+        }
+        throw new NoSuchMethodException("Method not found: " + methodName);
     }
 
 }
