@@ -1,5 +1,7 @@
 package com.igot.cb.common.util;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -10,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@Getter
+@Setter
 public class CbExtAssessmentServerProperties {
 
     @Value("${wf.service.host}")
@@ -1069,6 +1073,15 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${mandatory.course.categories.for.certificate.generation}")
     private String mandatoryCourseCategoriesForCertificateGeneration;
+
+    @Value("${assessment.learningpathway.no.milestones.error}")
+    private String assessmentLearningPathwayNoMilestonesError;
+
+    @Value("${assessment.learningpathway.assessment.notfound.error}")
+    private String assessmentLearningPathwayAssessmentNotFoundError;
+
+    @Value("${assessment.learningpathway.preliminary.notcompleted.error}")
+    private String assessmentLearningPathwayPreliminaryNotCompletedError;
 
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;

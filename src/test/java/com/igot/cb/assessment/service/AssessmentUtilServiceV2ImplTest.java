@@ -2541,6 +2541,354 @@ class AssessmentUtilServiceV2ImplTest {
         throw new NoSuchMethodException("Method not found: " + methodName);
     }
 
+    @Test
+    void testValidateLearningPathwayAssessment_PreliminaryAssessmentMatches() {
+        Map<String, Object> contentRead = new HashMap<>();
+        String preliminaryAssessmentId = "prelim-assess-123";
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, preliminaryAssessmentId);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        String assessmentIdFromRequest = "prelim-assess-123";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_PreliminaryAssessmentDoesNotMatch() {
+        Map<String, Object> contentRead = new HashMap<>();
+        String preliminaryAssessmentId = "prelim-assess-123";
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, preliminaryAssessmentId);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        String assessmentIdFromRequest = "other-assess-456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayPreliminaryNotCompletedError())
+                .thenReturn("Preliminary assessment " + Constants.ASSESSMENT_ID_REPLACER + " must be completed first in course " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+        assertNotNull(result);
+        assertTrue(result.contains("prelim-assess-123"));
+        assertTrue(result.contains("course-123"));
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_EmptyPreliminaryAssessment_NoMilestones() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayNoMilestonesError())
+                .thenReturn("No milestones found in Learning Pathway: " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+        assertTrue(result.contains("course-123"));
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_NullMilestones() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayNoMilestonesError())
+                .thenReturn("No milestones found in Learning Pathway: " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                null,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_AssessmentFoundInMilestones() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.IDENTIFIER, assessmentIdFromRequest);
+        Map<String, Object> milestone = new HashMap<>();
+        milestone.put(Constants.ASSESSMENT_DETAIL, assessmentDetail);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_AssessmentNotFoundInMilestones() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.IDENTIFIER, "different-assess-456");
+        Map<String, Object> milestone = new HashMap<>();
+        milestone.put(Constants.ASSESSMENT_DETAIL, assessmentDetail);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayAssessmentNotFoundError())
+                .thenReturn("Assessment " + Constants.ASSESSMENT_ID_REPLACER + " not found in Learning Pathway for course " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+        assertTrue(result.contains("assess-123"));
+        assertTrue(result.contains("course-123"));
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_MultipleMilestonesAssessmentFound() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> assessmentDetail1 = new HashMap<>();
+        assessmentDetail1.put(Constants.IDENTIFIER, "assess-001");
+        Map<String, Object> milestone1 = new HashMap<>();
+        milestone1.put(Constants.ASSESSMENT_DETAIL, assessmentDetail1);
+        Map<String, Object> assessmentDetail2 = new HashMap<>();
+        assessmentDetail2.put(Constants.IDENTIFIER, assessmentIdFromRequest);
+        Map<String, Object> milestone2 = new HashMap<>();
+        milestone2.put(Constants.ASSESSMENT_DETAIL, assessmentDetail2);
+        Map<String, Object> assessmentDetail3 = new HashMap<>();
+        assessmentDetail3.put(Constants.IDENTIFIER, "assess-999");
+        Map<String, Object> milestone3 = new HashMap<>();
+        milestone3.put(Constants.ASSESSMENT_DETAIL, assessmentDetail3);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone1);
+        milestonesV1.add(milestone2);
+        milestonesV1.add(milestone3);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_MilestoneWithEmptyAssessmentDetail() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> milestone1 = new HashMap<>();
+        milestone1.put(Constants.ASSESSMENT_DETAIL, new HashMap<>());
+        Map<String, Object> milestone2 = new HashMap<>();
+        milestone2.put(Constants.ASSESSMENT_DETAIL, null);
+        Map<String, Object> assessmentDetail3 = new HashMap<>();
+        assessmentDetail3.put(Constants.IDENTIFIER, assessmentIdFromRequest);
+        Map<String, Object> milestone3 = new HashMap<>();
+        milestone3.put(Constants.ASSESSMENT_DETAIL, assessmentDetail3);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone1);
+        milestonesV1.add(milestone2);
+        milestonesV1.add(milestone3);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_MilestoneWithoutAssessmentDetail() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> milestone = new HashMap<>();
+        milestone.put("otherKey", "otherValue");
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayAssessmentNotFoundError())
+                .thenReturn("Assessment " + Constants.ASSESSMENT_ID_REPLACER + " not found in Learning Pathway for course " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_NullPreliminaryAssessment() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, null);
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.IDENTIFIER, assessmentIdFromRequest);
+        Map<String, Object> milestone = new HashMap<>();
+        milestone.put(Constants.ASSESSMENT_DETAIL, assessmentDetail);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_CaseInsensitivePreliminaryMatch() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "PRELIM-ASSESS-123");
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        String assessmentIdFromRequest = "prelim-assess-123";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_AllMilestonesHaveEmptyAssessmentDetails() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> milestone1 = new HashMap<>();
+        milestone1.put(Constants.ASSESSMENT_DETAIL, new HashMap<>());
+        Map<String, Object> milestone2 = new HashMap<>();
+        milestone2.put(Constants.ASSESSMENT_DETAIL, new HashMap<>());
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone1);
+        milestonesV1.add(milestone2);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayAssessmentNotFoundError())
+                .thenReturn("Assessment " + Constants.ASSESSMENT_ID_REPLACER + " not found in Learning Pathway for course " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_ContentReadWithoutPreliminaryAssessmentKey() {
+        Map<String, Object> contentRead = new HashMap<>();
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.IDENTIFIER, assessmentIdFromRequest);
+        Map<String, Object> milestone = new HashMap<>();
+        milestone.put(Constants.ASSESSMENT_DETAIL, assessmentDetail);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateLearningPathwayAssessment_MixedScenarioWithWhitespace() {
+        Map<String, Object> contentRead = new HashMap<>();
+        contentRead.put(Constants.PRELIMINARY_ASSESSMENT, "  ");
+        String assessmentIdFromRequest = "assess-123";
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.IDENTIFIER, assessmentIdFromRequest);
+        Map<String, Object> milestone = new HashMap<>();
+        milestone.put(Constants.ASSESSMENT_DETAIL, assessmentDetail);
+        List<Map<String, Object>> milestonesV1 = new ArrayList<>();
+        milestonesV1.add(milestone);
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.COURSE_ID, "course-123");
+        when(serverProperties.getAssessmentLearningPathwayPreliminaryNotCompletedError())
+                .thenReturn("Preliminary assessment " + Constants.ASSESSMENT_ID_REPLACER + " must be completed first in course " + Constants.COURSE_ID_REPLACER);
+        String result = ReflectionTestUtils.invokeMethod(
+                utilService,
+                "validateLearningPathwayAssessment",
+                contentRead,
+                milestonesV1,
+                assessmentIdFromRequest,
+                submitRequest
+        );
+        assertNotEquals(Constants.EMPTY, result);
+        assertNotNull(result);
+        assertTrue(result.contains("course-123"));
+    }
+
 }
 
 

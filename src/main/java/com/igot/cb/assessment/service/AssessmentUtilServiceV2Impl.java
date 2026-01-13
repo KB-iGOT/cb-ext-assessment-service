@@ -1315,6 +1315,12 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
                     return Constants.COURSEID_ERROR + submitRequest.get(Constants.COURSE_ID);
                 }
 
+                if (StringUtils.isNotBlank(courseCategory) &&
+                        courseCategory.equalsIgnoreCase(Constants.LEARNING_PATHWAY)) {
+                    logger.info("Processing Learning Pathway validation for courseId: {}", submitRequest.get(Constants.COURSE_ID));
+					return validateLearningPathwayAssessment(contentRead, (List<Map<String, Object>>) contentRead.get(Constants.MILESTONES_V1), assessmentIdFromRequest,
+                            submitRequest);
+                }
                 String baseLanguage = ((List<String>) contentRead.get(Constants.LANGUAGE)).get(0);
                 if (StringUtils.isBlank(assessmentLanguageReq)) {
                     submitRequest.put(Constants.LANGUAGE, baseLanguage);
@@ -1787,5 +1793,54 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Validates assessment for Learning Pathway by checking preliminary assessment and milestones.
+	 *
+	 * @param contentRead the content details containing preliminary assessment info
+	 * @param milestonesV1 the list of milestones from the Learning Pathway
+	 * @param assessmentIdFromRequest the assessment identifier to validate
+	 * @param submitRequest the original submit request containing courseId
+	 * @return empty string if validation passes, error message otherwise
+	 */
+	private String validateLearningPathwayAssessment(Map<String, Object> contentRead,
+													 List<Map<String, Object>> milestonesV1,
+													 String assessmentIdFromRequest,
+													 Map<String, Object> submitRequest) {
+		String courseId = submitRequest.get(Constants.COURSE_ID).toString();
+		// Validate preliminary assessment requirement
+		String preliminaryAssessmentId = (String) contentRead.get(Constants.PRELIMINARY_ASSESSMENT);
+		if (StringUtils.isNotEmpty(preliminaryAssessmentId) ) {
+			if (assessmentIdFromRequest.equalsIgnoreCase(preliminaryAssessmentId)) {
+				return Constants.EMPTY;
+			} else {
+				logger.warn("User attempting assessment {} but preliminary assessment {} must be completed first in courseId: {}",
+						assessmentIdFromRequest, preliminaryAssessmentId, courseId);
+				return serverProperties.getAssessmentLearningPathwayPreliminaryNotCompletedError()
+						.replace(Constants.ASSESSMENT_ID_REPLACER, preliminaryAssessmentId)
+						.replace(Constants.COURSE_ID_REPLACER, courseId);
+			}
+		}
+		// Validate milestones exist
+		if (CollectionUtils.isEmpty(milestonesV1)) {
+			logger.warn("No milestones found in Learning Pathway: {}", courseId);
+			return serverProperties.getAssessmentLearningPathwayNoMilestonesError()
+					.replace(Constants.COURSE_ID_REPLACER, courseId);
+		}
+		// Validate assessment exists in milestones
+		boolean assessmentFound = milestonesV1.stream()
+				.map(milestone -> (Map<String, Object>) milestone.get(Constants.ASSESSMENT_DETAIL))
+				.filter(MapUtils::isNotEmpty)
+				.map(assessmentDetail -> (String) assessmentDetail.get(Constants.IDENTIFIER))
+				.anyMatch(assessmentIdFromRequest::equals);
+		if (!assessmentFound) {
+			logger.warn("Assessment {} not found in Learning Pathway milestones for courseId: {}", assessmentIdFromRequest, courseId);
+			return serverProperties.getAssessmentLearningPathwayAssessmentNotFoundError()
+					.replace(Constants.ASSESSMENT_ID_REPLACER, assessmentIdFromRequest)
+					.replace(Constants.COURSE_ID_REPLACER, courseId);
+		}
+		logger.info("Assessment {} validated successfully in Learning Pathway for courseId: {}", assessmentIdFromRequest, courseId);
+		return Constants.EMPTY;
 	}
 }
