@@ -119,8 +119,7 @@ public class Constants {
     public static final String SERVICE_ERROR_CONSTANT = "Http Client threw an Exception:";
     public static final String EXTERNAL_SERVICE_ERROR_CODE = "Exception while querying the external service:";
     public static final String CONTENT_ID_REPLACER = "{contentId}";
-    public static final String COURSE_ID_REPLACER = "{courseId}";
-    public static final String ASSESSMENT_ID_REPLACER = "{assessmentId}";
+
     // User assessment pass mark
     public static final Float ASSESSMENT_PASS_SCORE = 60.0f;
     public static final String DATE_FORMAT = "yyyy-mm-dd hh:mm:ss";
@@ -1369,19 +1368,21 @@ public class Constants {
     public static final String LANGUAGE = "language";
     public static final String LANGUAGE_MAP_V1 = "languageMapV1";
     public static final String MULTILINGUAL_COURSE = "Multilingual Course";
-    public static final String LEARNING_PATHWAY = "Learning Pathway";
     public static final String COURSEID_ERROR = "CourseId should not be multilingual course";
     public static final String LEAF_NODES = "leafNodes";
     public static final String PROGRESS_DETAILS = "progressdetails";
     public static final String FINAL_MILESTONE_ASSESSMENT = "Final Milestone Assessment";
     public static final String MILESTONES_V1 = "milestones_v1";
     public static final String ASSESSMENT_DETAIL = "assessmentDetail";
-    public static final String PRELIMINARY_ASSESSMENT = "preliminaryAssessment";
     public static final String COURSES_KEY = "courses";
     public static final String IS_MANDATORY = "isMandatory";
     public static final String LANG_CONTENT_STATUS = "langContentStatus";
     public static final String RECENT_LANGUAGE = "recentLanguage";
     public static final int CONTENT_STATUS_COMPLETED = 2;
+    public static final String COURSE_ID_REPLACER = "{courseId}";
+    public static final String ASSESSMENT_ID_REPLACER = "{assessmentId}";
+    public static final String LEARNING_PATHWAY = "Learning Pathway";
+    public static final String PRELIMINARY_ASSESSMENT = "preliminaryAssessment";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
