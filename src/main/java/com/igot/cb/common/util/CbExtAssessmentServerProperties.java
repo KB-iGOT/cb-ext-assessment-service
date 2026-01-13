@@ -1074,14 +1074,8 @@ public class CbExtAssessmentServerProperties {
     @Value("${mandatory.course.categories.for.certificate.generation}")
     private String mandatoryCourseCategoriesForCertificateGeneration;
 
-    @Value("${assessment.learningpathway.no.milestones.error}")
-    private String assessmentLearningPathwayNoMilestonesError;
-
     @Value("${assessment.learningpathway.assessment.notfound.error}")
     private String assessmentLearningPathwayAssessmentNotFoundError;
-
-    @Value("${assessment.learningpathway.preliminary.notcompleted.error}")
-    private String assessmentLearningPathwayPreliminaryNotCompletedError;
 
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
