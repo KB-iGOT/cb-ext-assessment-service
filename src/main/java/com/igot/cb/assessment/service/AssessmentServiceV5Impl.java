@@ -407,7 +407,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     switch (scoreCutOffType) {
                         case Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF: {
                             result.putAll(createResponseMapWithProperStructure(hierarchySection,
-                                    assessUtilServ.validateQumlAssessmentV2(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
+                                    assessUtilServ.validateQumlAssessmentV3(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
                                             questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken)), (Integer) assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE)));
                             Map<String, Object> finalRes= calculateAssessmentFinalResults(result);
                             outgoingResponse.getResult().putAll(finalRes);
@@ -435,7 +435,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         }
                         case Constants.SECTION_LEVEL_SCORE_CUTOFF: {
                             result.putAll(createResponseMapWithProperStructure(hierarchySection,
-                                    assessUtilServ.validateQumlAssessmentV2(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
+                                    assessUtilServ.validateQumlAssessmentV3(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
                                             questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken)), (Integer) assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE)));
                             sectionLevelsResults.add(result);
                         }
