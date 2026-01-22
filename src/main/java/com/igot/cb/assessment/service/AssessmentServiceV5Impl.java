@@ -408,7 +408,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         case Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF: {
                             result.putAll(createResponseMapWithProperStructure(hierarchySection,
                                     assessUtilServ.validateQumlAssessmentV2(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
-                                            questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken))));
+                                            questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken)), (Integer) assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE)));
                             Map<String, Object> finalRes= calculateAssessmentFinalResults(result);
                             outgoingResponse.getResult().putAll(finalRes);
                             outgoingResponse.getResult().put(Constants.PRIMARY_CATEGORY, assessmentPrimaryCategory);
@@ -436,7 +436,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         case Constants.SECTION_LEVEL_SCORE_CUTOFF: {
                             result.putAll(createResponseMapWithProperStructure(hierarchySection,
                                     assessUtilServ.validateQumlAssessmentV2(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
-                                            questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken))));
+                                            questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken)), (Integer) assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE)));
                             sectionLevelsResults.add(result);
                         }
                             break;
@@ -767,12 +767,16 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
     }
 
     public Map<String, Object> createResponseMapWithProperStructure(Map<String, Object> hierarchySection,
-            Map<String, Object> resultMap) {
+            Map<String, Object> resultMap, Integer assessmentMinimumPassPercentage) {
         Map<String, Object> sectionLevelResult = new HashMap<>();
         sectionLevelResult.put(Constants.IDENTIFIER, hierarchySection.get(Constants.IDENTIFIER));
         sectionLevelResult.put(Constants.OBJECT_TYPE, hierarchySection.get(Constants.OBJECT_TYPE));
         sectionLevelResult.put(Constants.PRIMARY_CATEGORY, hierarchySection.get(Constants.PRIMARY_CATEGORY));
-        sectionLevelResult.put(Constants.PASS_PERCENTAGE, hierarchySection.get(Constants.MINIMUM_PASS_PERCENTAGE));
+        // Use section's minimumPassPercentage if it exists and is not 0, otherwise use assessment's
+        Integer finalMinimumPassPercentage = Optional.ofNullable((Integer) hierarchySection.get(Constants.MINIMUM_PASS_PERCENTAGE))
+                .filter(percentage -> percentage > 0)
+                .orElse(assessmentMinimumPassPercentage);
+        sectionLevelResult.put(Constants.PASS_PERCENTAGE, finalMinimumPassPercentage);
         sectionLevelResult.put(Constants.NAME, hierarchySection.get(Constants.NAME));
         Double result;
         if (!ObjectUtils.isEmpty(resultMap)) {
@@ -796,8 +800,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             sectionLevelResult.put(Constants.CORRECT, 0);
             sectionLevelResult.put(Constants.INCORRECT, 0);
         }
-        sectionLevelResult.put(Constants.PASS,
-                result >= ((Integer) hierarchySection.get(Constants.MINIMUM_PASS_PERCENTAGE)));
+        sectionLevelResult.put(Constants.PASS,result >= finalMinimumPassPercentage);
         sectionLevelResult.put(Constants.OVERALL_RESULT, result);
         return sectionLevelResult;
     }
@@ -1407,7 +1410,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     case Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF: {
                         result.putAll(createResponseMapWithProperStructure(hierarchySection,
                                 assessUtilServ.validateQumlAssessmentV3(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
-                                        questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken))));
+                                        questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken)), (Integer) assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE)));
                         Map<String, Object> finalRes= calculateAssessmentFinalResults(result);
                         outgoingResponse.getResult().putAll(finalRes);
                         outgoingResponse.getResult().put(Constants.PRIMARY_CATEGORY, assessmentPrimaryCategory);
@@ -1434,7 +1437,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     case Constants.SECTION_LEVEL_SCORE_CUTOFF: {
                         result.putAll(createResponseMapWithProperStructure(hierarchySection,
                                 assessUtilServ.validateQumlAssessmentV3(questionSetDetailsMap,questionsListFromAssessmentHierarchy,
-                                        questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken))));
+                                        questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,userAuthToken)), (Integer) assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE)));
                         sectionLevelsResults.add(result);
                     }
                     break;
