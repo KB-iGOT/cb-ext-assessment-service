@@ -846,7 +846,7 @@ class AssessmentServiceV5ImplTest {
         resultMap.put(Constants.TOTAL_MARKS, 100);
         resultMap.put(Constants.SECTION_MARKS, 75);
 
-        Map<String, Object> result = service.createResponseMapWithProperStructure(hierarchySection, resultMap);
+        Map<String, Object> result = service.createResponseMapWithProperStructure(hierarchySection, resultMap, 60);
 
         assertEquals("section1", result.get(Constants.IDENTIFIER));
         assertEquals("Section", result.get(Constants.OBJECT_TYPE));
@@ -875,7 +875,7 @@ class AssessmentServiceV5ImplTest {
         hierarchySection.put(Constants.NAME, "Section 2");
         hierarchySection.put(Constants.CHILDREN, List.of("q1", "q2", "q3"));
 
-        Map<String, Object> result = service.createResponseMapWithProperStructure(hierarchySection, null);
+        Map<String, Object> result = service.createResponseMapWithProperStructure(hierarchySection, null, 50);
 
         assertEquals("section2", result.get(Constants.IDENTIFIER));
         assertEquals("Section", result.get(Constants.OBJECT_TYPE));
@@ -1175,7 +1175,7 @@ class AssessmentServiceV5ImplTest {
         section.put(Constants.NAME, "Section 1");
         section.put(Constants.CHILDREN, List.of("q1", "q2"));
 
-        Map<String, Object> result = service.createResponseMapWithProperStructure(section, null);
+        Map<String, Object> result = service.createResponseMapWithProperStructure(section, null, 50);
         assertEquals(0.0, result.get(Constants.RESULT));
         assertEquals(2, result.get(Constants.BLANK));
         assertEquals(false, result.get(Constants.PASS));  // Fixed here
@@ -1297,7 +1297,7 @@ class AssessmentServiceV5ImplTest {
         section.put(Constants.NAME, "Section 1");
         section.put(Constants.CHILDREN, List.of("q1", "q2"));
 
-        Map<String, Object> result = service.createResponseMapWithProperStructure(section, null);
+        Map<String, Object> result = service.createResponseMapWithProperStructure(section, null, 50);
         assertEquals(0.0, result.get(Constants.RESULT));
         assertEquals(2, result.get(Constants.BLANK));
         assertEquals(false, result.get(Constants.PASS));
@@ -1480,7 +1480,7 @@ class AssessmentServiceV5ImplTest {
         when(assessUtilServ.readQListfromCache(any(), any(), anyBoolean(), anyString())).thenReturn(Map.of("sec1", List.of(question)));
         when(assessUtilServ.validateQumlAssessmentV2(any(), any(), any(), any())).thenReturn(Map.of());
         when(assessUtilServ.readAssessmentRecord(eq("assess123"), anyList())).thenReturn("english");
-        doReturn(Map.of()).when(spyService).createResponseMapWithProperStructure(any(), any());
+        doReturn(Map.of()).when(spyService).createResponseMapWithProperStructure(any(), any(), any());
 
         // Build hierarchy manually (instead of mocking nonexistent method)
         List<Map<String, Object>> hierarchySectionList = new ArrayList<>();
@@ -1608,7 +1608,7 @@ class AssessmentServiceV5ImplTest {
         validateMethod.invoke(spyService, submitRequest, "user1", hierarchySections, submitSections, hierarchy, existingData, "token", false);
 
         // Stub response creator (if required internally)
-        doReturn(Map.of()).when(spyService).createResponseMapWithProperStructure(any(), any());
+        doReturn(Map.of()).when(spyService).createResponseMapWithProperStructure(any(), any(), any());
 
         // --- Act ---
         SBApiResponse response = spyService.submitAssessmentAsyncV6(submitRequest, "token", false);
@@ -1706,7 +1706,7 @@ class AssessmentServiceV5ImplTest {
         validateMethod.invoke(spyService, submitRequest, "user1", hierarchySections, submitSections, hierarchy, existingData, "token", false);
 
         // Stub response creator (if required internally)
-        doReturn(Map.of()).when(spyService).createResponseMapWithProperStructure(any(), any());
+        doReturn(Map.of()).when(spyService).createResponseMapWithProperStructure(any(), any(), any());
 
         // --- Act ---
         SBApiResponse response = spyService.submitAssessmentAsyncV6(submitRequest, "token", false);
@@ -1781,7 +1781,7 @@ class AssessmentServiceV5ImplTest {
                         Constants.SECTION_MARKS, 5
                 ));
         // Allow real method for createResponseMap
-        doCallRealMethod().when(spyService).createResponseMapWithProperStructure(any(), any());
+        doCallRealMethod().when(spyService).createResponseMapWithProperStructure(any(), any(), any());
 
         // Stub calculateAssessmentFinalResults using reflection
         Method calcMethod = AssessmentServiceV5Impl.class.getDeclaredMethod("calculateAssessmentFinalResults", Map.class);
@@ -1862,7 +1862,7 @@ class AssessmentServiceV5ImplTest {
                         Constants.SECTION_MARKS, 5
                 ));
         // Allow real method for createResponseMap
-        doCallRealMethod().when(spyService).createResponseMapWithProperStructure(any(), any());
+        doCallRealMethod().when(spyService).createResponseMapWithProperStructure(any(), any(), any());
 
         // Stub calculateAssessmentFinalResults using reflection
         Method calcMethod = AssessmentServiceV5Impl.class.getDeclaredMethod("calculateAssessmentFinalResults", Map.class);
