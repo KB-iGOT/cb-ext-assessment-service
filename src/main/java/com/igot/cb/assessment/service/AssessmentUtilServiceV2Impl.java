@@ -1026,7 +1026,8 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						break;
 					case Constants.FTB:
 						for (Map<String, Object> option : options) {
-							if ((boolean) option.get(Constants.ANSWER)) {
+							if ((option.get(Constants.ANSWER) instanceof Boolean boolValue && boolValue) ||
+									(option.get(Constants.ANSWER) instanceof String)) {
 								Map<String, Object> valueObj = mapper.convertValue(option.get(Constants.VALUE), new TypeReference<Map<String, Object>>() {
 								});
 								String answerText = valueObj.get(Constants.BODY).toString();
