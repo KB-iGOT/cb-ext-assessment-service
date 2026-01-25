@@ -1390,38 +1390,9 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	}
 
 	/**
-	 * Processes user-submitted FTB answers into standardized format for comparison with correct answers.
-	 * 
-	 * <p><b>Reason for Extraction:</b> This method was extracted to eliminate code duplication across
-	 * multiple scoring methods (getMarkedIndexForEachQuestionV2, etc.) and to centralize the logic
-	 * for handling different FTB user answer formats. This improves maintainability and ensures
-	 * consistent answer processing throughout the application.</p>
-	 * 
-	 * <p><b>Business Logic:</b> User answers for FTB questions come in two formats:
-	 * <ul>
-	 *   <li><b>INDEX-based Format (Current):</b> Contains both the blank position (INDEX) and the selected answer.
-	 *       This format is used when users fill in specific blanks, producing "position-answer" format
-	 *       (e.g., "0-userAnswer" for the first blank).</li>
-	 *   <li><b>Legacy Format:</b> Contains only the selected answer text without position information.
-	 *       Used for backward compatibility with older question submissions.</li>
-	 * </ul>
-	 * The method normalizes both formats into a consistent structure that can be compared against
-	 * the correct answers extracted by processFillInTheBlankOptions().</p>
-	 * 
-	 * <p><b>Data Structure Example:</b>
-	 * <pre>
-	 * Input options (INDEX-based): [
-	 *   { "INDEX": "0", "selectedAnswer": "userAnswer1" },  // User filled first blank
-	 *   { "INDEX": "1", "selectedAnswer": "userAnswer2" }   // User filled second blank
-	 * ]
-	 * Output marked: ["0-userAnswer1", "1-userAnswer2"]
-	 * 
-	 * Input options (Legacy): [
-	 *   { "selectedAnswer": "answer1" },  // No position info
-	 *   { "selectedAnswer": "answer2" }
-	 * ]
-	 * Output marked: ["answer1", "answer2"]
-	 * </pre></p>
+	 * Processes user-submitted FTB answers into standardized format.
+	 * Supports INDEX-based format ("position-answer") and legacy format (answer only).
+	 * Extracted to eliminate code duplication and centralize FTB answer processing logic.
 	 *
 	 * @param options List of user-selected answer options from submission
 	 * @param marked List to populate with formatted user answers for scoring comparison
