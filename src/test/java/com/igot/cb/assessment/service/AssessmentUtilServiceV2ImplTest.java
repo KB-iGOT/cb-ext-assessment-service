@@ -2188,6 +2188,644 @@ class AssessmentUtilServiceV2ImplTest {
         assertTrue(output.containsKey(Constants.EDITOR_STATE));
     }
 
+
+    @Test
+    void testValidateQumlAssessment_FTB_NewFormat_TypeInput_CorrectAnswer() {
+        // Arrange: FTB question where user types the answer (single blank B1)
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.FTB);
+        q.put(Constants.IDENTIFIER, "q1");
+        // Database format: answer="B1" indicates the correct answer for blank position 1
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> opt = new HashMap<>();
+        opt.put(Constants.ANSWER, "B1");
+        Map<String, Object> valueObj = new HashMap<>();
+        valueObj.put(Constants.BODY, "correct");
+        valueObj.put(Constants.VALUE, 0);
+        opt.put(Constants.VALUE, valueObj);
+        editorState.put(Constants.OPTIONS, List.of(opt));
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+        // User answer: index="0" (B1 is index 0), selectedAnswer="correct"
+        List<Map<String, Object>> userQ = new ArrayList<>();
+        Map<String, Object> userQ1 = new HashMap<>();
+        userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
+        userQ1.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> userEditorState = new HashMap<>();
+        Map<String, Object> userOpt = new HashMap<>();
+        userOpt.put(Constants.INDEX, "0");
+        userOpt.put(Constants.SELECTED_ANSWER, "correct");
+        userEditorState.put(Constants.OPTIONS, List.of(userOpt));
+        userQ1.put(Constants.EDITOR_STATE, userEditorState);
+        userQ.add(userQ1);
+        // Act
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.get(Constants.CORRECT));
+        assertEquals(0, result.get(Constants.INCORRECT));
+        assertEquals(0, result.get(Constants.BLANK));
+    }
+
+    @Test
+    void testValidateQumlAssessment_FTB_NewFormat_TypeInput_IncorrectAnswer() {
+        // Arrange: FTB question where user types wrong answer
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.FTB);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+        Map<String, Object> opt = new HashMap<>();
+        opt.put(Constants.ANSWER, "B1");
+        Map<String, Object> valueObj = new HashMap<>();
+        valueObj.put(Constants.BODY, "correct");
+        valueObj.put(Constants.VALUE, 0);
+        opt.put(Constants.VALUE, valueObj);
+        editorState.put(Constants.OPTIONS, List.of(opt));
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+        // User answer: wrong answer
+        List<Map<String, Object>> userQ = new ArrayList<>();
+        Map<String, Object> userQ1 = new HashMap<>();
+        userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
+        userQ1.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> userEditorState = new HashMap<>();
+        Map<String, Object> userOpt = new HashMap<>();
+        userOpt.put(Constants.INDEX, "0");
+        userOpt.put(Constants.SELECTED_ANSWER, "wrong");
+        userEditorState.put(Constants.OPTIONS, List.of(userOpt));
+        userQ1.put(Constants.EDITOR_STATE, userEditorState);
+        userQ.add(userQ1);
+        // Act
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        // Assert
+        assertNotNull(result);
+        assertEquals(0, result.get(Constants.CORRECT));
+        assertEquals(1, result.get(Constants.INCORRECT));
+        assertEquals(0, result.get(Constants.BLANK));
+    }
+
+    @Test
+    void testValidateQumlAssessment_FTB_NewFormat_Dropdown_MultipleBlank_AllCorrect() {
+        // Arrange: FTB with dropdown - 3 blanks (B1, B2, B3) and 2 extra options marked as "none"
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.FTB);
+        q.put(Constants.IDENTIFIER, "q1");
+        // Database format with 5 options: 3 belong to blanks (B1, B2, B3), 2 are extra (none)
+        Map<String, Object> editorState = new HashMap<>();
+        List<Map<String, Object>> options = new ArrayList<>();
+        // B1 -> option1
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, "B1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "option1");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        options.add(opt1);
+        // B2 -> option2
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.ANSWER, "B2");
+        Map<String, Object> val2 = new HashMap<>();
+        val2.put(Constants.BODY, "option2");
+        val2.put(Constants.VALUE, 1);
+        opt2.put(Constants.VALUE, val2);
+        options.add(opt2);
+        // none -> option3 (extra option)
+        Map<String, Object> opt3 = new HashMap<>();
+        opt3.put(Constants.ANSWER, "none");
+        Map<String, Object> val3 = new HashMap<>();
+        val3.put(Constants.BODY, "option3");
+        val3.put(Constants.VALUE, 2);
+        opt3.put(Constants.VALUE, val3);
+        options.add(opt3);
+        // none -> option4 (extra option)
+        Map<String, Object> opt4 = new HashMap<>();
+        opt4.put(Constants.ANSWER, "none");
+        Map<String, Object> val4 = new HashMap<>();
+        val4.put(Constants.BODY, "option4");
+        val4.put(Constants.VALUE, 3);
+        opt4.put(Constants.VALUE, val4);
+        options.add(opt4);
+        // B3 -> option5
+        Map<String, Object> opt5 = new HashMap<>();
+        opt5.put(Constants.ANSWER, "B3");
+        Map<String, Object> val5 = new HashMap<>();
+        val5.put(Constants.BODY, "option5");
+        val5.put(Constants.VALUE, 4);
+        opt5.put(Constants.VALUE, val5);
+        options.add(opt5);
+        editorState.put(Constants.OPTIONS, options);
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+        // User answer: selects correct options for all 3 blanks
+        List<Map<String, Object>> userQ = new ArrayList<>();
+        Map<String, Object> userQ1 = new HashMap<>();
+        userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
+        userQ1.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> userEditorState = new HashMap<>();
+        List<Map<String, Object>> userOptions = new ArrayList<>();
+        Map<String, Object> userOpt1 = new HashMap<>();
+        userOpt1.put(Constants.INDEX, "0");
+        userOpt1.put(Constants.SELECTED_ANSWER, "option1");
+        userOptions.add(userOpt1);
+        Map<String, Object> userOpt2 = new HashMap<>();
+        userOpt2.put(Constants.INDEX, "1");
+        userOpt2.put(Constants.SELECTED_ANSWER, "option2");
+        userOptions.add(userOpt2);
+        Map<String, Object> userOpt3 = new HashMap<>();
+        userOpt3.put(Constants.INDEX, "2");
+        userOpt3.put(Constants.SELECTED_ANSWER, "option5");
+        userOptions.add(userOpt3);
+        userEditorState.put(Constants.OPTIONS, userOptions);
+        userQ1.put(Constants.EDITOR_STATE, userEditorState);
+        userQ.add(userQ1);
+        // Act
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.get(Constants.CORRECT));
+        assertEquals(0, result.get(Constants.INCORRECT));
+        assertEquals(0, result.get(Constants.BLANK));
+    }
+
+    @Test
+    void testValidateQumlAssessment_FTB_NewFormat_Dropdown_PartiallyCorrect() {
+        // Arrange: FTB with 3 blanks, user gets 2 correct and 1 wrong
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.FTB);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, "B1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "option1");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        options.add(opt1);
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.ANSWER, "B2");
+        Map<String, Object> val2 = new HashMap<>();
+        val2.put(Constants.BODY, "option2");
+        val2.put(Constants.VALUE, 1);
+        opt2.put(Constants.VALUE, val2);
+        options.add(opt2);
+        Map<String, Object> opt3 = new HashMap<>();
+        opt3.put(Constants.ANSWER, "B3");
+        Map<String, Object> val3 = new HashMap<>();
+        val3.put(Constants.BODY, "option5");
+        val3.put(Constants.VALUE, 2);
+        opt3.put(Constants.VALUE, val3);
+        options.add(opt3);
+        Map<String, Object> opt4 = new HashMap<>();
+        opt4.put(Constants.ANSWER, "none");
+        Map<String, Object> val4 = new HashMap<>();
+        val4.put(Constants.BODY, "option3");
+        val4.put(Constants.VALUE, 3);
+        opt4.put(Constants.VALUE, val4);
+        options.add(opt4);
+        editorState.put(Constants.OPTIONS, options);
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+        // User answer: correct for B1 and B2, wrong for B3 (selects option3 instead of option5)
+        List<Map<String, Object>> userQ = new ArrayList<>();
+        Map<String, Object> userQ1 = new HashMap<>();
+        userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
+        userQ1.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> userEditorState = new HashMap<>();
+        List<Map<String, Object>> userOptions = new ArrayList<>();
+        Map<String, Object> userOpt1 = new HashMap<>();
+        userOpt1.put(Constants.INDEX, "0");
+        userOpt1.put(Constants.SELECTED_ANSWER, "option1");
+        userOptions.add(userOpt1);
+        Map<String, Object> userOpt2 = new HashMap<>();
+        userOpt2.put(Constants.INDEX, "1");
+        userOpt2.put(Constants.SELECTED_ANSWER, "option2");
+        userOptions.add(userOpt2);
+        Map<String, Object> userOpt3 = new HashMap<>();
+        userOpt3.put(Constants.INDEX, "2");
+        userOpt3.put(Constants.SELECTED_ANSWER, "option3"); // Wrong! Should be option5
+        userOptions.add(userOpt3);
+        userEditorState.put(Constants.OPTIONS, userOptions);
+        userQ1.put(Constants.EDITOR_STATE, userEditorState);
+        userQ.add(userQ1);
+        // Act
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        // Assert
+        assertNotNull(result);
+        assertEquals(0, result.get(Constants.CORRECT)); // All must be correct for FTB
+        assertEquals(1, result.get(Constants.INCORRECT));
+        assertEquals(0, result.get(Constants.BLANK));
+    }
+
+    @Test
+    void testValidateQumlAssessment_FTB_NewFormat_SkipsNoneOptions() {
+        // Arrange: Verify that options with answer="none" are skipped during validation
+        List<String> originalQ = List.of("q1");
+        Map<String, Object> qMap = new HashMap<>();
+        Map<String, Object> q = new HashMap<>();
+        q.put(Constants.QUESTION_TYPE, Constants.FTB);
+        q.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> editorState = new HashMap<>();
+        List<Map<String, Object>> options = new ArrayList<>();
+        // Only B1 should be validated
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, "B1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "answer1");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        options.add(opt1);
+        // These should be ignored
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.ANSWER, "none");
+        Map<String, Object> val2 = new HashMap<>();
+        val2.put(Constants.BODY, "distractor1");
+        val2.put(Constants.VALUE, 1);
+        opt2.put(Constants.VALUE, val2);
+        options.add(opt2);
+        Map<String, Object> opt3 = new HashMap<>();
+        opt3.put(Constants.ANSWER, "none");
+        Map<String, Object> val3 = new HashMap<>();
+        val3.put(Constants.BODY, "distractor2");
+        val3.put(Constants.VALUE, 2);
+        opt3.put(Constants.VALUE, val3);
+        options.add(opt3);
+        editorState.put(Constants.OPTIONS, options);
+        q.put(Constants.EDITOR_STATE, editorState);
+        qMap.put("q1", q);
+        // User answer: only answer for B1
+        List<Map<String, Object>> userQ = new ArrayList<>();
+        Map<String, Object> userQ1 = new HashMap<>();
+        userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
+        userQ1.put(Constants.IDENTIFIER, "q1");
+        Map<String, Object> userEditorState = new HashMap<>();
+        Map<String, Object> userOpt = new HashMap<>();
+        userOpt.put(Constants.INDEX, "0");
+        userOpt.put(Constants.SELECTED_ANSWER, "answer1");
+        userEditorState.put(Constants.OPTIONS, List.of(userOpt));
+        userQ1.put(Constants.EDITOR_STATE, userEditorState);
+        userQ.add(userQ1);
+        // Act
+        Map<String, Object> result = utilService.validateQumlAssessment(originalQ, userQ, qMap);
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.get(Constants.CORRECT));
+        assertEquals(0, result.get(Constants.INCORRECT));
+    }
+
+
+    @Test
+    void testProcessFillInTheBlankOptions_B1B2B3Format() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, "B1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "option1");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.ANSWER, "B2");
+        Map<String, Object> val2 = new HashMap<>();
+        val2.put(Constants.BODY, "option2");
+        val2.put(Constants.VALUE, 1);
+        opt2.put(Constants.VALUE, val2);
+        Map<String, Object> opt3 = new HashMap<>();
+        opt3.put(Constants.ANSWER, "B3");
+        Map<String, Object> val3 = new HashMap<>();
+        val3.put(Constants.BODY, "option5");
+        val3.put(Constants.VALUE, 4);
+        opt3.put(Constants.VALUE, val3);
+        options.add(opt1);
+        options.add(opt2);
+        options.add(opt3);
+        List<String> correctOption = new ArrayList<>();
+        // Configure mapper to convert VALUE field properly
+        when(mapper.convertValue(eq(val1), any(TypeReference.class))).thenReturn(val1);
+        when(mapper.convertValue(eq(val2), any(TypeReference.class))).thenReturn(val2);
+        when(mapper.convertValue(eq(val3), any(TypeReference.class))).thenReturn(val3);
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(3, correctOption.size());
+        assertTrue(correctOption.contains("0-option1"));
+        assertTrue(correctOption.contains("1-option2"));
+        assertTrue(correctOption.contains("2-option5"));
+    }
+
+    @Test
+    void testProcessFillInTheBlankOptions_WithNoneDistractors() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, "B1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "correct1");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.ANSWER, "none");
+        Map<String, Object> val2 = new HashMap<>();
+        val2.put(Constants.BODY, "distractor1");
+        val2.put(Constants.VALUE, 1);
+        opt2.put(Constants.VALUE, val2);
+        Map<String, Object> opt3 = new HashMap<>();
+        opt3.put(Constants.ANSWER, "B2");
+        Map<String, Object> val3 = new HashMap<>();
+        val3.put(Constants.BODY, "correct2");
+        val3.put(Constants.VALUE, 2);
+        opt3.put(Constants.VALUE, val3);
+        Map<String, Object> opt4 = new HashMap<>();
+        opt4.put(Constants.ANSWER, "none");
+        Map<String, Object> val4 = new HashMap<>();
+        val4.put(Constants.BODY, "distractor2");
+        val4.put(Constants.VALUE, 3);
+        opt4.put(Constants.VALUE, val4);
+        options.add(opt1);
+        options.add(opt2);
+        options.add(opt3);
+        options.add(opt4);
+        List<String> correctOption = new ArrayList<>();
+        // Configure mapper to convert VALUE field properly
+        when(mapper.convertValue(eq(val1), any(TypeReference.class))).thenReturn(val1);
+        when(mapper.convertValue(eq(val2), any(TypeReference.class))).thenReturn(val2);
+        when(mapper.convertValue(eq(val3), any(TypeReference.class))).thenReturn(val3);
+        when(mapper.convertValue(eq(val4), any(TypeReference.class))).thenReturn(val4);
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(2, correctOption.size());
+        assertTrue(correctOption.contains("0-correct1"));
+        assertTrue(correctOption.contains("1-correct2"));
+        assertFalse(correctOption.contains("distractor1"));
+        assertFalse(correctOption.contains("distractor2"));
+    }
+
+    @Test
+    void testProcessFillInTheBlankOptions_LegacyPOSITIONField() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, true);
+        opt1.put(Constants.POSITION, "1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "answer1");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.ANSWER, true);
+        opt2.put(Constants.POSITION, "2");
+        Map<String, Object> val2 = new HashMap<>();
+        val2.put(Constants.BODY, "answer2");
+        val2.put(Constants.VALUE, 1);
+        opt2.put(Constants.VALUE, val2);
+        options.add(opt1);
+        options.add(opt2);
+        List<String> correctOption = new ArrayList<>();
+        // Configure mapper to convert VALUE field properly
+        when(mapper.convertValue(eq(val1), any(TypeReference.class))).thenReturn(val1);
+        when(mapper.convertValue(eq(val2), any(TypeReference.class))).thenReturn(val2);
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(2, correctOption.size());
+        assertTrue(correctOption.contains("0-answer1"));
+        assertTrue(correctOption.contains("1-answer2"));
+    }
+
+    @Test
+    void testProcessFillInTheBlankOptions_BooleanAnswerTrue() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, true);
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "simpleAnswer");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        options.add(opt1);
+        List<String> correctOption = new ArrayList<>();
+        // Configure mapper to convert VALUE field properly
+        when(mapper.convertValue(eq(val1), any(TypeReference.class))).thenReturn(val1);
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(1, correctOption.size());
+        assertEquals("simpleAnswer", correctOption.get(0));
+    }
+
+    @Test
+    void testProcessFillInTheBlankOptions_WithWhitespace() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, "B1");
+        Map<String, Object> val1 = new HashMap<>();
+        val1.put(Constants.BODY, "  answer with spaces  ");
+        val1.put(Constants.VALUE, 0);
+        opt1.put(Constants.VALUE, val1);
+        options.add(opt1);
+        List<String> correctOption = new ArrayList<>();
+        // Configure mapper to convert VALUE field properly
+        when(mapper.convertValue(eq(val1), any(TypeReference.class))).thenReturn(val1);
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(1, correctOption.size());
+        assertEquals("0-answer with spaces", correctOption.get(0));
+    }
+
+    @Test
+    void testProcessFillInTheBlankOptions_EmptyList() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        List<String> correctOption = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(0, correctOption.size());
+    }
+
+    @Test
+    void testProcessFillInTheBlankOptions_AnswerFalse() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.ANSWER, false);
+        opt1.put(Constants.VALUE, Map.of(Constants.BODY, "wrongAnswer", Constants.VALUE, 0));
+        options.add(opt1);
+        List<String> correctOption = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankOptions", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, correctOption);
+        // Assert
+        assertEquals(0, correctOption.size());
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_IndexBasedFormat() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.INDEX, "0");
+        opt1.put(Constants.SELECTED_ANSWER, "option1");
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.INDEX, "1");
+        opt2.put(Constants.SELECTED_ANSWER, "option2");
+        Map<String, Object> opt3 = new HashMap<>();
+        opt3.put(Constants.INDEX, "2");
+        opt3.put(Constants.SELECTED_ANSWER, "option5");
+        options.add(opt1);
+        options.add(opt2);
+        options.add(opt3);
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(3, marked.size());
+        assertTrue(marked.contains("0-option1"));
+        assertTrue(marked.contains("1-option2"));
+        assertTrue(marked.contains("2-option5"));
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_LegacyFormat() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.SELECTED_ANSWER, "simpleAnswer");
+        options.add(opt1);
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(1, marked.size());
+        assertEquals("simpleAnswer", marked.get(0));
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_WithWhitespace() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.INDEX, "0");
+        opt1.put(Constants.SELECTED_ANSWER, "  answer with spaces  ");
+        options.add(opt1);
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(1, marked.size());
+        assertEquals("0-answer with spaces", marked.get(0));
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_EmptyList() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(0, marked.size());
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_NullSelectedAnswer() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.INDEX, "0");
+        opt1.put(Constants.SELECTED_ANSWER, null);
+        options.add(opt1);
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(0, marked.size());
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_BlankSelectedAnswer() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.INDEX, "0");
+        opt1.put(Constants.SELECTED_ANSWER, "   ");
+        options.add(opt1);
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(0, marked.size());
+    }
+
+    @Test
+    void testProcessFillInTheBlankUserAnswers_MixedIndexAndNonIndex() throws Exception {
+        // Arrange
+        List<Map<String, Object>> options = new ArrayList<>();
+        Map<String, Object> opt1 = new HashMap<>();
+        opt1.put(Constants.INDEX, "0");
+        opt1.put(Constants.SELECTED_ANSWER, "indexed");
+        Map<String, Object> opt2 = new HashMap<>();
+        opt2.put(Constants.SELECTED_ANSWER, "notIndexed");
+        options.add(opt1);
+        options.add(opt2);
+        List<String> marked = new ArrayList<>();
+        // Act
+        Method method = AssessmentUtilServiceV2Impl.class.getDeclaredMethod(
+                "processFillInTheBlankUserAnswers", List.class, List.class);
+        method.setAccessible(true);
+        method.invoke(utilService, options, marked);
+        // Assert
+        assertEquals(2, marked.size());
+        assertTrue(marked.contains("0-indexed"));
+        assertTrue(marked.contains("notIndexed"));
+    }
 }
-
-

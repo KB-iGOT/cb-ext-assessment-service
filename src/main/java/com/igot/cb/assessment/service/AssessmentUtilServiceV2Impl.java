@@ -1025,21 +1025,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 						}
 						break;
 					case Constants.FTB:
-						for (Map<String, Object> option : options) {
-							if ((option.get(Constants.ANSWER) instanceof Boolean boolValue && boolValue) ||
-									(option.get(Constants.ANSWER) instanceof String)) {
-								Map<String, Object> valueObj = mapper.convertValue(option.get(Constants.VALUE), new TypeReference<Map<String, Object>>() {
-								});
-								String answerText = valueObj.get(Constants.BODY).toString();
-								// Support both formats: position-based and text-only
-								if (MapUtils.isNotEmpty(option) && option.containsKey(Constants.POSITION) && option.get(Constants.POSITION) != null) {
-									int position = Integer.parseInt((String) option.get(Constants.POSITION)) - 1;
-									correctOption.add(position + "-" + answerText);
-								} else {
-									correctOption.add(answerText);
-								}
-							}
-						}
+						processFillInTheBlankOptions(options, correctOption);
 						break;
 					case Constants.MCQ_SCA:
 					case Constants.MCQ_MCA:
@@ -1108,13 +1094,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				}
 				break;
 			case Constants.FTB:
-				for (Map<String, Object> option : options) {
-					if (MapUtils.isNotEmpty(option) && option.containsKey(Constants.INDEX) && option.get(Constants.INDEX) != null) {
-						marked.add(option.get(Constants.INDEX) + "-" + option.get(Constants.SELECTED_ANSWER));
-					} else {
-						marked.add((String) option.get(Constants.SELECTED_ANSWER));
-					}
-				}
+				processFillInTheBlankUserAnswers(options, marked);
 				break;
 			case Constants.MCQ_SCA:
 			case Constants.MCQ_MCA:
@@ -1356,4 +1336,85 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
         }
     }
 
+	/**
+	 * Processes Fill in the Blank (FTB) question options to extract correct answers.
+	 *
+	 * Supports two FTB formats:
+	 * 1. Type Input: User types answer (answer="B1", value.body="correct")
+	 * 2. Dropdown: User selects from options (answer="B1"/"B2"/"none", distractors have answer="none")
+	 *
+	 * Processing rules:
+	 * - B1/B2/B3 format: Maps to positions 0/1/2 as "position-answer" (e.g., "0-correct")
+	 * - Legacy POSITION field: Uses explicit position field if present
+	 * - Skips options with answer="none" (distractors)
+	 *
+	 * @param options the list of FTB options from the question
+	 * @param correctOption the list to populate with correct answers in position-text format
+	 */
+	private void processFillInTheBlankOptions(List<Map<String, Object>> options, List<String> correctOption) {
+		options.stream()
+				.filter(option -> {
+					Object answer = option.get(Constants.ANSWER);
+					return (answer instanceof Boolean boolValue && boolValue) || answer instanceof String;
+				})
+				.forEach(option -> {
+					Map<String, Object> valueObj = mapper.convertValue(
+							option.get(Constants.VALUE),
+							new TypeReference<Map<String, Object>>() {}
+					);
+					String answerText = valueObj.get(Constants.BODY).toString().trim();
+					Object answer = option.get(Constants.ANSWER);
+					// Handle new format: answer field contains "B1", "B2", etc. (skip "none")
+					if (answer instanceof String answerValue &&
+							!answerValue.equalsIgnoreCase("none") &&
+							answerValue.toLowerCase().startsWith("b")) {
+						String blankPosition = answerValue.substring(1);
+						int position = Integer.parseInt(blankPosition) - 1; // B1 is index 0
+						String formattedAnswer = position + "-" + answerText;
+						correctOption.add(formattedAnswer);
+					}
+					// Handle legacy format with POSITION field
+					else if (MapUtils.isNotEmpty(option) &&
+							option.containsKey(Constants.POSITION) &&
+							option.get(Constants.POSITION) != null) {
+						int position = Integer.parseInt((String) option.get(Constants.POSITION)) - 1;
+						String formattedAnswer = position + "-" + answerText;
+						correctOption.add(formattedAnswer);
+					}
+					// For Boolean answer=true (legacy support) - already filtered for true in stream
+					else if (answer instanceof Boolean) {
+						correctOption.add(answerText);
+					}
+					// Skip all other cases (including answer="none" distractors)
+				});
+	}
+
+	/**
+	 * Processes user-submitted FTB answers into standardized format.
+	 * Supports INDEX-based format ("position-answer") and legacy format (answer only).
+	 * Extracted to eliminate code duplication and centralize FTB answer processing logic.
+	 *
+	 * @param options List of user-selected answer options from submission
+	 * @param marked List to populate with formatted user answers for scoring comparison
+	 */
+	private void processFillInTheBlankUserAnswers(List<Map<String, Object>> options, List<String> marked) {
+		if (CollectionUtils.isEmpty(options))
+			return;
+		options.stream()
+				.filter(option -> MapUtils.isNotEmpty(option) && option.containsKey(Constants.SELECTED_ANSWER))
+				.forEach(option -> {
+					if (!(option.get(Constants.SELECTED_ANSWER) instanceof String selectedAnswer)
+							|| StringUtils.isBlank(selectedAnswer)) {
+						return;
+					}
+					// INDEX-based format: "position-answer" (e.g., "0-userAnswer")
+					if (option.containsKey(Constants.INDEX) && option.get(Constants.INDEX) != null) {
+						marked.add(option.get(Constants.INDEX) + "-" + selectedAnswer.trim());
+					}
+					// Legacy format: just the answer text
+					else {
+						marked.add(selectedAnswer.trim());
+					}
+				});
+	}
 }
