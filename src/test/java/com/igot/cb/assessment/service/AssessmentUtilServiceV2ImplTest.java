@@ -2191,16 +2191,16 @@ class AssessmentUtilServiceV2ImplTest {
 
     @Test
     void testValidateQumlAssessment_FTB_NewFormat_TypeInput_CorrectAnswer() {
-        // Arrange: FTB question where user types the answer (single blank B1)
+        // Arrange: FTB question where user types the answer (single blank)
         List<String> originalQ = List.of("q1");
         Map<String, Object> qMap = new HashMap<>();
         Map<String, Object> q = new HashMap<>();
         q.put(Constants.QUESTION_TYPE, Constants.FTB);
         q.put(Constants.IDENTIFIER, "q1");
-        // Database format: answer="B1" indicates the correct answer for blank position 1
+        // Database format: answer=true indicates this is the correct answer
         Map<String, Object> editorState = new HashMap<>();
         Map<String, Object> opt = new HashMap<>();
-        opt.put(Constants.ANSWER, "B1");
+        opt.put(Constants.ANSWER, true);
         Map<String, Object> valueObj = new HashMap<>();
         valueObj.put(Constants.BODY, "correct");
         valueObj.put(Constants.VALUE, 0);
@@ -2208,14 +2208,13 @@ class AssessmentUtilServiceV2ImplTest {
         editorState.put(Constants.OPTIONS, List.of(opt));
         q.put(Constants.EDITOR_STATE, editorState);
         qMap.put("q1", q);
-        // User answer: index="0" (B1 is index 0), selectedAnswer="correct"
+        // User answer: selectedAnswer="correct"
         List<Map<String, Object>> userQ = new ArrayList<>();
         Map<String, Object> userQ1 = new HashMap<>();
         userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
         userQ1.put(Constants.IDENTIFIER, "q1");
         Map<String, Object> userEditorState = new HashMap<>();
         Map<String, Object> userOpt = new HashMap<>();
-        userOpt.put(Constants.INDEX, "0");
         userOpt.put(Constants.SELECTED_ANSWER, "correct");
         userEditorState.put(Constants.OPTIONS, List.of(userOpt));
         userQ1.put(Constants.EDITOR_STATE, userEditorState);
@@ -2270,50 +2269,34 @@ class AssessmentUtilServiceV2ImplTest {
 
     @Test
     void testValidateQumlAssessment_FTB_NewFormat_Dropdown_MultipleBlank_AllCorrect() {
-        // Arrange: FTB with dropdown - 3 blanks (B1, B2, B3) and 2 extra options marked as "none"
+        // Arrange: FTB with dropdown - 3 correct answers
         List<String> originalQ = List.of("q1");
         Map<String, Object> qMap = new HashMap<>();
         Map<String, Object> q = new HashMap<>();
         q.put(Constants.QUESTION_TYPE, Constants.FTB);
         q.put(Constants.IDENTIFIER, "q1");
-        // Database format with 5 options: 3 belong to blanks (B1, B2, B3), 2 are extra (none)
+        // Database format with 3 correct options (answer=true)
         Map<String, Object> editorState = new HashMap<>();
         List<Map<String, Object>> options = new ArrayList<>();
-        // B1 -> option1
+        // Correct option1
         Map<String, Object> opt1 = new HashMap<>();
-        opt1.put(Constants.ANSWER, "B1");
+        opt1.put(Constants.ANSWER, true);
         Map<String, Object> val1 = new HashMap<>();
         val1.put(Constants.BODY, "option1");
         val1.put(Constants.VALUE, 0);
         opt1.put(Constants.VALUE, val1);
         options.add(opt1);
-        // B2 -> option2
+        // Correct option2
         Map<String, Object> opt2 = new HashMap<>();
-        opt2.put(Constants.ANSWER, "B2");
+        opt2.put(Constants.ANSWER, true);
         Map<String, Object> val2 = new HashMap<>();
         val2.put(Constants.BODY, "option2");
         val2.put(Constants.VALUE, 1);
         opt2.put(Constants.VALUE, val2);
         options.add(opt2);
-        // none -> option3 (extra option)
-        Map<String, Object> opt3 = new HashMap<>();
-        opt3.put(Constants.ANSWER, "none");
-        Map<String, Object> val3 = new HashMap<>();
-        val3.put(Constants.BODY, "option3");
-        val3.put(Constants.VALUE, 2);
-        opt3.put(Constants.VALUE, val3);
-        options.add(opt3);
-        // none -> option4 (extra option)
-        Map<String, Object> opt4 = new HashMap<>();
-        opt4.put(Constants.ANSWER, "none");
-        Map<String, Object> val4 = new HashMap<>();
-        val4.put(Constants.BODY, "option4");
-        val4.put(Constants.VALUE, 3);
-        opt4.put(Constants.VALUE, val4);
-        options.add(opt4);
-        // B3 -> option5
+        // Correct option5
         Map<String, Object> opt5 = new HashMap<>();
-        opt5.put(Constants.ANSWER, "B3");
+        opt5.put(Constants.ANSWER, true);
         Map<String, Object> val5 = new HashMap<>();
         val5.put(Constants.BODY, "option5");
         val5.put(Constants.VALUE, 4);
@@ -2322,7 +2305,7 @@ class AssessmentUtilServiceV2ImplTest {
         editorState.put(Constants.OPTIONS, options);
         q.put(Constants.EDITOR_STATE, editorState);
         qMap.put("q1", q);
-        // User answer: selects correct options for all 3 blanks
+        // User answer: selects all 3 correct options
         List<Map<String, Object>> userQ = new ArrayList<>();
         Map<String, Object> userQ1 = new HashMap<>();
         userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
@@ -2330,15 +2313,12 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> userEditorState = new HashMap<>();
         List<Map<String, Object>> userOptions = new ArrayList<>();
         Map<String, Object> userOpt1 = new HashMap<>();
-        userOpt1.put(Constants.INDEX, "0");
         userOpt1.put(Constants.SELECTED_ANSWER, "option1");
         userOptions.add(userOpt1);
         Map<String, Object> userOpt2 = new HashMap<>();
-        userOpt2.put(Constants.INDEX, "1");
         userOpt2.put(Constants.SELECTED_ANSWER, "option2");
         userOptions.add(userOpt2);
         Map<String, Object> userOpt3 = new HashMap<>();
-        userOpt3.put(Constants.INDEX, "2");
         userOpt3.put(Constants.SELECTED_ANSWER, "option5");
         userOptions.add(userOpt3);
         userEditorState.put(Constants.OPTIONS, userOptions);
@@ -2427,7 +2407,7 @@ class AssessmentUtilServiceV2ImplTest {
 
     @Test
     void testValidateQumlAssessment_FTB_NewFormat_SkipsNoneOptions() {
-        // Arrange: Verify that options with answer="none" are skipped during validation
+        // Arrange: Verify that only correct answers (answer=true) are validated
         List<String> originalQ = List.of("q1");
         Map<String, Object> qMap = new HashMap<>();
         Map<String, Object> q = new HashMap<>();
@@ -2435,24 +2415,24 @@ class AssessmentUtilServiceV2ImplTest {
         q.put(Constants.IDENTIFIER, "q1");
         Map<String, Object> editorState = new HashMap<>();
         List<Map<String, Object>> options = new ArrayList<>();
-        // Only B1 should be validated
+        // Only this option with answer=true should be validated
         Map<String, Object> opt1 = new HashMap<>();
-        opt1.put(Constants.ANSWER, "B1");
+        opt1.put(Constants.ANSWER, true);
         Map<String, Object> val1 = new HashMap<>();
         val1.put(Constants.BODY, "answer1");
         val1.put(Constants.VALUE, 0);
         opt1.put(Constants.VALUE, val1);
         options.add(opt1);
-        // These should be ignored
+        // These should be ignored (answer=false or not set)
         Map<String, Object> opt2 = new HashMap<>();
-        opt2.put(Constants.ANSWER, "none");
+        opt2.put(Constants.ANSWER, false);
         Map<String, Object> val2 = new HashMap<>();
         val2.put(Constants.BODY, "distractor1");
         val2.put(Constants.VALUE, 1);
         opt2.put(Constants.VALUE, val2);
         options.add(opt2);
         Map<String, Object> opt3 = new HashMap<>();
-        opt3.put(Constants.ANSWER, "none");
+        opt3.put(Constants.ANSWER, false);
         Map<String, Object> val3 = new HashMap<>();
         val3.put(Constants.BODY, "distractor2");
         val3.put(Constants.VALUE, 2);
@@ -2461,14 +2441,13 @@ class AssessmentUtilServiceV2ImplTest {
         editorState.put(Constants.OPTIONS, options);
         q.put(Constants.EDITOR_STATE, editorState);
         qMap.put("q1", q);
-        // User answer: only answer for B1
+        // User answer: correct answer
         List<Map<String, Object>> userQ = new ArrayList<>();
         Map<String, Object> userQ1 = new HashMap<>();
         userQ1.put(Constants.QUESTION_TYPE, Constants.FTB);
         userQ1.put(Constants.IDENTIFIER, "q1");
         Map<String, Object> userEditorState = new HashMap<>();
         Map<String, Object> userOpt = new HashMap<>();
-        userOpt.put(Constants.INDEX, "0");
         userOpt.put(Constants.SELECTED_ANSWER, "answer1");
         userEditorState.put(Constants.OPTIONS, List.of(userOpt));
         userQ1.put(Constants.EDITOR_STATE, userEditorState);
