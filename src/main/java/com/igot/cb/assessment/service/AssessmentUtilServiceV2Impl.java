@@ -1653,9 +1653,9 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			Constants.USER_ID_CONSTANT,
 			Constants.COURSE_ID,
 			Constants.BATCH_ID,
-			Constants.LANG_CONTENT_STATUS,
+			Constants.LANG_CONTENT_STATUS_KEY,
 			Constants.ACTIVE,
-			Constants.RECENT_LANGUAGE
+			Constants.RECENT_LANGUAGE_KEY
 		);
 		return cassandraOperation.getRecordsByPropertiesWithoutFiltering(
 				Constants.KEYSPACE_SUNBIRD_COURSES,

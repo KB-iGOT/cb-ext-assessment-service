@@ -1383,6 +1383,8 @@ public class Constants {
     public static final String ASSESSMENT_ID_REPLACER = "{assessmentId}";
     public static final String LEARNING_PATHWAY = "Learning Pathway";
     public static final String PRELIMINARY_ASSESSMENT = "preliminaryAssessment";
+    public static final String LANG_CONTENT_STATUS_KEY = "lang_contentstatus";
+    public static final String RECENT_LANGUAGE_KEY = "recent_language";
 
     private Constants() {
         throw new IllegalStateException("Utility class");
