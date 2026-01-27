@@ -1,5 +1,7 @@
 package com.igot.cb.common.util;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -10,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@Getter
+@Setter
 public class CbExtAssessmentServerProperties {
 
     @Value("${wf.service.host}")
@@ -269,6 +273,9 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${assessment.read.min.question.params}")
     private String assessmentMinQuestionParams;
+
+    @Value("${assessment.cooloff.error.message}")
+    private String assessmentCoolOffErrorMessage;
 
     @Value("${user.assessment.submission.duration}")
     private String userAssessmentSubmissionDuration;
@@ -1067,6 +1074,9 @@ public class CbExtAssessmentServerProperties {
     @Value("${mandatory.course.categories.for.certificate.generation}")
     private String mandatoryCourseCategoriesForCertificateGeneration;
 
+    @Value("${assessment.learningpathway.assessment.notfound.error}")
+    private String assessmentLearningPathwayAssessmentNotFoundError;
+
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
     }
@@ -1769,6 +1779,14 @@ public class CbExtAssessmentServerProperties {
 
     public void setAssessmentMinQuestionParams(String assessmentMinQuestionParams) {
         this.assessmentMinQuestionParams = assessmentMinQuestionParams;
+    }
+
+    public String getAssessmentCoolOffErrorMessage() {
+        return assessmentCoolOffErrorMessage;
+    }
+
+    public void setAssessmentCoolOffErrorMessage(String assessmentCoolOffErrorMessage) {
+        this.assessmentCoolOffErrorMessage = assessmentCoolOffErrorMessage;
     }
 
     public String getUserRegistrationIndex() {
