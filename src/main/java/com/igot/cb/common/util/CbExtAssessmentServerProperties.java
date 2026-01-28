@@ -1074,6 +1074,9 @@ public class CbExtAssessmentServerProperties {
     @Value("${mandatory.course.categories.for.certificate.generation}")
     private String mandatoryCourseCategoriesForCertificateGeneration;
 
+    @Value("${mandatory.context.categories.for.pass.requirement}")
+    private String mandatoryContextCategoriesForPassRequirement;
+
     @Value("${assessment.learningpathway.assessment.notfound.error}")
     private String assessmentLearningPathwayAssessmentNotFoundError;
 
@@ -3628,6 +3631,10 @@ public class CbExtAssessmentServerProperties {
 
     public List<String> getMandatoryCourseCategoriesForCertificateGeneration() {
         return Arrays.asList(mandatoryCourseCategoriesForCertificateGeneration.split(",", -1));
+    }
+
+    public List<String> getMandatoryContextCategoriesForPassRequirement() {
+        return Arrays.asList(mandatoryContextCategoriesForPassRequirement.split(",", -1));
     }
 
 }
