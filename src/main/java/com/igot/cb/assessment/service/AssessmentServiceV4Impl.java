@@ -924,8 +924,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
-                List<String> mandatoryCourseCategoriesList = serverProperties.getMandatoryCourseCategoriesForCertificateGeneration();
-                if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && ((boolean) result.get(Constants.PASS) || mandatoryCourseCategoriesList.stream().noneMatch(c -> c.equalsIgnoreCase(courseCategory)))) {
+                if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && proceedWithContentUpdate(contextCategory, courseCategory, (boolean) result.get(Constants.PASS))) {
                     if (shouldUpdateContentProgress) {
                         SBApiResponse contentUpdateResponse = new SBApiResponse();
                         if(StringUtils.isNotBlank(contextCategory) && contextCategory.equalsIgnoreCase(Constants.PRE_ENROLLED_ASSESSMENT_KEY)){
@@ -1052,4 +1051,40 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         return response;
     }
 
+    /**
+     * Checks if the given contextCategory requires mandatory passing.
+     * Context categories like "Preliminary Assessment" and "Final Milestone Assessment" require passing.
+     *
+     * @param contextCategory the context category to check
+     * @return true if passing is mandatory for this context category
+     */
+    private boolean isMandatoryPassContextCategory(String contextCategory) {
+        if (StringUtils.isBlank(contextCategory)) {
+            return false;
+        }
+        List<String> mandatoryContextCategories = serverProperties.getMandatoryContextCategoriesForPassRequirement();
+        return mandatoryContextCategories.stream()
+                .anyMatch(category -> category.equalsIgnoreCase(contextCategory));
+    }
+
+    /**
+     * Determines if content progress update should proceed based on assessment results.
+     * For mandatory context categories: user must pass the assessment.
+     * For other assessments: user must pass OR courseCategory is not in mandatory list.
+     *
+     * @param contextCategory the assessment context category
+     * @param courseCategory the course category
+     * @param hasPassed whether the user passed the assessment
+     * @return true if content update should proceed
+     */
+    private boolean proceedWithContentUpdate(String contextCategory, String courseCategory, boolean hasPassed) {
+        if (isMandatoryPassContextCategory(contextCategory)) {
+            // For mandatory context categories, must pass
+            return hasPassed;
+        } else {
+            // For other assessments, pass OR courseCategory not in mandatory list
+            List<String> mandatoryCourseCategoriesList = serverProperties.getMandatoryCourseCategoriesForCertificateGeneration();
+            return hasPassed || mandatoryCourseCategoriesList.stream().noneMatch(c -> c.equalsIgnoreCase(courseCategory));
+        }
+    }
 }
