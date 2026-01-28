@@ -1511,8 +1511,11 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
 
     /**
      * Determines if content progress update should proceed based on assessment results.
-     * For mandatory context categories: user must pass the assessment.
-     * For other assessments: user must pass OR courseCategory is not in mandatory list.
+     * Two scenarios are checked:
+     * 1. Context category validation: If contextCategory is in mandatory list, user MUST pass
+     * 2. Course category validation: If courseCategory is in mandatory list, user MUST pass
+     * 
+     * For other cases: user must pass OR conditions don't apply
      *
      * @param contextCategory the assessment context category
      * @param courseCategory the course category
@@ -1520,13 +1523,23 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
      * @return true if content update should proceed
      */
     private boolean proceedWithContentUpdate(String contextCategory, String courseCategory, boolean hasPassed) {
-        if (isMandatoryPassContextCategory(contextCategory)) {
-            // For mandatory context categories, must pass
+        // Scenario 1: Check if contextCategory exists and requires mandatory passing
+        if (StringUtils.isNotBlank(contextCategory) && isMandatoryPassContextCategory(contextCategory)) {
+            // Must pass for mandatory context categories - return immediately
             return hasPassed;
-        } else {
-            // For other assessments, pass OR courseCategory not in mandatory list
-            List<String> mandatoryCourseCategoriesList = serverProperties.getMandatoryCourseCategoriesForCertificateGeneration();
-            return hasPassed || mandatoryCourseCategoriesList.stream().noneMatch(c -> c.equalsIgnoreCase(courseCategory));
         }
+        
+        // Scenario 2: Check if courseCategory requires mandatory passing
+        List<String> mandatoryCourseCategoriesList = serverProperties.getMandatoryCourseCategoriesForCertificateGeneration();
+        boolean isMandatoryCourseCategory = mandatoryCourseCategoriesList.stream()
+                .anyMatch(c -> c.equalsIgnoreCase(courseCategory));
+        
+        if (isMandatoryCourseCategory) {
+            // Must pass for mandatory course categories
+            return hasPassed;
+        }
+        
+        // For non-mandatory categories: always allow if passed, or allow even if not passed
+        return true;
     }
 }
