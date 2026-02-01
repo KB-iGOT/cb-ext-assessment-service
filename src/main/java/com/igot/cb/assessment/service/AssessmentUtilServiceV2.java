@@ -90,4 +90,18 @@ public interface AssessmentUtilServiceV2 {
 	String 	validateCoolOffPeriod(String userId, String assessmentIdentifier,
 								 Map<String, Object> assessmentAllDetail,
 								 List<Map<String, Object>> userAssessmentDataList);
+
+	/**
+	 * Calculates current cycle attempts for cyclical cooloff. Cycle boundary: gap >= coolOffPeriod
+	 * AND older attempts >= retakeAttemptsAllowed. Counts submitted assessments only, starts from 1.
+	 *
+	 * @param userId                  user identifier
+	 * @param assessmentIdentifier    assessment identifier
+	 * @param assessmentAllDetail     config with coolOffPeriod and maxAssessmentRetakeAttempts
+	 * @param userAssessmentDataList  attempts ordered by starttime
+	 * @return current cycle count (1-based, 0 if none)
+	 */
+	int calculateCyclicalRetakeAttempts(String userId, String assessmentIdentifier,
+										Map<String, Object> assessmentAllDetail,
+										List<Map<String, Object>> userAssessmentDataList);
 }

@@ -207,21 +207,10 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                             "Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly ");
                     if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                         int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) +1;
-                        int retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
-                        if(retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                            if (!assessUtilServ.hasCoolOffPeriod(assessmentAllDetail)) {
-                                errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
-                                updateErrorDetails(response, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
-                                return response;
-                            }
-                            String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
-                                    assessmentAllDetail, existingDataList);
-                            if (StringUtils.isNotBlank(coolOffValidationError)) {
-                                logger.warn("Cool-off period active - User: {}, Assessment: {}", userId, assessmentIdentifier);
-                                updateErrorDetails(response, coolOffValidationError, HttpStatus.INTERNAL_SERVER_ERROR);
-                                return response;
-                            }
-                            logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
+                        calculateRetakeAttemptsConsumed(userId, assessmentIdentifier,
+                                assessmentAllDetail, retakeAttemptsAllowed, existingDataList, response);
+                        if (response.getResponseCode() != HttpStatus.OK) {
+                            return response;
                         }
                     }
                     errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
@@ -1542,4 +1531,56 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         // For non-mandatory categories: always allow if passed, or allow even if not passed
         return true;
     }
+
+
+    /**
+     * Calculates retake attempts consumed, handling both cyclical and non-cyclical cooloff modes.
+     * For cyclical mode: Counts current cycle attempts and validates cooloff period.
+     * For non-cyclical mode: Counts total historical attempts.
+     *
+     * @param userId                User identifier
+     * @param assessmentIdentifier  Assessment identifier
+     * @param assessmentAllDetail   Assessment configuration details
+     * @param retakeAttemptsAllowed Maximum attempts allowed per cycle (or lifetime)
+     * @param existingDataList      User's assessment history
+     * @param response              Response object to update with error details if needed
+     */
+    private void calculateRetakeAttemptsConsumed(String userId, String assessmentIdentifier,
+                                                 Map<String, Object> assessmentAllDetail,
+                                                 int retakeAttemptsAllowed,
+                                                 List<Map<String, Object>> existingDataList,
+                                                 SBApiResponse response) {
+        // Check if this assessment has cyclical cooloff configured
+        boolean hasCyclicalCooloff = assessUtilServ.hasCoolOffPeriod(assessmentAllDetail);
+        if (hasCyclicalCooloff) {
+            // For cyclical cooloff: calculate current cycle attempts
+            int currentCycleCount = assessUtilServ.calculateCyclicalRetakeAttempts(
+                    userId, assessmentIdentifier, assessmentAllDetail, existingDataList);
+            // Only check cooloff if user has exhausted current cycle attempts
+            if (currentCycleCount >= retakeAttemptsAllowed) {
+                String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
+                        assessmentAllDetail, existingDataList);
+                if (StringUtils.isNotBlank(coolOffValidationError)) {
+                    logger.warn("Cool-off period active - User: {}, Assessment: {}", userId, assessmentIdentifier);
+                    updateErrorDetails(response, coolOffValidationError, HttpStatus.INTERNAL_SERVER_ERROR);
+                    return; // Return current count, caller checks response code
+                }
+                // Cooloff period has expired - reset counter for new cycle
+                logger.info("Cool-off period completed - User: {} starting new cycle for assessment: {}",
+                        userId, assessmentIdentifier);
+            } else {
+                logger.info("Cyclical cooloff mode - Current cycle attempts: {}, Allowed: {}",
+                        currentCycleCount, retakeAttemptsAllowed);
+            }
+        } else {
+            // For non-cyclical: count all historical attempts (permanent limit)
+            int totalAttemptsMade = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
+            logger.info("Non-cyclical mode - Total attempts made: {}, Allowed: {}",
+                    totalAttemptsMade, retakeAttemptsAllowed);
+            if (totalAttemptsMade >= retakeAttemptsAllowed) {
+                updateErrorDetails(response, Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+
 }

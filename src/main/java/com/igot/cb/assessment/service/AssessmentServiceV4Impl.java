@@ -92,26 +92,13 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                     retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
                 }
                 if (serverProperties.isAssessmentRetakeCountVerificationEnabled()) {
-                    List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
-                            userId, assessmentIdentifier);
-                    retakeAttemptsConsumed = (int) userAssessmentDataList.stream()
-                            .filter(userData -> userData.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
-                                    && null != userData.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY))
-                            .count();
-                    retakeAttemptsConsumed = retakeAttemptsConsumed - 1;
+                    retakeAttemptsConsumed = calculateRetakeAttemptsConsumed(
+                            userId, assessmentIdentifier, assessmentAllDetail, retakeAttemptsAllowed, response);
+                    if (response.getResponseCode() == HttpStatus.BAD_REQUEST) {
+                        return response;
+                    }
                     if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                        if (!assessUtilServ.hasCoolOffPeriod(assessmentAllDetail)) {
-                            errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
-                        } else {
-                            String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
-                                    assessmentAllDetail, userAssessmentDataList);
-                            if (StringUtils.isNotBlank(coolOffValidationError)) {
-                                updateErrorDetails(response, coolOffValidationError, HttpStatus.BAD_REQUEST);
-                                logger.info("AssessmentServiceV4Impl::retakeAssessment... Completed with cool-off error");
-                                return response;
-                            }
-                            logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
-                        }
+                        errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
                     }
                 }
             }
@@ -1099,5 +1086,60 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         
         // For non-mandatory categories: always allow if passed, or allow even if not passed
         return true;
+    }
+
+     /**
+     * Calculates the number of retake attempts consumed for an assessment.
+     * Handles both cyclical cooloff (renewable attempts) and non-cyclical (permanent limit) modes.
+     * 
+     * @param userId User identifier
+     * @param assessmentIdentifier Assessment identifier
+     * @param assessmentAllDetail Assessment configuration details
+     * @param retakeAttemptsAllowed Maximum allowed retake attempts
+     * @param response Response object to set error details if cooloff validation fails
+     * @return Number of attempts consumed (0 if new cycle starts after cooloff)
+     */
+    private int calculateRetakeAttemptsConsumed(String userId, String assessmentIdentifier,
+                                                 Map<String, Object> assessmentAllDetail,
+                                                 int retakeAttemptsAllowed,
+                                                 SBApiResponse response) {
+        List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
+                userId, assessmentIdentifier);
+        // Check if this assessment has cyclical cooloff configured
+        boolean hasCyclicalCooloff = assessUtilServ.hasCoolOffPeriod(assessmentAllDetail);
+        if (hasCyclicalCooloff) {
+            // For cyclical cooloff: first calculate current cycle attempts
+            int currentCycleCount = assessUtilServ.calculateCyclicalRetakeAttempts(
+                    userId, assessmentIdentifier, assessmentAllDetail, userAssessmentDataList);
+            // Only check cooloff if user has exhausted current cycle attempts
+            if (currentCycleCount >= retakeAttemptsAllowed) {
+                String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
+                        assessmentAllDetail, userAssessmentDataList);
+                if (StringUtils.isNotBlank(coolOffValidationError)) {
+                    updateErrorDetails(response, coolOffValidationError, HttpStatus.BAD_REQUEST);
+                    logger.info("AssessmentServiceV4Impl::retakeAssessment... Cooloff active - Current cycle exhausted with {} attempts", 
+                            currentCycleCount);
+                    return currentCycleCount; // Return current count, caller checks response code
+                }
+                // Cooloff period has expired - reset counter for new cycle
+                logger.info("Cool-off period completed - User: {} starting new cycle for assessment: {}", 
+                        userId, assessmentIdentifier);
+                return 0;
+            } else {
+                logger.info("Cyclical cooloff mode - Current cycle attempts: {}, Allowed: {}", 
+                        currentCycleCount, retakeAttemptsAllowed);
+                return currentCycleCount;
+            }
+        } else {
+            // For non-cyclical: count all historical attempts
+            int totalAttemptsMade = (int) userAssessmentDataList.stream()
+                    .filter(userData -> userData.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
+                            && null != userData.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY))
+                    .count();
+            logger.info("Non-cyclical mode - Total attempts made: {}, Allowed: {}", 
+                    totalAttemptsMade, retakeAttemptsAllowed);
+            
+            return totalAttemptsMade;
+        }
     }
 }

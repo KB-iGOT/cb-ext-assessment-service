@@ -27,6 +27,12 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 class AssessmentUtilServiceV2ImplTest {
@@ -2873,6 +2879,369 @@ class AssessmentUtilServiceV2ImplTest {
         assertEquals(Constants.EMPTY, result);
     }
 
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_NullList_ReturnsZero() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, null);
+        assertEquals(0, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_EmptyList_ReturnsZero() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, new ArrayList<>());
+        assertEquals(0, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_NoSubmittedAttempts_ReturnsZero() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, Instant.now());
+        attempts.add(attempt1);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(0, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_SingleAttempt_ReturnsOne() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, Instant.now());
+        attempt1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt1);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(1, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_ThreeAttemptsWithinSameDay_ReturnsThree() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, now);
+        attempt1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt1);
+        Map<String, Object> attempt2 = new HashMap<>();
+        attempt2.put(Constants.END_TIME, now.minusSeconds(2 * 3600));
+        attempt2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt2);
+        Map<String, Object> attempt3 = new HashMap<>();
+        attempt3.put(Constants.END_TIME, now.minusSeconds(4 * 3600));
+        attempt3.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt3);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(3, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_SixAttemptsExhausted_ReturnsSix() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            Map<String, Object> attempt = new HashMap<>();
+            attempt.put(Constants.END_TIME, now.minusSeconds(i * 3600)); // Each 1 hour apart
+            attempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(attempt);
+        }
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(6, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_CycleBoundaryDetected_FreshCycle_ReturnsOne() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1); // 1 day
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> newAttempt = new HashMap<>();
+        newAttempt.put(Constants.END_TIME, now);
+        newAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(newAttempt);
+        for (int i = 0; i < 6; i++) {
+            Map<String, Object> oldAttempt = new HashMap<>();
+            oldAttempt.put(Constants.END_TIME, now.minusSeconds((5 * 86400) + (i * 3600))); // 5 days ago
+            oldAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(oldAttempt);
+        }
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(1, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_CycleBoundary_ThreeNewAttempts_ReturnsThree() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1); // 1 day
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> newAttempt = new HashMap<>();
+            newAttempt.put(Constants.END_TIME, now.minusSeconds(i * 3600)); // Each 1 hour apart
+            newAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(newAttempt);
+        }
+        for (int i = 0; i < 6; i++) {
+            Map<String, Object> oldAttempt = new HashMap<>();
+            oldAttempt.put(Constants.END_TIME, now.minusSeconds((5 * 86400) + (i * 3600))); // 5 days ago
+            oldAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(oldAttempt);
+        }
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(3, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_SparseAttempts_NoExhaustion_ReturnsThree() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 3); // 3 days
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, now);
+        attempt1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt1);
+        Map<String, Object> attempt2 = new HashMap<>();
+        attempt2.put(Constants.END_TIME, now.minusSeconds(14 * 86400));
+        attempt2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt2);
+        Map<String, Object> attempt3 = new HashMap<>();
+        attempt3.put(Constants.END_TIME, now.minusSeconds(28 * 86400));
+        attempt3.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt3);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(3, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_GapExistsButNotEnoughOlderAttempts_ReturnsAll() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1); // 1 day
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> newAttempt = new HashMap<>();
+            newAttempt.put(Constants.END_TIME, now.minusSeconds(i * 3600));
+            newAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(newAttempt);
+        }
+        for (int i = 0; i < 2; i++) {
+            Map<String, Object> oldAttempt = new HashMap<>();
+            oldAttempt.put(Constants.END_TIME, now.minusSeconds((5 * 86400) + (i * 3600)));
+            oldAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(oldAttempt);
+        }
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(5, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_ExactlyAtBoundary_SixOldSixNew_ReturnsSix() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1); // 1 day
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            Map<String, Object> newAttempt = new HashMap<>();
+            newAttempt.put(Constants.END_TIME, now.minusSeconds(i * 3600));
+            newAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(newAttempt);
+        }
+        for (int i = 0; i < 6; i++) {
+            Map<String, Object> oldAttempt = new HashMap<>();
+            oldAttempt.put(Constants.END_TIME, now.minusSeconds((2 * 86400) + (i * 3600)));
+            oldAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(oldAttempt);
+        }
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(6, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_OptimizationStopsEarly() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> newAttempt = new HashMap<>();
+            newAttempt.put(Constants.END_TIME, now.minusSeconds(i * 3600));
+            newAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(newAttempt);
+        }
+        for (int i = 0; i < 100; i++) {
+            Map<String, Object> oldAttempt = new HashMap<>();
+            oldAttempt.put(Constants.END_TIME, now.minusSeconds((5 * 86400) + (i * 3600)));
+            oldAttempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempts.add(oldAttempt);
+        }
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(3, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_NullEndTime_HandledGracefully() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, now);
+        attempt1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt1);
+        Map<String, Object> attempt2 = new HashMap<>();
+        attempt2.put(Constants.END_TIME, null); // Null endtime
+        attempt2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt2);
+        Map<String, Object> attempt3 = new HashMap<>();
+        attempt3.put(Constants.END_TIME, now.minusSeconds(7200));
+        attempt3.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt3);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(0, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_DateTypeEndTime_Converted() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 6);
+        Date now = new Date();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, now); // Date type
+        attempt1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt1);
+        Map<String, Object> attempt2 = new HashMap<>();
+        attempt2.put(Constants.END_TIME, new Date(now.getTime() - 3600000)); // 1 hour ago
+        attempt2.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt2);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(2, result);
+    }
+
+    @Test
+    void testCalculateCyclicalRetakeAttempts_MissingMaxRetakeAttempts_DefaultsToZero() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        Instant now = Instant.now();
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt1 = new HashMap<>();
+        attempt1.put(Constants.END_TIME, now);
+        attempt1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+        attempts.add(attempt1);
+        int result = utilService.calculateCyclicalRetakeAttempts("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(1, result);
+    }
+
+    @Test
+    void testHasCoolOffPeriod_ValidCoolOff_ReturnsTrue() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        boolean result = utilService.hasCoolOffPeriod(assessmentDetail);
+        assertTrue(result);
+    }
+
+    @Test
+    void testHasCoolOffPeriod_ZeroCoolOff_ReturnsFalse() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 0);
+        boolean result = utilService.hasCoolOffPeriod(assessmentDetail);
+        assertFalse(result);
+    }
+
+    @Test
+    void testHasCoolOffPeriod_NegativeCoolOff_ReturnsFalse() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, -1);
+        boolean result = utilService.hasCoolOffPeriod(assessmentDetail);
+        assertFalse(result);
+    }
+
+    @Test
+    void testHasCoolOffPeriod_NoCoolOffKey_ReturnsFalse() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        boolean result = utilService.hasCoolOffPeriod(assessmentDetail);
+        assertFalse(result);
+    }
+
+    @Test
+    void testHasCoolOffPeriod_NonIntegerValue_ReturnsFalse() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, "1"); // String instead of Integer
+        boolean result = utilService.hasCoolOffPeriod(assessmentDetail);
+        assertFalse(result);
+    }
+
+    @Test
+    void testValidateCoolOffPeriod_EmptyList_ReturnsEmpty() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        String result = utilService.validateCoolOffPeriod("user1", "assess1", assessmentDetail, new ArrayList<>());
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateCoolOffPeriod_NullEndTime_ReturnsEmpty() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt = new HashMap<>();
+        attempt.put(Constants.END_TIME, null);
+        attempts.add(attempt);
+        String result = utilService.validateCoolOffPeriod("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testValidateCoolOffPeriod_WithinCoolOff_ReturnsErrorMessage() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 2); // 2 days
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt = new HashMap<>();
+        attempt.put(Constants.END_TIME, Instant.now().minusSeconds(86400)); // 1 day ago
+        attempts.add(attempt);
+        when(serverProperties.getAssessmentCoolOffErrorMessage())
+                .thenReturn("Please wait {remainingDays} days. Cooloff period is {coolOffPeriod} days.");
+        String result = utilService.validateCoolOffPeriod("user1", "assess1", assessmentDetail, attempts);
+        assertNotEquals(Constants.EMPTY, result);
+        assertTrue(result.contains("days"));
+    }
+
+    @Test
+    void testValidateCoolOffPeriod_CoolOffExpired_ReturnsEmpty() {
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1); // 1 day
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Map<String, Object> attempt = new HashMap<>();
+        attempt.put(Constants.END_TIME, Instant.now().minusSeconds(3 * 86400)); // 3 days ago
+        attempts.add(attempt);
+        String result = utilService.validateCoolOffPeriod("user1", "assess1", assessmentDetail, attempts);
+        assertEquals(Constants.EMPTY, result);
+    }
 }
 
 

@@ -1907,4 +1907,100 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 				.replace(Constants.ASSESSMENT_ID_REPLACER, assessmentIdFromRequest)
 				.replace(Constants.COURSE_ID_REPLACER, courseId);
 	}
+
+
+
+	/**
+	 * Calculates the number of attempts made in the current cycle for cyclical cooloff assessments.
+	 * Iterates through attempts from newest to oldest, stops when a cooloff gap is detected.
+	 * Returns count starting from 1 for the first attempt in a new cycle.
+	 *
+	 * @param userId                  the user's unique identifier
+	 * @param assessmentIdentifier    the assessment's unique identifier
+	 * @param assessmentAllDetail     the complete assessment hierarchy containing cool-off configuration
+	 * @param userAssessmentDataList  list of user's previous assessment attempts, ordered by most recent first
+	 * @return number of attempts in current cycle (starts from 1, returns 0 if no submitted attempts)
+	 */
+	@Override
+	public int calculateCyclicalRetakeAttempts(String userId, String assessmentIdentifier,
+												Map<String, Object> assessmentAllDetail,
+												List<Map<String, Object>> userAssessmentDataList) {
+		try {
+			if (userAssessmentDataList == null || userAssessmentDataList.isEmpty()) {
+				return 0;
+			}
+			int coolOffPeriodDays = (Integer) assessmentAllDetail.get(Constants.COOL_OFF_PERIOD);
+			int retakeAttemptsAllowed = assessmentAllDetail.containsKey(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS)
+					? (Integer) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS)
+					: 0;
+			List<Map<String, Object>> submittedAttempts = filterSubmittedAttempts(userAssessmentDataList);
+			if (submittedAttempts.isEmpty()) {
+				return 0;
+			}
+			int currentCycleCount = countCurrentCycleAttempts(submittedAttempts, coolOffPeriodDays, retakeAttemptsAllowed, userId, assessmentIdentifier);
+			logger.info("Current cycle attempts: {} for User: {}, Assessment: {}",
+					currentCycleCount, userId, assessmentIdentifier);
+			return currentCycleCount;
+		} catch (Exception e) {
+			logger.error("Error calculating cyclical attempts - User: {}, Assessment: {}, Exception: {}",
+					userId, assessmentIdentifier, e.getMessage(), e);
+			return 0;
+		}
+	}
+
+	/**
+	 * Filters assessment attempts to include only submitted assessments.
+	 *
+	 * @param userAssessmentDataList list of all user assessment attempts
+	 * @return list containing only submitted attempts
+	 */
+	private List<Map<String, Object>> filterSubmittedAttempts(List<Map<String, Object>> userAssessmentDataList) {
+		return userAssessmentDataList.stream()
+				.filter(attempt -> attempt.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
+						&& attempt.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY) != null)
+				.toList();
+	}
+
+	/**
+	 * Counts attempts in the current cycle by detecting cooloff boundaries.
+	 * A new cycle starts when: (1) user exhausted attempts in previous cycle AND (2) waited cooloff period.
+	 * Iterates from newest to oldest, stops when encountering a cooloff gap with exhausted attempts after it.
+	 * Optimized to stop early once we have enough information.
+	 *
+	 * @param submittedAttempts list of submitted attempts ordered newest first
+	 * @param coolOffPeriodDays the cooloff period in days
+	 * @param retakeAttemptsAllowed maximum number of attempts allowed before cooloff period
+	 * @param userId the user's unique identifier
+	 * @param assessmentIdentifier the assessment's unique identifier
+	 * @return number of attempts in the current cycle
+	 */
+	private int countCurrentCycleAttempts(List<Map<String, Object>> submittedAttempts, int coolOffPeriodDays,
+										  int retakeAttemptsAllowed, String userId, String assessmentIdentifier) {
+		int currentCycleCount = 1; // Always count the newest attempt
+		// Optimization: limit iteration to minimum needed
+		// Current cycle has at most retakeAttemptsAllowed attempts
+		// We need +1 to check for cycle boundary gap after the current cycle
+		int maxIterations = Math.min(submittedAttempts.size(), retakeAttemptsAllowed + 1);
+		for (int i = 1; i < maxIterations; i++) {
+			// Check if there's a cooloff gap between this attempt and the previous (newer) one
+			Instant newerEndTime = convertToInstant(
+					submittedAttempts.get(i - 1).get(Constants.END_TIME), userId, assessmentIdentifier);
+			Instant currentEndTime = convertToInstant(
+					submittedAttempts.get(i).get(Constants.END_TIME), userId, assessmentIdentifier);
+			if (newerEndTime != null && currentEndTime != null) {
+				long daysBetween = ChronoUnit.DAYS.between(currentEndTime, newerEndTime);
+				// If there's a cooloff gap, check if older attempts form a complete exhausted cycle
+				if (daysBetween >= coolOffPeriodDays) {
+					int attemptsAfterGap = submittedAttempts.size() - i;
+					if (attemptsAfterGap >= retakeAttemptsAllowed) {
+						// Cycle boundary found - older attempts were exhausted and cooloff was waited
+						logger.debug("Cycle boundary at index {} - {} attempts after cooloff gap", i, attemptsAfterGap);
+						break;
+					}
+				}
+			}
+			currentCycleCount++;
+		}
+		return currentCycleCount;
+	}
 }
