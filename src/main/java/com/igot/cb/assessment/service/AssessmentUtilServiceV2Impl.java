@@ -1482,9 +1482,9 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			if (currentTime.isBefore(coolOffEndTime)) {
 				long remainingDays = ChronoUnit.DAYS.between(currentTime, coolOffEndTime);
 				logger.info("Cool-off active - User: {}, Assessment: {}, Remaining: {} days",
-						userId, assessmentIdentifier, remainingDays + 1);
+						userId, assessmentIdentifier, remainingDays);
 				return serverProperties.getAssessmentCoolOffErrorMessage()
-						.replace("{remainingDays}", String.valueOf(remainingDays + 1))
+						.replace("{remainingDays}", String.valueOf(remainingDays))
 						.replace("{coolOffPeriod}", String.valueOf(coolOffPeriodDays));
 			}
 			logger.info("Cool-off period completed - User: {} can retake assessment: {}", userId, assessmentIdentifier);
