@@ -95,7 +95,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                     retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
                     if (retakeAttemptsAllowed == 0) {
-                        retakeAttemptsAllowed = -1;
+                        retakeAttemptsConsumed = -1;
                         response.getResult().put(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED, retakeAttemptsAllowed);
                         response.getResult().put(Constants.RETAKE_ATTEMPTS_CONSUMED, retakeAttemptsConsumed);
                         return response;
