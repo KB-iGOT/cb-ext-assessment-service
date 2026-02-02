@@ -90,6 +90,12 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             } else {
                 if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                     retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
+                    if (retakeAttemptsAllowed == 0) {
+                        retakeAttemptsAllowed = -1;
+                        response.getResult().put(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED, retakeAttemptsAllowed);
+                        response.getResult().put(Constants.RETAKE_ATTEMPTS_CONSUMED, retakeAttemptsConsumed);
+                        return response;
+                    }
                 }
                 if (serverProperties.isAssessmentRetakeCountVerificationEnabled()) {
                     retakeAttemptsConsumed = calculateRetakeAttemptsConsumed(

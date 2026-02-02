@@ -94,6 +94,12 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             } else {
                 if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                     retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
+                    if (retakeAttemptsAllowed == 0) {
+                        retakeAttemptsAllowed = -1;
+                        response.getResult().put(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED, retakeAttemptsAllowed);
+                        response.getResult().put(Constants.RETAKE_ATTEMPTS_CONSUMED, retakeAttemptsConsumed);
+                        return response;
+                    }
                 }
                 List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
                         userId, assessmentIdentifier);
@@ -212,10 +218,12 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                             "Incase the assessment is submitted before the end time, or the endtime has exceeded, read assessment freshly ");
                     if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                         int retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) +1;
-                        calculateRetakeAttemptsConsumed(userId, assessmentIdentifier,
-                                assessmentAllDetail, retakeAttemptsAllowed, existingDataList, response);
-                        if (response.getResponseCode() != HttpStatus.OK) {
-                            return response;
+                        if (retakeAttemptsAllowed > 0) {
+                            calculateRetakeAttemptsConsumed(userId, assessmentIdentifier,
+                                    assessmentAllDetail, retakeAttemptsAllowed, existingDataList, response);
+                            if (response.getResponseCode() != HttpStatus.OK) {
+                                return response;
+                            }
                         }
                     }
                     errMsg = assessUtilServ.validateContextLocking(assessmentAllDetail, parentContextId, response, userId, assessmentIdentifier);
@@ -776,6 +784,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         sectionLevelResult.put(Constants.IDENTIFIER, hierarchySection.get(Constants.IDENTIFIER));
         sectionLevelResult.put(Constants.OBJECT_TYPE, hierarchySection.get(Constants.OBJECT_TYPE));
         sectionLevelResult.put(Constants.PRIMARY_CATEGORY, hierarchySection.get(Constants.PRIMARY_CATEGORY));
+        if (assessmentMinimumPassPercentage == null) {
+            assessmentMinimumPassPercentage = 0;
+        }
         // Use section's minimumPassPercentage if it exists and is not 0, otherwise use assessment's
         Integer finalMinimumPassPercentage = Optional.ofNullable((Integer) hierarchySection.get(Constants.MINIMUM_PASS_PERCENTAGE))
                 .filter(percentage -> percentage > 0)
@@ -999,7 +1010,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         Map<String, Object> questionSetDetailsMap = new HashMap<>();
         String assessmentType = (String) assessmentHierarchy.get(Constants.ASSESSMENT_TYPE);
         questionSetDetailsMap.put(Constants.ASSESSMENT_TYPE, assessmentType);
-        questionSetDetailsMap.put(Constants.MINIMUM_PASS_PERCENTAGE, assessmentHierarchy.get(Constants.MINIMUM_PASS_PERCENTAGE));
+        questionSetDetailsMap.put(Constants.MINIMUM_PASS_PERCENTAGE, assessmentHierarchy.getOrDefault(Constants.MINIMUM_PASS_PERCENTAGE, 0));
         questionSetDetailsMap.put(Constants.TOTAL_MARKS, hierarchySection.get(Constants.TOTAL_MARKS));
         if (assessmentType.equalsIgnoreCase(Constants.QUESTION_WEIGHTAGE)) {
             Map<String,Map<String, Object>> questionSectionSchema= (Map<String,Map<String, Object>>) hierarchySection.get(Constants.SECTION_LEVEL_DEFINITION);
