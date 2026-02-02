@@ -2284,4 +2284,117 @@ class AssessmentServiceV5ImplTest {
     }
 
 
+    @Test
+    void testCalculateRetakeAttemptsConsumed_CyclicalMode_WithinCycleLimit() {
+        String userId = "user1";
+        String assessmentId = "assess1";
+        int retakeAttemptsAllowed = 6;
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, retakeAttemptsAllowed);
+        SBApiResponse response = new SBApiResponse();
+        response.setResponseCode(HttpStatus.OK);
+        List<Map<String, Object>> userAttempts = createMockAttempts(3);
+        when(assessUtilServ.hasCoolOffPeriod(assessmentDetail)).thenReturn(true);
+        when(assessUtilServ.calculateCyclicalRetakeAttempts(userId, assessmentId, assessmentDetail, userAttempts))
+                .thenReturn(3);
+        ReflectionTestUtils.invokeMethod(service, "calculateRetakeAttemptsConsumed",
+                userId, assessmentId, assessmentDetail, retakeAttemptsAllowed, userAttempts, response);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+    }
+
+    @Test
+    void testCalculateRetakeAttemptsConsumed_CyclicalMode_CycleExhaustedCooloffActive() {
+        String userId = "user1";
+        String assessmentId = "assess1";
+        int retakeAttemptsAllowed = 6;
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, retakeAttemptsAllowed);
+        SBApiResponse response = new SBApiResponse();
+        response.setResponseCode(HttpStatus.OK);
+        List<Map<String, Object>> userAttempts = createMockAttempts(6);
+        when(assessUtilServ.hasCoolOffPeriod(assessmentDetail)).thenReturn(true);
+        when(assessUtilServ.calculateCyclicalRetakeAttempts(userId, assessmentId, assessmentDetail, userAttempts))
+                .thenReturn(6);
+        when(assessUtilServ.validateCoolOffPeriod(userId, assessmentId, assessmentDetail, userAttempts))
+                .thenReturn("Please wait 1 days");
+        ReflectionTestUtils.invokeMethod(service, "calculateRetakeAttemptsConsumed",
+                userId, assessmentId, assessmentDetail, retakeAttemptsAllowed, userAttempts, response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertNotNull(response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testCalculateRetakeAttemptsConsumed_CyclicalMode_CooloffExpired_NewCycle() {
+        String userId = "user1";
+        String assessmentId = "assess1";
+        int retakeAttemptsAllowed = 6;
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, retakeAttemptsAllowed);
+        SBApiResponse response = new SBApiResponse();
+        response.setResponseCode(HttpStatus.OK);
+        List<Map<String, Object>> userAttempts = createMockAttempts(6);
+        when(assessUtilServ.hasCoolOffPeriod(assessmentDetail)).thenReturn(true);
+        when(assessUtilServ.calculateCyclicalRetakeAttempts(userId, assessmentId, assessmentDetail, userAttempts))
+                .thenReturn(6);
+        when(assessUtilServ.validateCoolOffPeriod(userId, assessmentId, assessmentDetail, userAttempts))
+                .thenReturn(Constants.EMPTY); // Cooloff expired
+        ReflectionTestUtils.invokeMethod(service, "calculateRetakeAttemptsConsumed",
+                userId, assessmentId, assessmentDetail, retakeAttemptsAllowed, userAttempts, response);
+        assertEquals(HttpStatus.OK, response.getResponseCode()); // New cycle, no error
+    }
+
+    @Test
+    void testCalculateRetakeAttemptsConsumed_NonCyclicalMode_TotalAttempts() {
+        String userId = "user1";
+        String assessmentId = "assess1";
+        int retakeAttemptsAllowed = 6;
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, retakeAttemptsAllowed);
+        SBApiResponse response = new SBApiResponse();
+        response.setResponseCode(HttpStatus.OK);
+        List<Map<String, Object>> userAttempts = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Map<String, Object> attempt = new HashMap<>();
+            attempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            userAttempts.add(attempt);
+        }
+        when(assessUtilServ.hasCoolOffPeriod(assessmentDetail)).thenReturn(false);
+        ReflectionTestUtils.invokeMethod(service, "calculateRetakeAttemptsConsumed",
+                userId, assessmentId, assessmentDetail, retakeAttemptsAllowed, userAttempts, response);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+    }
+
+    @Test
+    void testCalculateRetakeAttemptsConsumed_CyclicalMode_FreshCycleAfterGap() {
+        String userId = "user1";
+        String assessmentId = "assess1";
+        int retakeAttemptsAllowed = 6;
+        Map<String, Object> assessmentDetail = new HashMap<>();
+        assessmentDetail.put(Constants.COOL_OFF_PERIOD, 1);
+        assessmentDetail.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, retakeAttemptsAllowed);
+        SBApiResponse response = new SBApiResponse();
+        response.setResponseCode(HttpStatus.OK);
+        List<Map<String, Object>> userAttempts = createMockAttempts(7); // 1 new + 6 old
+        when(assessUtilServ.hasCoolOffPeriod(assessmentDetail)).thenReturn(true);
+        when(assessUtilServ.calculateCyclicalRetakeAttempts(userId, assessmentId, assessmentDetail, userAttempts))
+                .thenReturn(1); // Cycle boundary detected, only counting new attempt
+        ReflectionTestUtils.invokeMethod(service, "calculateRetakeAttemptsConsumed",
+                userId, assessmentId, assessmentDetail, retakeAttemptsAllowed, userAttempts, response);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+    }
+
+    private List<Map<String, Object>> createMockAttempts(int count) {
+        List<Map<String, Object>> attempts = new ArrayList<>();
+        Instant now = Instant.now();
+        for (int i = 0; i < count; i++) {
+            Map<String, Object> attempt = new HashMap<>();
+            attempt.put(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY, "submitted");
+            attempt.put(Constants.END_TIME, now.minusSeconds(i * 3600L));
+            attempts.add(attempt);
+        }
+        return attempts;
+    }
 }
