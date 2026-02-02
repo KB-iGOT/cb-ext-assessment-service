@@ -95,8 +95,13 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 if (assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS) != null) {
                     retakeAttemptsAllowed = (int) assessmentAllDetail.get(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS);
                 }
-                retakeAttemptsConsumed = calculateAssessmentRetakeCount(userId, assessmentIdentifier);
-                retakeAttemptsConsumed = retakeAttemptsConsumed - 1;
+                List<Map<String, Object>> userAssessmentDataList = assessUtilServ.readUserSubmittedAssessmentRecords(
+                        userId, assessmentIdentifier);
+                retakeAttemptsConsumed = calculateRetakeAttemptsConsumedV5(userId, assessmentIdentifier,
+                        assessmentAllDetail, retakeAttemptsAllowed, userAssessmentDataList, response);
+                if (HttpStatus.BAD_REQUEST.equals(response.getResponseCode())) {
+                    return response;
+                }
             }
         } catch (Exception e) {
             errMsg = String.format("Error while calculating retake assessment. Exception: %s", e.getMessage());
@@ -1583,4 +1588,57 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         }
     }
 
+    /**
+     * Calculates the number of retake attempts consumed for an assessment (V5 implementation).
+     * Handles both cyclical cooloff (renewable attempts) and non-cyclical (permanent limit) modes.
+     *
+     * @param userId                 User identifier
+     * @param assessmentIdentifier   Assessment identifier
+     * @param assessmentAllDetail    Assessment configuration details
+     * @param retakeAttemptsAllowed  Maximum allowed retake attempts
+     * @param userAssessmentDataList User's assessment history
+     * @param response               Response object to set error details if cooloff validation fails
+     * @return Number of attempts consumed (0 if new cycle starts after cooloff)
+     */
+    private int calculateRetakeAttemptsConsumedV5(String userId, String assessmentIdentifier,
+                                                   Map<String, Object> assessmentAllDetail,
+                                                   int retakeAttemptsAllowed,
+                                                   List<Map<String, Object>> userAssessmentDataList,
+                                                   SBApiResponse response) {
+        // Check if this assessment has cyclical cooloff configured
+        boolean hasCyclicalCooloff = assessUtilServ.hasCoolOffPeriod(assessmentAllDetail);
+        if (hasCyclicalCooloff) {
+            // For cyclical cooloff: first calculate current cycle attempts
+            int currentCycleCount = assessUtilServ.calculateCyclicalRetakeAttempts(
+                    userId, assessmentIdentifier, assessmentAllDetail, userAssessmentDataList);
+            // Only check cooloff if user has exhausted current cycle attempts
+            if (currentCycleCount >= retakeAttemptsAllowed) {
+                String coolOffValidationError = assessUtilServ.validateCoolOffPeriod(userId, assessmentIdentifier,
+                        assessmentAllDetail, userAssessmentDataList);
+                if (StringUtils.isNotBlank(coolOffValidationError)) {
+                    updateErrorDetails(response, coolOffValidationError, HttpStatus.BAD_REQUEST);
+                    logger.info("AssessmentServiceV5Impl::retakeAssessment... Cooloff active - Current cycle exhausted with {} attempts", 
+                            currentCycleCount);
+                    return currentCycleCount;
+                }
+                // Cooloff period has expired - reset counter for new cycle
+                logger.info("Cool-off period completed - User: {} starting new cycle for assessment: {}", 
+                        userId, assessmentIdentifier);
+                return 0;
+            } else {
+                logger.info("Cyclical cooloff mode - Current cycle attempts: {}, Allowed: {}", 
+                        currentCycleCount, retakeAttemptsAllowed);
+                return currentCycleCount;
+            }
+        } else {
+            // For non-cyclical: count all historical attempts
+            int totalAttemptsMade = (int) userAssessmentDataList.stream()
+                    .filter(userData -> userData.containsKey(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY)
+                            && null != userData.get(Constants.SUBMIT_ASSESSMENT_RESPONSE_KEY))
+                    .count();
+            logger.info("Non-cyclical mode - Total attempts made: {}, Allowed: {}", 
+                    totalAttemptsMade, retakeAttemptsAllowed);
+            return totalAttemptsMade;
+        }
+    }
 }

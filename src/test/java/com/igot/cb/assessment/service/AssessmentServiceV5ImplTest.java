@@ -933,7 +933,7 @@ class AssessmentServiceV5ImplTest {
 
         SBApiResponse response = spyService.retakeAssessment("assess1", "token", false);
         assertEquals(3, response.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
-        assertEquals(-1, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 2 - 1
+        assertEquals(0, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 0 submissions
     }
 
     @Test
@@ -1005,7 +1005,7 @@ class AssessmentServiceV5ImplTest {
         SBApiResponse response = service.retakeAssessment("assessmentId", "token", false);
 
         assertEquals(3, response.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
-        assertEquals(2, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 3 - 1
+        assertEquals(3, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 3 submissions
     }
 
 
@@ -1241,7 +1241,7 @@ class AssessmentServiceV5ImplTest {
 
         SBApiResponse response = service.retakeAssessment("assessmentId", "token", false);
         assertEquals(3, response.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
-        assertEquals(1, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED));
+        assertEquals(2, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 2 submissions
     }
 
     @Test
@@ -2280,7 +2280,7 @@ class AssessmentServiceV5ImplTest {
         // Assert
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(3, response.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
-        assertEquals(-1, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 2 - 1 = 1
+        assertEquals(0, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED)); // 0 submissions
     }
 
 
