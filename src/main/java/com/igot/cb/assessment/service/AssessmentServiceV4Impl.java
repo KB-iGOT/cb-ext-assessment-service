@@ -648,7 +648,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
     private Map<String, String> validateQuestionListAPI(Map<String, Object> requestBody, String authUserToken,
             List<String> identifierList,boolean editMode) throws IOException {
         Map<String, String> result = new HashMap<>();
-        String userId = "755c054a-6e19-4adb-9a0f-fb0b504651a5";//accessTokenValidator.fetchUserIdFromAccessToken(authUserToken);
+        String userId = accessTokenValidator.fetchUserIdFromAccessToken(authUserToken);
         if (StringUtils.isBlank(userId)) {
             result.put(Constants.ERROR_MESSAGE, Constants.USER_ID_DOESNT_EXIST);
             return result;
