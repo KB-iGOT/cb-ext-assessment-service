@@ -165,7 +165,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                     } else {
                         Map<String, Object> questionString = mapper.readValue(map.get(i), new TypeReference<Map<String, Object>>() {
                         });
-                        questionList.add(assessUtilServ.filterQuestionMapDetail(questionString, result.get(Constants.PRIMARY_CATEGORY)));
+                        questionList.add(assessUtilServ.filterQuestionMapDetail(questionString, result.get(Constants.PRIMARY_CATEGORY), true));
                     }
                 }
                 if (!newIdentifierList.isEmpty()) {
@@ -177,7 +177,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                                 for (Map<String, Object> question : questions) {
                                     if (!question.isEmpty()) {
                                         redisCacheMgr.putCache(Constants.QUESTION_ID + question.get(Constants.IDENTIFIER), question);
-                                        questionList.add(assessUtilServ.filterQuestionMapDetail(question, result.get(Constants.PRIMARY_CATEGORY)));
+                                        questionList.add(assessUtilServ.filterQuestionMapDetail(question, result.get(Constants.PRIMARY_CATEGORY), true));
                                     }
                                 }
                             }

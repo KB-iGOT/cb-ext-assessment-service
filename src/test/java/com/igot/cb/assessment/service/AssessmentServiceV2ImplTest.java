@@ -1474,7 +1474,7 @@ class AssessmentServiceV2ImplTest {
         when(assessmentRepository.fetchUserAssessmentDataFromDB("user1", "assess1")).thenReturn(existingDataList);
 
         // filterQuestionMapDetail returns a non-empty map for q1
-        when(assessUtilServ.filterQuestionMapDetail(any(), anyString())).thenReturn(Map.of(Constants.IDENTIFIER, "q1"));
+        when(assessUtilServ.filterQuestionMapDetail(any(), anyString(), anyBoolean())).thenReturn(Map.of(Constants.IDENTIFIER, "q1"));
 
         SBApiResponse response = assessmentServiceV2.readQuestionList(requestBody, TOKEN);
 
