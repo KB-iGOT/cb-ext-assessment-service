@@ -104,7 +104,10 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                         return response;
                     }
                     if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                        errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
+                        response.getResult().put(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED, retakeAttemptsAllowed);
+                        response.getResult().put(Constants.RETAKE_ATTEMPTS_CONSUMED, retakeAttemptsConsumed);
+                        response.setResponseCode(HttpStatus.OK);
+                        return response;
                     }
                 }
             }
