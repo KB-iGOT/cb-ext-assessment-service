@@ -103,9 +103,6 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                     if (response.getResponseCode() == HttpStatus.BAD_REQUEST) {
                         return response;
                     }
-                    if (retakeAttemptsConsumed >= retakeAttemptsAllowed) {
-                        errMsg = Constants.ASSESSMENT_RETRY_ATTEMPTS_CROSSED;
-                    }
                 }
             }
         } catch (Exception e) {
