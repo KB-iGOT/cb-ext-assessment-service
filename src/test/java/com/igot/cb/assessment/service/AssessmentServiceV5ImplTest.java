@@ -1388,7 +1388,7 @@ class AssessmentServiceV5ImplTest {
 
         when(assessUtilServ.readQListfromCache(anyList(), eq(matchingId), eq(false), anyString()))
                 .thenReturn(questionsMap);
-        when(assessUtilServ.filterQuestionMapDetailV2(any(), anyString())).thenReturn(q1Map);
+        when(assessUtilServ.filterQuestionMapDetailV2(any(), anyString(), anyBoolean())).thenReturn(q1Map);
 
         SBApiResponse response = service.readQuestionList(request, "token", false);
         List<?> questions = (List<?>) response.getResult().get(Constants.QUESTIONS);
@@ -2396,5 +2396,80 @@ class AssessmentServiceV5ImplTest {
             attempts.add(attempt);
         }
         return attempts;
+    }
+
+    @Test
+    void testGetShuffleFlagFromHierarchy_ShuffleTrueForMatchingSection() throws Exception {
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.CHILDREN, List.of(
+                Map.of(Constants.SHUFFLE, true,
+                        Constants.CHILDREN, List.of(Map.of(Constants.IDENTIFIER, "q1"), Map.of(Constants.IDENTIFIER, "q2"))),
+                Map.of(Constants.SHUFFLE, false,
+                        Constants.CHILDREN, List.of(Map.of(Constants.IDENTIFIER, "q3"), Map.of(Constants.IDENTIFIER, "q4")))
+        ));
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("getShuffleFlagFromHierarchy", Map.class, List.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, hierarchy, List.of("q1"));
+        assertTrue(result);
+    }
+
+    @Test
+    void testGetShuffleFlagFromHierarchy_ShuffleFalseForMatchingSection() throws Exception {
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.CHILDREN, List.of(
+                Map.of(Constants.SHUFFLE, true,
+                        Constants.CHILDREN, List.of(Map.of(Constants.IDENTIFIER, "q1"), Map.of(Constants.IDENTIFIER, "q2"))),
+                Map.of(Constants.SHUFFLE, false,
+                        Constants.CHILDREN, List.of(Map.of(Constants.IDENTIFIER, "q3"), Map.of(Constants.IDENTIFIER, "q4")))
+        ));
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("getShuffleFlagFromHierarchy", Map.class, List.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, hierarchy, List.of("q3"));
+        assertFalse(result);
+    }
+
+    @Test
+    void testGetShuffleFlagFromHierarchy_EmptySections_ReturnsTrue() throws Exception {
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.CHILDREN, Collections.emptyList());
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("getShuffleFlagFromHierarchy", Map.class, List.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, hierarchy, List.of("q1"));
+        assertTrue(result);
+    }
+
+    @Test
+    void testGetShuffleFlagFromHierarchy_NoMatchingSection_ReturnsTrue() throws Exception {
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.CHILDREN, List.of(
+                Map.of(Constants.SHUFFLE, false,
+                        Constants.CHILDREN, List.of(Map.of(Constants.IDENTIFIER, "q1")))
+        ));
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("getShuffleFlagFromHierarchy", Map.class, List.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, hierarchy, List.of("q99"));
+        assertTrue(result);
+    }
+
+    @Test
+    void testGetShuffleFlagFromHierarchy_NullChildren_ReturnsTrue() throws Exception {
+        Map<String, Object> hierarchy = new HashMap<>();
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("getShuffleFlagFromHierarchy", Map.class, List.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, hierarchy, List.of("q1"));
+        assertTrue(result);
+    }
+
+    @Test
+    void testGetShuffleFlagFromHierarchy_EmptyIdentifierList_ReturnsTrue() throws Exception {
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.CHILDREN, List.of(
+                Map.of(Constants.SHUFFLE, false,
+                        Constants.CHILDREN, List.of(Map.of(Constants.IDENTIFIER, "q1")))
+        ));
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("getShuffleFlagFromHierarchy", Map.class, List.class);
+        method.setAccessible(true);
+        boolean result = (boolean) method.invoke(service, hierarchy, Collections.emptyList());
+        assertTrue(result);
     }
 }

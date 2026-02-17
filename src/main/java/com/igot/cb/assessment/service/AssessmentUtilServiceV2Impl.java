@@ -248,7 +248,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 							.get(Constants.RESULT)).get(Constants.QUESTIONS));
 					for (Map<String, Object> question : questionMap) {
 						if (!ObjectUtils.isEmpty(questionMap)) {
-							questionList.add(filterQuestionMapDetail(question, primaryCategory));
+							questionList.add(filterQuestionMapDetail(question, primaryCategory, true));
 						} else {
 							errMsg = String.format("Failed to get Question Details for Id: %s",
 									question.get(Constants.IDENTIFIER).toString());
@@ -269,7 +269,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 
 	@Override
 	public Map<String, Object> filterQuestionMapDetail(Map<String, Object> questionMapResponse,
-			String primaryCategory) {
+			String primaryCategory, boolean shuffle) {
 		List<String> questionParams = serverProperties.getAssessmentQuestionParams();
 		Map<String, Object> updatedQuestionMap = new HashMap<>();
 		for (String questionParam : questionParams) {
@@ -290,7 +290,12 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			if (choicesObj.containsKey(Constants.OPTIONS)) {
 				List<Map<String, Object>> optionsMapList = (List<Map<String, Object>>) choicesObj
 						.get(Constants.OPTIONS);
-				updatedChoicesMap.put(Constants.OPTIONS, shuffleOptions(optionsMapList));
+				String qType = (String) updatedQuestionMap.get(Constants.QUESTION_TYPE);
+				boolean shouldShuffle = shuffle
+						&& StringUtils.isNotBlank(qType)
+						&& serverProperties.getShuffleAllowedQTypes().contains(qType);
+				updatedChoicesMap.put(Constants.OPTIONS,
+						shouldShuffle ? shuffleOptions(optionsMapList) : optionsMapList);
 			}
 			updatedQuestionMap.put(Constants.CHOICES, updatedChoicesMap);
 		}
@@ -837,7 +842,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 
 	@Override
 	public Map<String, Object> filterQuestionMapDetailV2(Map<String, Object> questionMapResponse,
-														 String primaryCategory) {
+														 String primaryCategory, boolean shuffle) {
 		List<String> questionParams = serverProperties.getAssessmentQuestionParams();
 		Map<String, Object> updatedQuestionMap = new HashMap<>();
 		for (String questionParam : questionParams) {
@@ -857,7 +862,12 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			if (choicesObj.containsKey(Constants.OPTIONS)) {
 				List<Map<String, Object>> optionsMapList = (List<Map<String, Object>>) choicesObj
 						.get(Constants.OPTIONS);
-				updatedChoicesMap.put(Constants.OPTIONS, shuffleOptions(optionsMapList));
+				String qType = (String) updatedQuestionMap.get(Constants.QUESTION_TYPE);
+				boolean shouldShuffle = shuffle
+						&& StringUtils.isNotBlank(qType)
+						&& serverProperties.getShuffleAllowedQTypes().contains(qType);
+				updatedChoicesMap.put(Constants.OPTIONS,
+						shouldShuffle ? shuffleOptions(optionsMapList) : optionsMapList);
 			}
 			updatedQuestionMap.put(Constants.CHOICES, updatedChoicesMap);
 		}

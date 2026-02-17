@@ -126,7 +126,7 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> qMap = new HashMap<>();
         qMap.put(Constants.IDENTIFIER, "q1");
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER));
-        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, Constants.PRACTICE_QUESTION_SET, true);
         assertEquals("q1", result.get(Constants.IDENTIFIER));
     }
 
@@ -134,7 +134,7 @@ class AssessmentUtilServiceV2ImplTest {
     void testFilterQuestionMapDetail_MissingParams() {
         Map<String, Object> qMap = new HashMap<>();
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of("nonexistent"));
-        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, "cat");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, "cat", true);
         assertTrue(result.isEmpty());
     }
 
@@ -1819,6 +1819,7 @@ class AssessmentUtilServiceV2ImplTest {
         ReflectionTestUtils.setField(service, "serverProperties", mockProps);
 
         when(mockProps.getAssessmentQuestionParams()).thenReturn(List.of("identifier", "primaryCategory", "questionType"));
+        when(mockProps.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
 
         // Input question map
         Map<String, Object> questionMap = new HashMap<>();
@@ -1841,7 +1842,7 @@ class AssessmentUtilServiceV2ImplTest {
         questionMap.put(Constants.RHS_CHOICES, new ArrayList<>(List.of("A", "B", "C")));
 
         // Call method with PRACTICE_QUESTION_SET
-        Map<String, Object> result = service.filterQuestionMapDetailV2(questionMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> result = service.filterQuestionMapDetailV2(questionMap, Constants.PRACTICE_QUESTION_SET, true);
 
         // Assertions
         assertEquals("q1", result.get("identifier"));
@@ -2134,7 +2135,7 @@ class AssessmentUtilServiceV2ImplTest {
 
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, Constants.PRACTICE_QUESTION_SET, true);
 
         assertTrue(result.containsKey(Constants.EDITOR_STATE));
         assertEquals("q1", result.get(Constants.IDENTIFIER));
@@ -2145,11 +2146,13 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> questionMap = new HashMap<>();
         questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
         questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-SCA");
         questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, List.of(Map.of("key", "value"))));
 
-        when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY));
+        when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
 
         assertTrue(result.containsKey(Constants.CHOICES));
         Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
@@ -2166,7 +2169,7 @@ class AssessmentUtilServiceV2ImplTest {
 
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
 
         assertTrue(result.containsKey(Constants.RHS_CHOICES));
         assertEquals(2, ((List<?>) result.get(Constants.RHS_CHOICES)).size());
@@ -2180,7 +2183,7 @@ class AssessmentUtilServiceV2ImplTest {
 
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "nonPractice");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "nonPractice", true);
 
         assertEquals("q3", result.get(Constants.IDENTIFIER));
         assertFalse(result.containsKey(Constants.CHOICES));
@@ -2197,7 +2200,7 @@ class AssessmentUtilServiceV2ImplTest {
         inputMap.put("primaryCategory", "practice");
         inputMap.put(Constants.EDITOR_STATE, Map.of("foo", "bar"));
 
-        Map<String, Object> output = utilService.filterQuestionMapDetail(inputMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> output = utilService.filterQuestionMapDetail(inputMap, Constants.PRACTICE_QUESTION_SET, true);
 
         assertEquals("q1", output.get("identifier"));
         assertTrue(output.containsKey(Constants.EDITOR_STATE));
@@ -3241,6 +3244,104 @@ class AssessmentUtilServiceV2ImplTest {
         attempts.add(attempt);
         String result = utilService.validateCoolOffPeriod("user1", "assess1", assessmentDetail, attempts);
         assertEquals(Constants.EMPTY, result);
+    }
+
+    @Test
+    void testFilterQuestionMapDetail_ShuffleFalse_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-SCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", false);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when shuffle is false");
+    }
+
+    @Test
+    void testFilterQuestionMapDetail_ShuffleTrue_QTypeNotAllowed_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-MCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when qType is not in allowed list");
+    }
+
+    @Test
+    void testFilterQuestionMapDetail_ShuffleTrue_QTypeBlank_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when qType is blank");
+    }
+
+    @Test
+    void testFilterQuestionMapDetailV2_ShuffleFalse_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-SCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        Map<String, Object> result = utilService.filterQuestionMapDetailV2(questionMap, "anyCategory", false);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when shuffle is false");
+    }
+
+    @Test
+    void testFilterQuestionMapDetailV2_ShuffleTrue_QTypeNotAllowed_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-MCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
+        Map<String, Object> result = utilService.filterQuestionMapDetailV2(questionMap, "anyCategory", true);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when qType is not in allowed list");
     }
 }
 

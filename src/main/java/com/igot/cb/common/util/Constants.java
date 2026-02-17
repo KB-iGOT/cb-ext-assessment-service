@@ -590,6 +590,7 @@ public class Constants {
     public static final String START_TIME = "starttime";
     public static final String CONTENT_ID_KEY = "contentId";
     public static final String QUESTION_TYPE = "qType";
+    public static final String SHUFFLE = "shuffle";
     public static final String SELECTED_ANSWER = "selectedAnswer";
     public static final String INDEX = "index";
     public static final String MCQ_SCA = "mcq-sca";

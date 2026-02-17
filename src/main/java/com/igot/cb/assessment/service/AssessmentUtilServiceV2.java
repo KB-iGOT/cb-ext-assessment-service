@@ -14,7 +14,7 @@ public interface AssessmentUtilServiceV2 {
 
 	public String fetchQuestionIdentifierValue(List<String> identifierList, List<Object> questionList, String primaryCategory) throws Exception;
 
-	Map<String, Object> filterQuestionMapDetail(Map<String, Object> questionMapResponse, String primaryCategory);
+	Map<String, Object> filterQuestionMapDetail(Map<String, Object> questionMapResponse, String primaryCategory, boolean shuffle);
 
 	List<Map<String, Object>> readQuestionDetails(List<String> identifiers);
 
@@ -42,7 +42,7 @@ public interface AssessmentUtilServiceV2 {
 	public Map<String, Object> validateQumlAssessmentV2(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
 													   List<Map<String, Object>> userQuestionList, Map<String,Object> questionMap);
 
-	Map<String, Object> filterQuestionMapDetailV2(Map<String, Object> questionMapResponse, String primaryCategory);
+	Map<String, Object> filterQuestionMapDetailV2(Map<String, Object> questionMapResponse, String primaryCategory, boolean shuffle);
 
 	/**
 	 * Validates a Quml assessment by comparing the original list of questions with the user's provided list of questions.
