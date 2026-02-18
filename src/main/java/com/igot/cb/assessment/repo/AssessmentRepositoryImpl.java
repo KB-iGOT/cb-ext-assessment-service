@@ -180,4 +180,30 @@ public class AssessmentRepositoryImpl implements AssessmentRepository {
         return existingDataList;
     }
 
+    /**
+     * Inserts a failed assessment audit record into the database for tracking and debugging purposes.
+     * Builds an audit record with userId, assessmentId, current timestamp, failure status,
+     * error message, method name, and the serialized submit request payload,
+     * then inserts it into the {@code user_assessment_failed_audit} Cassandra table.
+     */
+    @Override
+    public boolean addFailedAssessmentAudit(String userId, String assessmentId, Map<String, Object> submitRequest,
+                                            String errMessage, String methodName) {
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.USER_ID, userId);
+        request.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+        request.put(Constants.START_TIME, Instant.now());
+        request.put(Constants.STATUS, Constants.FAILED);
+        request.put(Constants.ERROR_MESSAGE, errMessage);
+        request.put(Constants.METHOD_NAME, methodName);
+        if (MapUtils.isNotEmpty(submitRequest)) {
+            request.put(Constants.SUBMIT_ASSESSMENT_REQUEST, new Gson().toJson(submitRequest));
+        }
+        SBApiResponse resp = cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD,
+                Constants.TABLE_USER_ASSESSMENT_FAILED_AUDIT, request);
+        Map<String, Object> result = (resp == null) ? null : resp.getResult();
+        Object responseVal = MapUtils.isEmpty(result) ? null : result.get(Constants.DB_STATUS);
+        return Constants.SUCCESS.equalsIgnoreCase(Objects.toString(responseVal, null));
+    }
+
 }

@@ -2,6 +2,7 @@ package com.igot.cb.assessment.service;
 
 
 import com.igot.cb.common.model.SBApiResponse;
+import com.igot.cb.core.exception.ApplicationLogicError;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -10,7 +11,7 @@ import java.util.Map;
 
 public interface AssessmentUtilServiceV2 {
 	public Map<String, Object> validateQumlAssessment(List<String> originalQuestionList,
-													  List<Map<String, Object>> userQuestionList,Map<String,Object> questionMap);
+													  List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError;
 
 	public String fetchQuestionIdentifierValue(List<String> identifierList, List<Object> questionList, String primaryCategory) throws Exception;
 
@@ -53,8 +54,8 @@ public interface AssessmentUtilServiceV2 {
 	 * @param questionMap           a map containing additional question-related information.
 	 * @return a map with validation results and resultMap.
 	 */
-	 Map<String, Object> validateQumlAssessmentV3(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
-														List<Map<String, Object>> userQuestionList, Map<String,Object> questionMap);
+	Map<String, Object> validateQumlAssessmentV3(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
+												 List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError;
 
 	String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId,
 								  SBApiResponse response, String userId, String assessmentIdentifier);
@@ -67,7 +68,7 @@ public interface AssessmentUtilServiceV2 {
 
 	String readContentRecord(String courseId, List<String> fields);
 
-    String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest);
+    String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) throws ApplicationLogicError;
 
 	/**
 	 * Checks if cool-off period is configured and valid for an assessment.

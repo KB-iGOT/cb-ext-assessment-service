@@ -12,6 +12,7 @@ import com.igot.cb.common.service.ContentService;
 import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.core.exception.ApplicationLogicError;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -905,9 +906,7 @@ class AssessmentUtilServiceV2ImplTest {
 
     @Test
     void testValidateQumlAssessmentV3_EmptyInputs() {
-        Map<String, Object> result = utilService.validateQumlAssessmentV3(null, null, null, null);
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
+        assertThrows(ApplicationLogicError.class, () -> utilService.validateQumlAssessmentV3(null, null, null, null));
     }
 
     @Test

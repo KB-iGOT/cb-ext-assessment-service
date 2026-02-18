@@ -9,6 +9,7 @@ import com.igot.cb.common.service.ContentService;
 import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.core.exception.ApplicationLogicError;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHeaders;
@@ -55,7 +56,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	ContentService contentService;
 
 	public Map<String, Object> validateQumlAssessment(List<String> originalQuestionList,
-													  List<Map<String, Object>> userQuestionList,Map<String,Object> questionMap) {
+													  List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError {
 		try {
 			Integer correct = 0;
 			Integer blank = 0;
@@ -891,7 +892,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 * @return a map with validation results and resultMap.
 	 */
 	public Map<String, Object> validateQumlAssessmentV3(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
-														List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) {
+														List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError {
 		try {
 			String assessmentType = getAssessmentType(questionSetDetailsMap);
 			int minimumPassPercentage = getMinimumPassPercentage(questionSetDetailsMap);
@@ -946,9 +947,8 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			computeSectionResults(sectionMarks, totalMarks, minimumPassPercentage, resultMap);
 			return resultMap;
 		} catch (Exception ex) {
-			logger.error("Error when verifying assessment. Error : ", ex);
+			throw new ApplicationLogicError("Error when verifying assessment: " + ex.getMessage(), ex);
 		}
-		return new HashMap<>();
 	}
 
 	/**
@@ -1299,7 +1299,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	}
 
     @Override
-    public String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) {
+	public String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) throws ApplicationLogicError {
         logger.info("Validating assessment language and nodes for request: {}", submitRequest);
         try {
             String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);

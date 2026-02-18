@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -32,6 +31,7 @@ import java.util.stream.Collectors;
 import static com.igot.cb.common.util.Constants.RESPONSE;
 import static com.igot.cb.common.util.ProjectUtil.createDefaultResponse;
 import static java.util.stream.Collectors.toList;
+import com.igot.cb.core.exception.ApplicationLogicError;
 
 @Service
 @SuppressWarnings("unchecked")
@@ -455,6 +455,8 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             String errMsg = String.format("Failed to process assessment submit request. Exception: ", e.getMessage());
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+            assessmentRepository.addFailedAssessmentAudit((String) submitRequest.get(Constants.USER_ID),
+                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V4_SUBMIT_ASSESSMENT_ASYNC);
         }
         return outgoingResponse;
     }
@@ -857,7 +859,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
     }
 
     public Map<String, Object> createResponseMapWithProperStructure(Map<String, Object> hierarchySection,
-            Map<String, Object> resultMap) {
+                                                                    Map<String, Object> resultMap) throws ApplicationLogicError {
         Map<String, Object> sectionLevelResult = new HashMap<>();
         sectionLevelResult.put(Constants.IDENTIFIER, hierarchySection.get(Constants.IDENTIFIER));
         sectionLevelResult.put(Constants.OBJECT_TYPE, hierarchySection.get(Constants.OBJECT_TYPE));
@@ -887,7 +889,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         return sectionLevelResult;
     }
 
-    private Map<String, Object> calculateAssessmentFinalResults(Map<String, Object> assessmentLevelResult) {
+    private Map<String, Object> calculateAssessmentFinalResults(Map<String, Object> assessmentLevelResult) throws ApplicationLogicError {
         Map<String, Object> res = new HashMap<>();
         try {
             res.put(Constants.CHILDREN, Collections.singletonList(assessmentLevelResult));
@@ -907,8 +909,8 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
     }
 
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId,
-            Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory,String courseCategory,
-                                                         String userAuthToken, boolean shouldUpdateContentProgress, String contextCategory ) {
+                                                         Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory,
+                                                         String userAuthToken, boolean shouldUpdateContentProgress, String contextCategory) throws ApplicationLogicError {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
@@ -959,7 +961,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         }
     }
 
-    private Map<String, Object> calculateSectionFinalResults(List<Map<String, Object>> sectionLevelResults) {
+    private Map<String, Object> calculateSectionFinalResults(List<Map<String, Object>> sectionLevelResults) throws ApplicationLogicError {
         Map<String, Object> res = new HashMap<>();
         Double result;
         Integer correct = 0;
