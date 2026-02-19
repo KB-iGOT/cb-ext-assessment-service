@@ -456,7 +456,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
             assessUtilServ.publishFailedAssessmentAuditEvent((String) submitRequest.get(Constants.USER_ID),
-                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V4_SUBMIT_ASSESSMENT_ASYNC);
+                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V4_SUBMIT_ASSESSMENT_ASYNC, outgoingResponse.getResult());
         }
         return outgoingResponse;
     }

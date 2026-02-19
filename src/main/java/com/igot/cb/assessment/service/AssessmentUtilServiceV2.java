@@ -117,5 +117,6 @@ public interface AssessmentUtilServiceV2 {
 	 * @param methodName    the method name where the failure occurred
 	 */
 	void publishFailedAssessmentAuditEvent(String userId, String assessmentId,
-										   Map<String, Object> submitRequest, String errMessage, String methodName);
+										   Map<String, Object> submitRequest, String errMessage, String methodName,
+										   Map<String, Object> submitAssessmentResponse);
 }

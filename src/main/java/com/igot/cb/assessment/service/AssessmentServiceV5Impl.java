@@ -493,7 +493,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
             assessUtilServ.publishFailedAssessmentAuditEvent((String) submitRequest.get(Constants.USER_ID),
-                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V5_SUBMIT_ASSESSMENT_ASYNC);
+                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V5_SUBMIT_ASSESSMENT_ASYNC, outgoingResponse.getResult());
         }
         return outgoingResponse;
     }
@@ -1500,7 +1500,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
             assessUtilServ.publishFailedAssessmentAuditEvent((String) submitRequest.get(Constants.USER_ID),
-                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V5_SUBMIT_ASSESSMENT_ASYNC_V6);
+                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V5_SUBMIT_ASSESSMENT_ASYNC_V6, outgoingResponse.getResult());
         }
         return outgoingResponse;
     }

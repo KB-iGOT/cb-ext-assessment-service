@@ -2034,7 +2034,8 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 */
 	@Override
 	public void publishFailedAssessmentAuditEvent(String userId, String assessmentId,
-												   Map<String, Object> submitRequest, String errMessage, String methodName) {
+												   Map<String, Object> submitRequest, String errMessage, String methodName,
+												   Map<String, Object> submitAssessmentResponse) {
 		try {
 			Map<String, Object> event = new HashMap<>();
 			event.put(Constants.USER_ID, userId);
@@ -2045,6 +2046,9 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			event.put(Constants.START_TIME, Instant.now().toString());
 			if (MapUtils.isNotEmpty(submitRequest)) {
 				event.put(Constants.SUBMIT_ASSESSMENT_REQUEST, submitRequest);
+			}
+			if (MapUtils.isNotEmpty(submitAssessmentResponse)) {
+				event.put(Constants.SUBMIT_ASSESSMENT_RESPONSE, submitAssessmentResponse);
 			}
 			String eventJson = mapper.writeValueAsString(event);
 			kafkaProducer.push(serverProperties.getAssessmentFailedAuditErrorTopic(), eventJson);
