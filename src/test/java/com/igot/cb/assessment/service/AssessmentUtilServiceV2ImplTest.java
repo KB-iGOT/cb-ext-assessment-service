@@ -13,6 +13,7 @@ import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.exception.ApplicationLogicError;
+import com.igot.cb.core.producer.Producer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,6 +54,8 @@ class AssessmentUtilServiceV2ImplTest {
     RedisCacheMgr redisCacheMgr;
     @Mock
     ContentService contentService;
+    @Mock
+    Producer kafkaProducer;
 
     @BeforeEach
     void setUp() {
@@ -3342,6 +3345,133 @@ class AssessmentUtilServiceV2ImplTest {
         List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
         assertEquals(options, resultOptions, "Options order should be preserved when qType is not in allowed list");
     }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_Success() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put("key", "value");
+        String errMessage = "Some error occurred";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        String expectedJson = "{\"userId\":\"user123\"}";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName);
+        verify(mapper).writeValueAsString(any(Map.class));
+        verify(kafkaProducer).push(topicName, expectedJson);
+        verify(serverProperties).getAssessmentFailedAuditErrorTopic();
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_WithNullSubmitRequest() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        String expectedJson = "{\"userId\":\"user123\"}";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertFalse(capturedEvent.containsKey(Constants.SUBMIT_ASSESSMENT_REQUEST),
+                "Event should not contain submitRequest when it is null");
+        verify(kafkaProducer).push(topicName, expectedJson);
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_WithEmptySubmitRequest() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        String expectedJson = "{}";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertFalse(capturedEvent.containsKey(Constants.SUBMIT_ASSESSMENT_REQUEST),
+                "Event should not contain submitRequest when it is empty");
+        verify(kafkaProducer).push(topicName, expectedJson);
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_EventContainsAllRequiredFields() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put("questionId", "q1");
+        String errMessage = "Processing failed";
+        String methodName = "submitAssessmentAsyncV6";
+        String topicName = "dev.assessment.failed.audit.error";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertEquals(userId, capturedEvent.get(Constants.USER_ID));
+        assertEquals(assessmentId, capturedEvent.get(Constants.ASSESSMENT_ID_KEY));
+        assertEquals(errMessage, capturedEvent.get(Constants.ERROR_MESSAGE));
+        assertEquals(methodName, capturedEvent.get(Constants.METHOD_NAME));
+        assertEquals(Constants.FAILED, capturedEvent.get(Constants.STATUS));
+        assertNotNull(capturedEvent.get(Constants.START_TIME), "startTime should be set");
+        assertEquals(submitRequest, capturedEvent.get(Constants.SUBMIT_ASSESSMENT_REQUEST));
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_SerializationException_DoesNotThrow() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = Map.of("key", "value");
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        when(mapper.writeValueAsString(any(Map.class)))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("Serialization error") {});
+        assertDoesNotThrow(() ->
+                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName));
+        verify(kafkaProducer, never()).push(anyString(), anyString());
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_KafkaPushException_DoesNotThrow() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = Map.of("key", "value");
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
+        doThrow(new RuntimeException("Kafka unavailable")).when(kafkaProducer).push(anyString(), any());
+        assertDoesNotThrow(() ->
+                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName));
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_StartTimeIsValidInstantFormat() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        String startTime = (String) capturedEvent.get(Constants.START_TIME);
+        assertNotNull(startTime);
+        assertDoesNotThrow(() -> Instant.parse(startTime),
+                "startTime should be a valid ISO-8601 instant string");
+    }
 }
-
-

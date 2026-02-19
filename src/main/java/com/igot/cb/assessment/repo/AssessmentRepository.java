@@ -38,17 +38,5 @@ public interface AssessmentRepository {
 
     List<Map<String, Object>> fetchUserAssessmentDataFromDB(String userId, String assessmentIdentifier);
 
-    /**
-     * Inserts a failed assessment audit record into the database for tracking and debugging purposes.
-     *
-     * @param userId        the ID of the user who attempted the assessment
-     * @param assessmentId  the identifier of the assessment that failed
-     * @param submitRequest the original submit request payload
-     * @param errMessage    the error message describing the failure
-     * @param methodName    the fully qualified method name where the failure occurred
-     * @return true if the audit record was inserted successfully, false otherwise
-     */
-    boolean addFailedAssessmentAudit(String userId, String assessmentId, Map<String, Object> submitRequest,
-                                     String errMessage, String methodName);
 
 }

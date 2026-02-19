@@ -105,4 +105,17 @@ public interface AssessmentUtilServiceV2 {
 	int calculateCyclicalRetakeAttempts(String userId, String assessmentIdentifier,
 										Map<String, Object> assessmentAllDetail,
 										List<Map<String, Object>> userAssessmentDataList);
+
+	/**
+	 * Publishes a failed assessment audit event to a Kafka error topic for monitoring purposes.
+	 * No consumer is attached to this topic — events are retained for future log dump/analysis.
+	 *
+	 * @param userId        the user identifier
+	 * @param assessmentId  the assessment identifier
+	 * @param submitRequest the original submit request payload
+	 * @param errMessage    the error message describing the failure
+	 * @param methodName    the method name where the failure occurred
+	 */
+	void publishFailedAssessmentAuditEvent(String userId, String assessmentId,
+										   Map<String, Object> submitRequest, String errMessage, String methodName);
 }

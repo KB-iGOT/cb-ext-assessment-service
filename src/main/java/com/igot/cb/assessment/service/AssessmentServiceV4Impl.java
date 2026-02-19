@@ -455,7 +455,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             String errMsg = String.format("Failed to process assessment submit request. Exception: ", e.getMessage());
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
-            assessmentRepository.addFailedAssessmentAudit((String) submitRequest.get(Constants.USER_ID),
+            assessUtilServ.publishFailedAssessmentAuditEvent((String) submitRequest.get(Constants.USER_ID),
                     (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V4_SUBMIT_ASSESSMENT_ASYNC);
         }
         return outgoingResponse;
