@@ -1083,6 +1083,9 @@ public class CbExtAssessmentServerProperties {
     @Value("${assessment.learningpathway.assessment.notfound.error}")
     private String assessmentLearningPathwayAssessmentNotFoundError;
 
+    @Value("${kafka.topics.assessment.failed.audit.error}")
+    private String assessmentFailedAuditErrorTopic;
+
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
     }

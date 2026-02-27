@@ -9,6 +9,8 @@ import com.igot.cb.common.service.ContentService;
 import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.core.exception.ApplicationLogicError;
+import com.igot.cb.core.producer.Producer;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHeaders;
@@ -54,8 +56,11 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	@Autowired
 	ContentService contentService;
 
+	@Autowired
+	Producer kafkaProducer;
+
 	public Map<String, Object> validateQumlAssessment(List<String> originalQuestionList,
-													  List<Map<String, Object>> userQuestionList,Map<String,Object> questionMap) {
+													  List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError {
 		try {
 			Integer correct = 0;
 			Integer blank = 0;
@@ -891,7 +896,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	 * @return a map with validation results and resultMap.
 	 */
 	public Map<String, Object> validateQumlAssessmentV3(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
-														List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) {
+														List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError {
 		try {
 			String assessmentType = getAssessmentType(questionSetDetailsMap);
 			int minimumPassPercentage = getMinimumPassPercentage(questionSetDetailsMap);
@@ -946,9 +951,8 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			computeSectionResults(sectionMarks, totalMarks, minimumPassPercentage, resultMap);
 			return resultMap;
 		} catch (Exception ex) {
-			logger.error("Error when verifying assessment. Error : ", ex);
+			throw new ApplicationLogicError("Error when verifying assessment: " + ex.getMessage(), ex);
 		}
-		return new HashMap<>();
 	}
 
 	/**
@@ -1299,7 +1303,7 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 	}
 
     @Override
-    public String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) {
+	public String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) throws ApplicationLogicError {
         logger.info("Validating assessment language and nodes for request: {}", submitRequest);
         try {
             String assessmentLanguageReq = (String) submitRequest.get(Constants.LANGUAGE);
@@ -2012,5 +2016,46 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			currentCycleCount++;
 		}
 		return currentCycleCount;
+	}
+
+	/**
+	 * Publishes a failed assessment audit event to a Kafka error topic.
+	 * <p>
+	 * Constructs an event payload containing the user ID, assessment ID, error message,
+	 * originating method name, status, timestamp, and optionally the original submit request.
+	 * The event is serialized to JSON and pushed to the configured Kafka error topic for audit purposes.
+	 * Any exception during publishing is logged without propagation to the caller.
+	 *
+	 * @param userId        the ID of the user who submitted the assessment
+	 * @param assessmentId  the ID of the assessment that failed
+	 * @param submitRequest the original assessment submit request payload (may be null or empty)
+	 * @param errMessage    the error message describing the failure reason
+	 * @param methodName    the name of the method where the failure originated
+	 */
+	@Override
+	public void publishFailedAssessmentAuditEvent(String userId, String assessmentId,
+												   Map<String, Object> submitRequest, String errMessage, String methodName,
+												   Map<String, Object> submitAssessmentResponse) {
+		try {
+			Map<String, Object> event = new HashMap<>();
+			event.put(Constants.USER_ID, userId);
+			event.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+			event.put(Constants.ERROR_MESSAGE, errMessage);
+			event.put(Constants.METHOD_NAME, methodName);
+			event.put(Constants.STATUS, Constants.FAILED);
+			event.put(Constants.START_TIME, Instant.now().toString());
+			if (MapUtils.isNotEmpty(submitRequest)) {
+				event.put(Constants.SUBMIT_ASSESSMENT_REQUEST, submitRequest);
+			}
+			if (MapUtils.isNotEmpty(submitAssessmentResponse)) {
+				event.put(Constants.SUBMIT_ASSESSMENT_RESPONSE, submitAssessmentResponse);
+			}
+			String eventJson = mapper.writeValueAsString(event);
+			kafkaProducer.push(serverProperties.getAssessmentFailedAuditErrorTopic(), eventJson);
+			logger.info("Published failed assessment audit event to Kafka error topic for userId: {}, assessmentId: {}", userId, assessmentId);
+		} catch (Exception e) {
+			logger.error("Failed to publish failed assessment audit event to Kafka. UserId: {}, AssessmentId: {}, Exception: {}",
+					userId, assessmentId, e.getMessage(), e);
+		}
 	}
 }
