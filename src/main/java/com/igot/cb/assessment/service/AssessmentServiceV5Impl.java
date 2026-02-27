@@ -12,6 +12,7 @@ import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.common.util.AccessTokenValidator;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.core.exception.ApplicationLogicError;
 import com.igot.cb.core.producer.Producer;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -274,7 +275,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             Map<String, Object> questionsMap = assessUtilServ.readQListfromCache(identifierList,assessmentIdFromRequest,editMode,authUserToken);
             for (String questionId : identifierList) {
                 questionList.add(assessUtilServ.filterQuestionMapDetailV2((Map<String, Object>) questionsMap.get(questionId),
-                        result.get(Constants.PRIMARY_CATEGORY)));
+                        result.get(Constants.PRIMARY_CATEGORY), Boolean.parseBoolean(result.getOrDefault(Constants.SHUFFLE, Constants.TRUE))));
             }
             if (errMsg.isEmpty() && identifierList.size() == questionList.size()) {
                 response.getResult().put(Constants.QUESTIONS, questionList);
@@ -491,6 +492,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             String errMsg = String.format("Failed to process assessment submit request. Exception: ", e.getMessage());
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+            assessUtilServ.publishFailedAssessmentAuditEvent((String) submitRequest.get(Constants.USER_ID),
+                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V5_SUBMIT_ASSESSMENT_ASYNC, outgoingResponse.getResult());
         }
         return outgoingResponse;
     }
@@ -597,6 +600,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             result.put(Constants.ERROR_MESSAGE, Constants.ASSESSMENT_HIERARCHY_READ_FAILED);
             return result;
         }
+        result.put(Constants.SHUFFLE, String.valueOf(getShuffleFlagFromHierarchy(assessmentAllDetail, identifierList)));
         String primaryCategory = (String) assessmentAllDetail.get(Constants.PRIMARY_CATEGORY);
         if (Constants.PRACTICE_QUESTION_SET
                 .equalsIgnoreCase(primaryCategory)||editMode) {
@@ -779,7 +783,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
     }
 
     public Map<String, Object> createResponseMapWithProperStructure(Map<String, Object> hierarchySection,
-            Map<String, Object> resultMap, Integer assessmentMinimumPassPercentage) {
+                                                                    Map<String, Object> resultMap, Integer assessmentMinimumPassPercentage) throws ApplicationLogicError {
         Map<String, Object> sectionLevelResult = new HashMap<>();
         sectionLevelResult.put(Constants.IDENTIFIER, hierarchySection.get(Constants.IDENTIFIER));
         sectionLevelResult.put(Constants.OBJECT_TYPE, hierarchySection.get(Constants.OBJECT_TYPE));
@@ -820,7 +824,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         return sectionLevelResult;
     }
 
-    private Map<String, Object> calculateAssessmentFinalResults(Map<String, Object> assessmentLevelResult) {
+    private Map<String, Object> calculateAssessmentFinalResults(Map<String, Object> assessmentLevelResult) throws ApplicationLogicError {
         Map<String, Object> res = new HashMap<>();
         try {
             res.put(Constants.CHILDREN, Collections.singletonList(assessmentLevelResult));
@@ -841,7 +845,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
     }
 
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId,
-                                                         Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory, String userAuthToken,String contextCategory) {
+                                                         Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String courseCategory, String userAuthToken, String contextCategory) throws ApplicationLogicError {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
@@ -891,7 +895,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         }
     }
 
-    private Map<String, Object> calculateSectionFinalResults(List<Map<String, Object>> sectionLevelResults, long assessmentStartTime, long assessmentCompletionTime, int maxAssessmentRetakeAttempts, int retakeAttemptsConsumed) {
+    private Map<String, Object> calculateSectionFinalResults(List<Map<String, Object>> sectionLevelResults, long assessmentStartTime, long assessmentCompletionTime, int maxAssessmentRetakeAttempts, int retakeAttemptsConsumed)
+            throws ApplicationLogicError {
         Map<String, Object> res = new HashMap<>();
         Double result;
         Integer correct = 0;
@@ -1005,7 +1010,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
      * @return a map containing the parameter details for the question types.
      * @throws IOException if there is an error processing the question section schema.
      */
-    private Map<String, Object> getParamDetailsForQTypes(Map<String, Object> hierarchySection,Map<String, Object> assessmentHierarchy,String hierarchySectionId) throws IOException {
+    private Map<String, Object> getParamDetailsForQTypes(Map<String, Object> hierarchySection,Map<String, Object> assessmentHierarchy,String hierarchySectionId) throws ApplicationLogicError {
         logger.info("Starting getParamDetailsForQTypes with assessmentHierarchy: {}", assessmentHierarchy);
         Map<String, Object> questionSetDetailsMap = new HashMap<>();
         String assessmentType = (String) assessmentHierarchy.get(Constants.ASSESSMENT_TYPE);
@@ -1494,6 +1499,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             String errMsg = String.format("Failed to process assessment submit request. Exception: ", e.getMessage());
             logger.error(errMsg, e);
             updateErrorDetails(outgoingResponse, errMsg, HttpStatus.INTERNAL_SERVER_ERROR);
+            assessUtilServ.publishFailedAssessmentAuditEvent((String) submitRequest.get(Constants.USER_ID),
+                    (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, errMsg, Constants.METHOD_V5_SUBMIT_ASSESSMENT_ASYNC_V6, outgoingResponse.getResult());
         }
         return outgoingResponse;
     }
@@ -1651,5 +1658,48 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     totalAttemptsMade, retakeAttemptsAllowed);
             return totalAttemptsMade;
         }
+    }
+
+
+    /**
+     * Extracts the shuffle flag from the hierarchy section that contains the requested questions.
+     * Matches the requested question identifiers against each section's children to find the
+     * owning section, then returns its shuffle configuration.
+     *
+     * @param assessmentAllDetail the complete assessment hierarchy containing sections with shuffle config
+     * @param identifierList      the list of question identifiers requested for this call
+     * @return the shuffle flag from the matching section, or true if no matching section is found
+     */
+    private boolean getShuffleFlagFromHierarchy(Map<String, Object> assessmentAllDetail, List<String> identifierList) {
+        List<Map<String, Object>> sections =
+                (List<Map<String, Object>>) assessmentAllDetail.get(Constants.CHILDREN);
+        if (CollectionUtils.isEmpty(sections) || CollectionUtils.isEmpty(identifierList)) {
+            return true;
+        }
+        Set<String> requestedIds = new HashSet<>(identifierList);
+        return sections.stream()
+                .filter(section -> sectionContainsAnyQuestion(section, requestedIds))
+                .findFirst()
+                .map(section -> section.get(Constants.SHUFFLE))
+                .map(Boolean.class::cast)
+                .orElse(true);
+    }
+
+    /**
+     * Checks whether a given section contains any of the requested question identifiers.
+     *
+     * @param section      a section map from the assessment hierarchy
+     * @param requestedIds the set of question identifiers to match against
+     * @return true if any child of the section matches a requested identifier, false otherwise
+     */
+    private boolean sectionContainsAnyQuestion(Map<String, Object> section, Set<String> requestedIds) {
+        List<Map<String, Object>> children =
+                (List<Map<String, Object>>) section.get(Constants.CHILDREN);
+        if (CollectionUtils.isEmpty(children)) {
+            return false;
+        }
+        return children.stream()
+                .map(child -> (String) child.get(Constants.IDENTIFIER))
+                .anyMatch(requestedIds::contains);
     }
 }

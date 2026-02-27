@@ -6,6 +6,7 @@ import com.igot.cb.cache.RedisCacheMgr;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.core.exception.ApplicationLogicError;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -69,7 +70,7 @@ public class ContentServiceImpl implements ContentService{
     }
 
     @Override
-    public String updateContentProgress(String userAuthToken, Map<String, Object> reqBody, String userId, SBApiResponse outgoingResponse) {
+    public String updateContentProgress(String userAuthToken, Map<String, Object> reqBody, String userId, SBApiResponse outgoingResponse) throws ApplicationLogicError {
         String response = "";
         try {
             Map<String, String> headers = new HashMap<>();
@@ -180,12 +181,12 @@ public class ContentServiceImpl implements ContentService{
 
         return responseData;
     }
-    public Map<String, Object> readContent(String contentId) {
+    public Map<String, Object> readContent(String contentId) throws ApplicationLogicError {
         return readContent(contentId, Collections.emptyList());
     }
 
     @Override
-    public String updatePreEnrolledAssessment(String userAuthToken, Map<String, Object> reqBody, String userId, SBApiResponse outgoingResponse) {
+    public String updatePreEnrolledAssessment(String userAuthToken, Map<String, Object> reqBody, String userId, SBApiResponse outgoingResponse) throws ApplicationLogicError {
         String response = "";
         try {
             Map<String, String> headers = new HashMap<>();
@@ -234,7 +235,7 @@ public class ContentServiceImpl implements ContentService{
         return response;
     }
 
-    public Map<String, Object> readContent(String contentId, List<String> fields) {
+    public Map<String, Object> readContent(String contentId, List<String> fields) throws ApplicationLogicError {
         StringBuilder url = new StringBuilder();
         url.append(serverConfig.getContentHost()).append(serverConfig.getContentReadEndPoint()).append("/" + contentId)
                 .append(serverConfig.getContentReadEndPointFields());

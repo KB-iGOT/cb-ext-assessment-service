@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.igot.cb.common.model.SBApiResponse;
+import com.igot.cb.core.exception.ApplicationLogicError;
 
 public interface ContentService {
     Object getContentType(String parentId);
@@ -17,7 +18,7 @@ public interface ContentService {
 
     public Set<String> readChildCoursesFromCache(String parentDoId);
 
-    public Map<String, Object> readContent(String contentId);
+    public Map<String, Object> readContent(String contentId) throws ApplicationLogicError;
 
     String updatePreEnrolledAssessment(String userAuthToken, Map<String, Object> submitRequest, String userId, SBApiResponse contentUpdateResponse);
 }

@@ -12,6 +12,8 @@ import com.igot.cb.common.service.ContentService;
 import com.igot.cb.common.service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
+import com.igot.cb.core.exception.ApplicationLogicError;
+import com.igot.cb.core.producer.Producer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,6 +54,8 @@ class AssessmentUtilServiceV2ImplTest {
     RedisCacheMgr redisCacheMgr;
     @Mock
     ContentService contentService;
+    @Mock
+    Producer kafkaProducer;
 
     @BeforeEach
     void setUp() {
@@ -126,7 +130,7 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> qMap = new HashMap<>();
         qMap.put(Constants.IDENTIFIER, "q1");
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER));
-        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, Constants.PRACTICE_QUESTION_SET, true);
         assertEquals("q1", result.get(Constants.IDENTIFIER));
     }
 
@@ -134,7 +138,7 @@ class AssessmentUtilServiceV2ImplTest {
     void testFilterQuestionMapDetail_MissingParams() {
         Map<String, Object> qMap = new HashMap<>();
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of("nonexistent"));
-        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, "cat");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(qMap, "cat", true);
         assertTrue(result.isEmpty());
     }
 
@@ -905,9 +909,7 @@ class AssessmentUtilServiceV2ImplTest {
 
     @Test
     void testValidateQumlAssessmentV3_EmptyInputs() {
-        Map<String, Object> result = utilService.validateQumlAssessmentV3(null, null, null, null);
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
+        assertThrows(ApplicationLogicError.class, () -> utilService.validateQumlAssessmentV3(null, null, null, null));
     }
 
     @Test
@@ -1819,6 +1821,7 @@ class AssessmentUtilServiceV2ImplTest {
         ReflectionTestUtils.setField(service, "serverProperties", mockProps);
 
         when(mockProps.getAssessmentQuestionParams()).thenReturn(List.of("identifier", "primaryCategory", "questionType"));
+        when(mockProps.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
 
         // Input question map
         Map<String, Object> questionMap = new HashMap<>();
@@ -1841,7 +1844,7 @@ class AssessmentUtilServiceV2ImplTest {
         questionMap.put(Constants.RHS_CHOICES, new ArrayList<>(List.of("A", "B", "C")));
 
         // Call method with PRACTICE_QUESTION_SET
-        Map<String, Object> result = service.filterQuestionMapDetailV2(questionMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> result = service.filterQuestionMapDetailV2(questionMap, Constants.PRACTICE_QUESTION_SET, true);
 
         // Assertions
         assertEquals("q1", result.get("identifier"));
@@ -2134,7 +2137,7 @@ class AssessmentUtilServiceV2ImplTest {
 
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, Constants.PRACTICE_QUESTION_SET, true);
 
         assertTrue(result.containsKey(Constants.EDITOR_STATE));
         assertEquals("q1", result.get(Constants.IDENTIFIER));
@@ -2145,11 +2148,13 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> questionMap = new HashMap<>();
         questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
         questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-SCA");
         questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, List.of(Map.of("key", "value"))));
 
-        when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY));
+        when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
 
         assertTrue(result.containsKey(Constants.CHOICES));
         Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
@@ -2166,7 +2171,7 @@ class AssessmentUtilServiceV2ImplTest {
 
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
 
         assertTrue(result.containsKey(Constants.RHS_CHOICES));
         assertEquals(2, ((List<?>) result.get(Constants.RHS_CHOICES)).size());
@@ -2180,7 +2185,7 @@ class AssessmentUtilServiceV2ImplTest {
 
         when(serverProperties.getAssessmentQuestionParams()).thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY));
 
-        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "nonPractice");
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "nonPractice", true);
 
         assertEquals("q3", result.get(Constants.IDENTIFIER));
         assertFalse(result.containsKey(Constants.CHOICES));
@@ -2197,7 +2202,7 @@ class AssessmentUtilServiceV2ImplTest {
         inputMap.put("primaryCategory", "practice");
         inputMap.put(Constants.EDITOR_STATE, Map.of("foo", "bar"));
 
-        Map<String, Object> output = utilService.filterQuestionMapDetail(inputMap, Constants.PRACTICE_QUESTION_SET);
+        Map<String, Object> output = utilService.filterQuestionMapDetail(inputMap, Constants.PRACTICE_QUESTION_SET, true);
 
         assertEquals("q1", output.get("identifier"));
         assertTrue(output.containsKey(Constants.EDITOR_STATE));
@@ -3242,6 +3247,241 @@ class AssessmentUtilServiceV2ImplTest {
         String result = utilService.validateCoolOffPeriod("user1", "assess1", assessmentDetail, attempts);
         assertEquals(Constants.EMPTY, result);
     }
+
+    @Test
+    void testFilterQuestionMapDetail_ShuffleFalse_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-SCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", false);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when shuffle is false");
+    }
+
+    @Test
+    void testFilterQuestionMapDetail_ShuffleTrue_QTypeNotAllowed_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-MCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when qType is not in allowed list");
+    }
+
+    @Test
+    void testFilterQuestionMapDetail_ShuffleTrue_QTypeBlank_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
+        Map<String, Object> result = utilService.filterQuestionMapDetail(questionMap, "anyCategory", true);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when qType is blank");
+    }
+
+    @Test
+    void testFilterQuestionMapDetailV2_ShuffleFalse_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-SCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        Map<String, Object> result = utilService.filterQuestionMapDetailV2(questionMap, "anyCategory", false);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when shuffle is false");
+    }
+
+    @Test
+    void testFilterQuestionMapDetailV2_ShuffleTrue_QTypeNotAllowed_OptionsNotShuffled() {
+        List<Map<String, Object>> options = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            options.add(Map.of("index", i, "text", "Option " + i));
+        }
+        Map<String, Object> questionMap = new HashMap<>();
+        questionMap.put(Constants.PRIMARY_CATEGORY, "MCQ");
+        questionMap.put(Constants.IDENTIFIER, "q1");
+        questionMap.put(Constants.QUESTION_TYPE, "MCQ-MCA");
+        questionMap.put(Constants.CHOICES, Map.of(Constants.OPTIONS, options));
+        when(serverProperties.getAssessmentQuestionParams())
+                .thenReturn(List.of(Constants.IDENTIFIER, Constants.PRIMARY_CATEGORY, Constants.QUESTION_TYPE));
+        when(serverProperties.getShuffleAllowedQTypes()).thenReturn(List.of("MCQ-SCA"));
+        Map<String, Object> result = utilService.filterQuestionMapDetailV2(questionMap, "anyCategory", true);
+        Map<String, Object> choices = (Map<String, Object>) result.get(Constants.CHOICES);
+        List<Map<String, Object>> resultOptions = (List<Map<String, Object>>) choices.get(Constants.OPTIONS);
+        assertEquals(options, resultOptions, "Options order should be preserved when qType is not in allowed list");
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_Success() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put("key", "value");
+        String errMessage = "Some error occurred";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        String expectedJson = "{\"userId\":\"user123\"}";
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("error", "validation_failed");
+        mockResponse.put("statusCode", 400);
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse);
+        verify(mapper).writeValueAsString(any(Map.class));
+        verify(kafkaProducer).push(topicName, expectedJson);
+        verify(serverProperties).getAssessmentFailedAuditErrorTopic();
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_WithNullSubmitRequest() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        String expectedJson = "{\"userId\":\"user123\"}";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName, null);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertFalse(capturedEvent.containsKey(Constants.SUBMIT_ASSESSMENT_REQUEST),
+                "Event should not contain submitRequest when it is null");
+        verify(kafkaProducer).push(topicName, expectedJson);
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_WithEmptySubmitRequest() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        String expectedJson = "{}";
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("message", "Empty request");
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertFalse(capturedEvent.containsKey(Constants.SUBMIT_ASSESSMENT_REQUEST),
+                "Event should not contain submitRequest when it is empty");
+        verify(kafkaProducer).push(topicName, expectedJson);
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_EventContainsAllRequiredFields() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put("questionId", "q1");
+        String errMessage = "Processing failed";
+        String methodName = "submitAssessmentAsyncV6";
+        String topicName = "dev.assessment.failed.audit.error";
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("error", "processing_error");
+        mockResponse.put("details", "Failed to process assessment");
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertEquals(userId, capturedEvent.get(Constants.USER_ID));
+        assertEquals(assessmentId, capturedEvent.get(Constants.ASSESSMENT_ID_KEY));
+        assertEquals(errMessage, capturedEvent.get(Constants.ERROR_MESSAGE));
+        assertEquals(methodName, capturedEvent.get(Constants.METHOD_NAME));
+        assertEquals(Constants.FAILED, capturedEvent.get(Constants.STATUS));
+        assertNotNull(capturedEvent.get(Constants.START_TIME), "startTime should be set");
+        assertEquals(submitRequest, capturedEvent.get(Constants.SUBMIT_ASSESSMENT_REQUEST));
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_SerializationException_DoesNotThrow() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = Map.of("key", "value");
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        Map<String, Object> mockResponse = Map.of("error", "serialization_test");
+        when(mapper.writeValueAsString(any(Map.class)))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("Serialization error") {});
+        assertDoesNotThrow(() ->
+                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse));
+        verify(kafkaProducer, never()).push(anyString(), anyString());
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_KafkaPushException_DoesNotThrow() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        Map<String, Object> submitRequest = Map.of("key", "value");
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        Map<String, Object> mockResponse = Map.of("error", "kafka_test");
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
+        doThrow(new RuntimeException("Kafka unavailable")).when(kafkaProducer).push(anyString(), any());
+        assertDoesNotThrow(() ->
+                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse));
+    }
+
+    @Test
+    void testPublishFailedAssessmentAuditEvent_StartTimeIsValidInstantFormat() throws Exception {
+        String userId = "user123";
+        String assessmentId = "assess456";
+        String errMessage = "Error";
+        String methodName = "submitAssessmentAsync";
+        String topicName = "dev.assessment.failed.audit.error";
+        when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
+        when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName, null);
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mapper).writeValueAsString(eventCaptor.capture());
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        String startTime = (String) capturedEvent.get(Constants.START_TIME);
+        assertNotNull(startTime);
+        assertDoesNotThrow(() -> Instant.parse(startTime),
+                "startTime should be a valid ISO-8601 instant string");
+    }
 }
-
-

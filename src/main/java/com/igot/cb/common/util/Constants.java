@@ -590,6 +590,7 @@ public class Constants {
     public static final String START_TIME = "starttime";
     public static final String CONTENT_ID_KEY = "contentId";
     public static final String QUESTION_TYPE = "qType";
+    public static final String SHUFFLE = "shuffle";
     public static final String SELECTED_ANSWER = "selectedAnswer";
     public static final String INDEX = "index";
     public static final String MCQ_SCA = "mcq-sca";
@@ -1385,7 +1386,15 @@ public class Constants {
     public static final String PRELIMINARY_ASSESSMENT = "preliminaryAssessment";
     public static final String LANG_CONTENT_STATUS_KEY = "lang_contentstatus";
     public static final String RECENT_LANGUAGE_KEY = "recent_language";
-
+    public static final String METHOD_NAME = "methodname";
+    public static final String SUBMIT_ASSESSMENT_REQUEST = "submitassessmentrequest";
+    public static final String DB_STATUS = "STATUS";
+    public static final String METHOD_V4_SUBMIT_ASSESSMENT_ASYNC = "AssessmentServiceV4Impl.submitAssessmentAsync";
+    public static final String METHOD_V4_HANDLE_ASSESSMENT_SUBMIT_REQUEST = "AssessmentServiceV4Impl.handleAssessmentSubmitRequest";
+    public static final String METHOD_V5_SUBMIT_ASSESSMENT_ASYNC = "AssessmentServiceV5Impl.submitAssessmentAsync";
+    public static final String METHOD_V5_SUBMIT_ASSESSMENT_ASYNC_V6 = "AssessmentServiceV5Impl.submitAssessmentAsyncV6";
+    public static final String TABLE_USER_ASSESSMENT_FAILED_AUDIT = "user_assessment_failed_audit";
+    
     private Constants() {
         throw new IllegalStateException("Utility class");
     }

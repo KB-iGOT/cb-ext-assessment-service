@@ -2,6 +2,7 @@ package com.igot.cb.assessment.service;
 
 
 import com.igot.cb.common.model.SBApiResponse;
+import com.igot.cb.core.exception.ApplicationLogicError;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -10,11 +11,11 @@ import java.util.Map;
 
 public interface AssessmentUtilServiceV2 {
 	public Map<String, Object> validateQumlAssessment(List<String> originalQuestionList,
-													  List<Map<String, Object>> userQuestionList,Map<String,Object> questionMap);
+													  List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError;
 
 	public String fetchQuestionIdentifierValue(List<String> identifierList, List<Object> questionList, String primaryCategory) throws Exception;
 
-	Map<String, Object> filterQuestionMapDetail(Map<String, Object> questionMapResponse, String primaryCategory);
+	Map<String, Object> filterQuestionMapDetail(Map<String, Object> questionMapResponse, String primaryCategory, boolean shuffle);
 
 	List<Map<String, Object>> readQuestionDetails(List<String> identifiers);
 
@@ -42,7 +43,7 @@ public interface AssessmentUtilServiceV2 {
 	public Map<String, Object> validateQumlAssessmentV2(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
 													   List<Map<String, Object>> userQuestionList, Map<String,Object> questionMap);
 
-	Map<String, Object> filterQuestionMapDetailV2(Map<String, Object> questionMapResponse, String primaryCategory);
+	Map<String, Object> filterQuestionMapDetailV2(Map<String, Object> questionMapResponse, String primaryCategory, boolean shuffle);
 
 	/**
 	 * Validates a Quml assessment by comparing the original list of questions with the user's provided list of questions.
@@ -53,8 +54,8 @@ public interface AssessmentUtilServiceV2 {
 	 * @param questionMap           a map containing additional question-related information.
 	 * @return a map with validation results and resultMap.
 	 */
-	 Map<String, Object> validateQumlAssessmentV3(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
-														List<Map<String, Object>> userQuestionList, Map<String,Object> questionMap);
+	Map<String, Object> validateQumlAssessmentV3(Map<String, Object> questionSetDetailsMap, List<String> originalQuestionList,
+												 List<Map<String, Object>> userQuestionList, Map<String, Object> questionMap) throws ApplicationLogicError;
 
 	String validateContextLocking(Map<String, Object> assessmentAllDetail, String parentContextId,
 								  SBApiResponse response, String userId, String assessmentIdentifier);
@@ -67,7 +68,7 @@ public interface AssessmentUtilServiceV2 {
 
 	String readContentRecord(String courseId, List<String> fields);
 
-    String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest);
+    String validateAssessmentLanguageAndNodes(Map<String, Object> submitRequest) throws ApplicationLogicError;
 
 	/**
 	 * Checks if cool-off period is configured and valid for an assessment.
@@ -104,4 +105,18 @@ public interface AssessmentUtilServiceV2 {
 	int calculateCyclicalRetakeAttempts(String userId, String assessmentIdentifier,
 										Map<String, Object> assessmentAllDetail,
 										List<Map<String, Object>> userAssessmentDataList);
+
+	/**
+	 * Publishes a failed assessment audit event to a Kafka error topic for monitoring purposes.
+	 * No consumer is attached to this topic — events are retained for future log dump/analysis.
+	 *
+	 * @param userId        the user identifier
+	 * @param assessmentId  the assessment identifier
+	 * @param submitRequest the original submit request payload
+	 * @param errMessage    the error message describing the failure
+	 * @param methodName    the method name where the failure occurred
+	 */
+	void publishFailedAssessmentAuditEvent(String userId, String assessmentId,
+										   Map<String, Object> submitRequest, String errMessage, String methodName,
+										   Map<String, Object> submitAssessmentResponse);
 }

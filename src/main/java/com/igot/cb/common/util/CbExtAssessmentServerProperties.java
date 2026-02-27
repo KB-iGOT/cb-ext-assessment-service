@@ -274,6 +274,9 @@ public class CbExtAssessmentServerProperties {
     @Value("${assessment.read.min.question.params}")
     private String assessmentMinQuestionParams;
 
+    @Value("${assessment.shuffle.allowed.qtypes}")
+    private String shuffleAllowedQTypes;
+
     @Value("${assessment.cooloff.error.message}")
     private String assessmentCoolOffErrorMessage;
 
@@ -1079,6 +1082,9 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${assessment.learningpathway.assessment.notfound.error}")
     private String assessmentLearningPathwayAssessmentNotFoundError;
+
+    @Value("${kafka.topics.assessment.failed.audit.error}")
+    private String assessmentFailedAuditErrorTopic;
 
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
@@ -3635,6 +3641,14 @@ public class CbExtAssessmentServerProperties {
 
     public List<String> getMandatoryContextCategoriesForPassRequirement() {
         return Arrays.asList(mandatoryContextCategoriesForPassRequirement.split(",", -1));
+    }
+
+    public List<String> getShuffleAllowedQTypes() {
+        return Arrays.asList(shuffleAllowedQTypes.split(",", -1));
+    }
+
+    public void setShuffleAllowedQTypes(String shuffleAllowedQTypes) {
+        this.shuffleAllowedQTypes = shuffleAllowedQTypes;
     }
 
 }
