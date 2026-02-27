@@ -3356,9 +3356,12 @@ class AssessmentUtilServiceV2ImplTest {
         String methodName = "submitAssessmentAsync";
         String topicName = "dev.assessment.failed.audit.error";
         String expectedJson = "{\"userId\":\"user123\"}";
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("error", "validation_failed");
+        mockResponse.put("statusCode", 400);
         when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
         when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
-        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse);
         verify(mapper).writeValueAsString(any(Map.class));
         verify(kafkaProducer).push(topicName, expectedJson);
         verify(serverProperties).getAssessmentFailedAuditErrorTopic();
@@ -3374,7 +3377,7 @@ class AssessmentUtilServiceV2ImplTest {
         String expectedJson = "{\"userId\":\"user123\"}";
         when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
         when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
-        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName, null);
         ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mapper).writeValueAsString(eventCaptor.capture());
         Map<String, Object> capturedEvent = eventCaptor.getValue();
@@ -3392,9 +3395,11 @@ class AssessmentUtilServiceV2ImplTest {
         String methodName = "submitAssessmentAsync";
         String topicName = "dev.assessment.failed.audit.error";
         String expectedJson = "{}";
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("message", "Empty request");
         when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
         when(mapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
-        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse);
         ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mapper).writeValueAsString(eventCaptor.capture());
         Map<String, Object> capturedEvent = eventCaptor.getValue();
@@ -3412,9 +3417,12 @@ class AssessmentUtilServiceV2ImplTest {
         String errMessage = "Processing failed";
         String methodName = "submitAssessmentAsyncV6";
         String topicName = "dev.assessment.failed.audit.error";
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("error", "processing_error");
+        mockResponse.put("details", "Failed to process assessment");
         when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
         when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
-        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse);
         ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mapper).writeValueAsString(eventCaptor.capture());
         Map<String, Object> capturedEvent = eventCaptor.getValue();
@@ -3434,10 +3442,11 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> submitRequest = Map.of("key", "value");
         String errMessage = "Error";
         String methodName = "submitAssessmentAsync";
+        Map<String, Object> mockResponse = Map.of("error", "serialization_test");
         when(mapper.writeValueAsString(any(Map.class)))
                 .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("Serialization error") {});
         assertDoesNotThrow(() ->
-                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName));
+                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse));
         verify(kafkaProducer, never()).push(anyString(), anyString());
     }
 
@@ -3449,11 +3458,12 @@ class AssessmentUtilServiceV2ImplTest {
         String errMessage = "Error";
         String methodName = "submitAssessmentAsync";
         String topicName = "dev.assessment.failed.audit.error";
+        Map<String, Object> mockResponse = Map.of("error", "kafka_test");
         when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
         when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
         doThrow(new RuntimeException("Kafka unavailable")).when(kafkaProducer).push(anyString(), any());
         assertDoesNotThrow(() ->
-                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName));
+                utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, submitRequest, errMessage, methodName, mockResponse));
     }
 
     @Test
@@ -3465,7 +3475,7 @@ class AssessmentUtilServiceV2ImplTest {
         String topicName = "dev.assessment.failed.audit.error";
         when(serverProperties.getAssessmentFailedAuditErrorTopic()).thenReturn(topicName);
         when(mapper.writeValueAsString(any(Map.class))).thenReturn("{}");
-        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName);
+        utilService.publishFailedAssessmentAuditEvent(userId, assessmentId, null, errMessage, methodName, null);
         ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
         verify(mapper).writeValueAsString(eventCaptor.capture());
         Map<String, Object> capturedEvent = eventCaptor.getValue();
