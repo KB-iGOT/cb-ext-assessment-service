@@ -5,6 +5,7 @@ import com.igot.cb.assessment.service.*;
 import com.igot.cb.common.model.SBApiResponse;
 import com.igot.cb.common.util.Constants;
 import io.micrometer.common.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import java.util.Map;
 
+@Slf4j
 @RestController
 public class AssessmentController {
     @Autowired
@@ -56,6 +58,8 @@ public class AssessmentController {
     public ResponseEntity<Map<String, Object>> submitUserAssessment(
             @Valid @RequestBody AssessmentSubmissionDTO requestBody, @RequestHeader("userId") String userId,
             @RequestHeader("rootOrg") String rootOrg) throws Exception {
+        //TODO Need to remove this logs after testing
+        log.info("Assessment submit userId and rootOrgId: ", userId, rootOrg);
 
         return new ResponseEntity<>(assessmentService.submitAssessment(rootOrg, requestBody, userId),
                 HttpStatus.CREATED);
