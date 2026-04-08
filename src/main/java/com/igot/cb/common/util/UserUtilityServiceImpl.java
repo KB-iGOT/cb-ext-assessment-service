@@ -3,6 +3,8 @@ package com.igot.cb.common.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.common.model.SunbirdApiResp;
 import com.igot.cb.core.exception.CustomException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -15,6 +17,10 @@ import java.util.HashMap;
 import java.util.Map;
 @Service
 public class UserUtilityServiceImpl implements UserUtilityService {
+
+
+    private final Logger logger = LoggerFactory.getLogger(UserUtilityServiceImpl.class);
+
     @Autowired
     CbExtAssessmentServerProperties props;
 
@@ -23,6 +29,7 @@ public class UserUtilityServiceImpl implements UserUtilityService {
 
     @Override
     public boolean validateUser(String rootOrg, String userId) {
+        logger.info("Submit Assessment: rootOrg: " + rootOrg + ", userId: " + userId ); // remove after v2 api 400 error test
         Map<String, Object> requestMap = new HashMap<>();
         Map<String, Object> request = new HashMap<>();
         Map<String, String> filters = new HashMap<>();
@@ -38,7 +45,7 @@ public class UserUtilityServiceImpl implements UserUtilityService {
             HttpEntity<String> requestEnty = new HttpEntity<>(reqBodyData, headers);
 
             String serverUrl = props.getSbUrl() + props.getUserSearchEndPoint();
-
+            logger.info("requestMap" + requestMap ); // remove after v2 api 400 error test
             SunbirdApiResp sunbirdApiResp = restTemplate.postForObject(serverUrl, requestEnty, SunbirdApiResp.class);
 
             boolean expression = (sunbirdApiResp != null && "OK".equalsIgnoreCase(sunbirdApiResp.getResponseCode()) && sunbirdApiResp.getResult().getResponse().getCount() >= 1);
