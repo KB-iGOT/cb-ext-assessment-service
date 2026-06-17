@@ -170,6 +170,17 @@ class AssessmentControllerTest {
     }
 
     @Test
+    void retakeAssessmentCount() {
+        SBApiResponse apiResponse = new SBApiResponse();
+        apiResponse.setResponseCode(HttpStatus.OK);
+        when(assessmentServiceV4.retakeAssessmentByUserId(anyString(), anyString(), anyBoolean(), any())).thenReturn(apiResponse);
+
+        ResponseEntity<SBApiResponse> response = assessmentController.retakeAssessmentCount("assessId", "userId", "false");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(apiResponse, response.getBody());
+    }
+
+    @Test
     void readAssessmentResultV4() {
         SBApiResponse apiResponse = new SBApiResponse();
         apiResponse.setResponseCode(HttpStatus.OK);

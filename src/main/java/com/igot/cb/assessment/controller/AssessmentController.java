@@ -274,4 +274,14 @@ public class AssessmentController {
         SBApiResponse submitResponse = assessmentServiceV5.submitAssessmentAsyncV6(requestBody, authUserToken,edit);
         return new ResponseEntity<>(submitResponse, submitResponse.getResponseCode());
     }
+
+    @GetMapping("/chatbot/assessment/retake/count")
+    public ResponseEntity<SBApiResponse> retakeAssessmentCount(
+            @RequestParam(name = "assessmentIdentifier") String assessmentIdentifier,
+            @RequestParam(name = "userId") String userId,
+            @RequestParam(name = "editMode" ,required = false) String editMode) {
+        Boolean edit = StringUtils.isEmpty(editMode)  ? false : Boolean.parseBoolean(editMode);
+        SBApiResponse readResponse = assessmentServiceV4.retakeAssessmentByUserId(assessmentIdentifier, userId, edit, null);
+        return new ResponseEntity<>(readResponse, readResponse.getResponseCode());
+    }
 }
