@@ -64,13 +64,18 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
 
     @Override
     public SBApiResponse retakeAssessment(String assessmentIdentifier, String token, Boolean editMode) {
-        logger.info("AssessmentServiceV4Impl::retakeAssessment... Started");
+        String userId = accessTokenValidator.fetchUserIdFromAccessToken(token);
+        return retakeAssessmentByUserId(assessmentIdentifier, userId, editMode, token);
+    }
+
+    @Override
+    public SBApiResponse retakeAssessmentByUserId(String assessmentIdentifier, String userId, Boolean editMode, String token) {
+        logger.info("AssessmentServiceV4Impl::retakeAssessmentByUserId... Started");
         SBApiResponse response = createDefaultResponse(Constants.API_RETAKE_ASSESSMENT_GET);
         String errMsg = "";
         int retakeAttemptsAllowed = 0;
         int retakeAttemptsConsumed = 0;
         try {
-            String userId = accessTokenValidator.fetchUserIdFromAccessToken(token);
             if (StringUtils.isBlank(userId)) {
                 updateErrorDetails(response, Constants.USER_ID_DOESNT_EXIST, HttpStatus.INTERNAL_SERVER_ERROR);
                 return response;
@@ -115,7 +120,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             response.getResult().put(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED, retakeAttemptsAllowed);
             response.getResult().put(Constants.RETAKE_ATTEMPTS_CONSUMED, retakeAttemptsConsumed);
         }
-        logger.info("AssessmentServiceV4Impl::retakeAssessment... Completed");
+        logger.info("AssessmentServiceV4Impl::retakeAssessmentByUserId... Completed");
         return response;
     }
 

@@ -64,6 +64,7 @@ class AssessmentServiceV4ImplTest {
         hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
 
         when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn(userId);
+        // Use eq(token) because retakeAssessment delegates to retakeAssessmentByUserId which now passes the token
         when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token))).thenReturn(hierarchy);
         when(serverProperties.isAssessmentRetakeCountVerificationEnabled()).thenReturn(false);
 
@@ -72,49 +73,60 @@ class AssessmentServiceV4ImplTest {
     }
 
     @Test
-    void testRetakeAssessment_Negative_BlankUserId() {
-        String token = "token";
-        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn("");
-        SBApiResponse resp = service.retakeAssessment("assess1", token, false);
+    void testRetakeAssessmentByUserId_Positive() {
+        String userId = "user1";
+        String assessmentId = "assess1";
+        Map<String, Object> hierarchy = new HashMap<>();
+        hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
+        hierarchy.put(Constants.MAX_ASSESSMENT_RETAKE_ATTEMPTS, 3);
+
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), isNull())).thenReturn(hierarchy);
+        when(serverProperties.isAssessmentRetakeCountVerificationEnabled()).thenReturn(false);
+
+        SBApiResponse resp = service.retakeAssessmentByUserId(assessmentId, userId, false, null);
+        assertEquals(3, resp.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
+        assertEquals(0, resp.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED));
+    }
+
+    @Test
+    void testRetakeAssessmentByUserId_Negative_BlankUserId() {
+        String assessmentId = "assess1";
+        SBApiResponse resp = service.retakeAssessmentByUserId(assessmentId, "", false, null);
         assertEquals(Constants.USER_ID_DOESNT_EXIST, resp.getParams().getErrmsg());
         assertEquals(Constants.FAILED, resp.getParams().getStatus());
     }
 
     @Test
-    void testRetakeAssessment_Negative_EmptyHierarchy() {
-        String token = "token";
+    void testRetakeAssessmentByUserId_Negative_EmptyHierarchy() {
         String userId = "user1";
         String assessmentId = "assess1";
-        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn(userId);
-        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token))).thenReturn(Collections.emptyMap());
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), isNull())).thenReturn(Collections.emptyMap());
 
-        SBApiResponse resp = service.retakeAssessment(assessmentId, token, false);
+        SBApiResponse resp = service.retakeAssessmentByUserId(assessmentId, userId, false, null);
         assertEquals(Constants.ASSESSMENT_HIERARCHY_READ_FAILED, resp.getParams().getErrmsg());
         assertEquals(Constants.FAILED, resp.getParams().getStatus());
     }
 
     @Test
-    void testRetakeAssessment_Positive_PreEnrolled() {
-        String token = "token";
+    void testRetakeAssessmentByUserId_Positive_PreEnrolled() {
         String userId = "user1";
         String assessmentId = "assess1";
         Map<String, Object> hierarchy = new HashMap<>();
         hierarchy.put(Constants.PRIMARY_CATEGORY, "Assessment");
         hierarchy.put(Constants.CONTEXT_CATEGORY_TAG, Constants.PRE_ENROLLED_ASSESSMENT_KEY);
 
-        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenReturn(userId);
-        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), eq(token))).thenReturn(hierarchy);
+        when(assessUtilServ.readAssessmentHierarchyFromCache(eq(assessmentId), anyBoolean(), isNull())).thenReturn(hierarchy);
 
-        SBApiResponse resp = service.retakeAssessment(assessmentId, token, false);
+        SBApiResponse resp = service.retakeAssessmentByUserId(assessmentId, userId, false, null);
         assertEquals(1, resp.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
         assertEquals(0, resp.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED));
     }
 
     @Test
-    void testRetakeAssessment_Exception() {
-        String token = "token";
-        when(accessTokenValidator.fetchUserIdFromAccessToken(token)).thenThrow(new RuntimeException("fail"));
-        SBApiResponse resp = service.retakeAssessment("assess1", token, false);
+    void testRetakeAssessmentByUserId_Exception() {
+        String userId = "user1";
+        when(assessUtilServ.readAssessmentHierarchyFromCache(anyString(), anyBoolean(), isNull())).thenThrow(new RuntimeException("fail"));
+        SBApiResponse resp = service.retakeAssessmentByUserId("assess1", userId, false, null);
         assertEquals(Constants.FAILED, resp.getParams().getStatus());
         assertTrue(resp.getParams().getErrmsg().contains("Error while calculating retake assessment"));
     }
@@ -1067,3 +1079,4 @@ class AssessmentServiceV4ImplTest {
 
 
 }
+

@@ -14,6 +14,8 @@ public interface AssessmentServiceV4 {
 
 	public SBApiResponse retakeAssessment(String assessmentIdentifier, String token,Boolean editMode);
 
+	public SBApiResponse retakeAssessmentByUserId(String assessmentIdentifier, String userId, Boolean editMode, String token);
+
 	public SBApiResponse readAssessmentResultV4(Map<String, Object> request, String userAuthToken);
 
 	public SBApiResponse submitAssessmentAsync(Map<String, Object> data, String userAuthToken,boolean editMode);
