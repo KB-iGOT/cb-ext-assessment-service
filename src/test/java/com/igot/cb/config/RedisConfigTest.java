@@ -48,6 +48,72 @@ class RedisConfigTest {
         assertNotNull(pool);
     }
 
+    /**
+     * With the flag on, a missing username must fail at bean creation rather than on the first Redis
+     * call. An unset property reads as "" rather than null, and Jedis sends the two-argument AUTH
+     * whenever the username is non-null - so without this guard the server answers WRONGPASS on every
+     * command and the cache layers swallow it as a miss.
+     */
+    @Test
+    void testJedisPoolFailsWhenUsernameRequiredButMissing() {
+        when(properties.isRedisPasswordRequired()).thenReturn(true);
+        when(properties.getRedisUsername()).thenReturn("");
+        when(properties.getRedisPassword()).thenReturn("cache-secret");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> redisConfig.jedisPool());
+        assertTrue(ex.getMessage().contains("username"), ex.getMessage());
+        // the message must point at the cache instance, not the data one
+        assertTrue(ex.getMessage().contains("localhost:6379"), ex.getMessage());
+    }
+
+    @Test
+    void testJedisPoolFailsWhenPasswordRequiredButMissing() {
+        when(properties.isRedisPasswordRequired()).thenReturn(true);
+        when(properties.getRedisUsername()).thenReturn("cache-user");
+        when(properties.getRedisPassword()).thenReturn("  ");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> redisConfig.jedisPool());
+        assertTrue(ex.getMessage().contains("password"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("localhost:6379"), ex.getMessage());
+    }
+
+    /**
+     * An absent key reads as null rather than "". Both spellings of "not configured" are rejected.
+     */
+    @Test
+    void testJedisPoolFailsWhenUsernameIsNull() {
+        when(properties.isRedisPasswordRequired()).thenReturn(true);
+        when(properties.getRedisUsername()).thenReturn(null);
+        when(properties.getRedisPassword()).thenReturn("cache-secret");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> redisConfig.jedisPool());
+        assertTrue(ex.getMessage().contains("username"), ex.getMessage());
+    }
+
+    /** The same two guards on the data pool, which is configured independently. */
+    @Test
+    void testJedisDataPopulationPoolFailsWhenUsernameRequiredButMissing() {
+        when(properties.isRedisDataPasswordRequired()).thenReturn(true);
+        when(properties.getRedisDataUsername()).thenReturn("");
+        when(properties.getRedisDataPassword()).thenReturn("data-secret");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> redisConfig.jedisDataPopulationPool());
+        assertTrue(ex.getMessage().contains("username"), ex.getMessage());
+        // and at the data instance - the port is what tells the two apart
+        assertTrue(ex.getMessage().contains("localhost:6380"), ex.getMessage());
+    }
+
+    @Test
+    void testJedisDataPopulationPoolFailsWhenPasswordRequiredButMissing() {
+        when(properties.isRedisDataPasswordRequired()).thenReturn(true);
+        when(properties.getRedisDataUsername()).thenReturn("data-user");
+        when(properties.getRedisDataPassword()).thenReturn("  ");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> redisConfig.jedisDataPopulationPool());
+        assertTrue(ex.getMessage().contains("password"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("localhost:6380"), ex.getMessage());
+    }
+
     @Test
     void testBuildPoolConfig() throws Exception {
         java.lang.reflect.Method method = RedisConfig.class.getDeclaredMethod("buildPoolConfig");

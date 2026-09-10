@@ -207,6 +207,15 @@ public class CbExtAssessmentServerProperties {
     @Value("${redis.port}")
     private String redisPort;
 
+    @Value("${redis.password.required:false}")
+    private boolean redisPasswordRequired;
+
+    @Value("${redis.username:}")
+    private String redisUsername;
+
+    @Value("${redis.password:}")
+    private String redisPassword;
+
     @Value("${cb-plan.update.publish.authorized.roles}")
     private String cbPlanUpdatePublishAuthorizedRoles;
 
@@ -237,6 +246,15 @@ public class CbExtAssessmentServerProperties {
 
     @Value("${redis.data.port}")
     private String redisDataPort;
+
+    @Value("${redis.data.password.required:false}")
+    private boolean redisDataPasswordRequired;
+
+    @Value("${redis.data.username:}")
+    private String redisDataUsername;
+
+    @Value("${redis.data.password:}")
+    private String redisDataPassword;
 
     @Value("${redis.timeout}")
     private String redisTimeout;
