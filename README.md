@@ -78,3 +78,6 @@ The service uses **Kafka** for asynchronous task processing:
 -   Managed via `application.properties`.
 -   Supports profile-based configuration (e.g., dev, prod).
 -   Contains massive configuration for external service URLs, Kafka topics, and ElasticSearch indices.
+
+
+
