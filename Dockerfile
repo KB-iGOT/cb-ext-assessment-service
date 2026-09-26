@@ -6,7 +6,7 @@ RUN apt-get update \
     && apt-get install -y \
         curl \
         libxrender1 \
-        libjpeg62-turbo \
+        libjpeg62 \
         fontconfig \
         libxtst6 \
         xfonts-75dpi \
