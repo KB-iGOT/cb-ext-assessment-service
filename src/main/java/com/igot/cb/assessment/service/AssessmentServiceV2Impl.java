@@ -1,5 +1,6 @@
 package com.igot.cb.assessment.service;
 
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
@@ -46,6 +47,9 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
     @Autowired
     Producer kafkaProducer;
+
+    @Autowired
+    KarmaPointsEventPublisher karmaPointsEventPublisher;
 
     @Autowired
     AssessmentRepository assessmentRepository;
@@ -446,6 +450,8 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                     }
 
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
+                    // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
+                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null);
                 }
             }
         } catch (Exception e) {

@@ -1,5 +1,6 @@
 package com.igot.cb.assessment.service;
 
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
@@ -42,6 +43,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
 
     @Autowired
     Producer kafkaProducer;
+
+    @Autowired
+    KarmaPointsEventPublisher karmaPointsEventPublisher;
 
     @Autowired
     OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
@@ -888,6 +892,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                         }
                     }
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
+
+                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory);
                 }
             }
         } catch (Exception e) {
