@@ -15,7 +15,7 @@ RUN apt-get update && \
         xz-utils && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.buster_amd64.deb" -L -o "wkhtmltopdf.deb"
+RUN curl "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.jammy_amd64.deb" -L -o "wkhtmltopdf.deb"
 RUN dpkg -i wkhtmltopdf.deb
 
 COPY cb-ext-assessment-service-0.0.1-SNAPSHOT.jar /opt/
