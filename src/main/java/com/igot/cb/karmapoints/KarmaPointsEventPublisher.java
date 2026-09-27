@@ -16,20 +16,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Publishes the karma points assessment events to the unified topic (KPIs 2.3 and 2.5).
+ * Publishes the karma points assessment events to the unified topic.
  *
  * For a saved, passed final (course) assessment:
  * - ASSESSMENT_PASSED is published on every passed attempt (KPI 2.3);
  * - ASSESSMENT_HIGH_SCORE is published as well when the score is at or above the configured
- *   threshold (default 75, inclusive) (KPI 2.5).
- * The karma job (karma-points-processor-v2) awards each event type once per user and course and
- * applies the APAR / non-APAR caps.
- *
+ *   threshold (default 75, inclusive)
  * Contract (same shape as SELF_REGISTRATION / VERIFIED_PROFILE / SURVEY_SUBMISSION):
  * {"eventType": "ASSESSMENT_PASSED" | "ASSESSMENT_HIGH_SCORE",
  *  "data": {"edata": {"userId", "courseId", "batchId", "assessmentId", "score"}}, "version": 1}
- *
- * Publishing never throws: a Kafka problem must not fail the assessment submission.
  */
 @Component
 public class KarmaPointsEventPublisher {
