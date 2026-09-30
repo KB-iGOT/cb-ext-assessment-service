@@ -721,10 +721,7 @@ public class Base64Util {
             output[cursor.op++] = localAlphabet[(v >> 6) & 0x3f];
             output[cursor.op++] = localAlphabet[v & 0x3f];
             if (--cursor.count == 0) {
-                if (doCr) {
-                    output[cursor.op++] = '\r';
-                }
-                output[cursor.op++] = '\n';
+                writeNewline(output, cursor);
                 cursor.count = LINE_GROUPS;
             }
         }
@@ -741,10 +738,7 @@ public class Base64Util {
                 cursor.position += 3;
                 cursor.op += 4;
                 if (--cursor.count == 0) {
-                    if (doCr) {
-                        output[cursor.op++] = '\r';
-                    }
-                    output[cursor.op++] = '\n';
+                    writeNewline(output, cursor);
                     cursor.count = LINE_GROUPS;
                 }
             }
@@ -758,47 +752,58 @@ public class Base64Util {
             int p = cursor.position;
 
             if (p - tailLen == end - 1) {
-                int t = 0;
-                int v = ((tailLen > 0 ? tail[t++] : input[p++]) & 0xff) << 4;
-                tailLen -= t;
-                output[cursor.op++] = localAlphabet[(v >> 6) & 0x3f];
-                output[cursor.op++] = localAlphabet[v & 0x3f];
-                if (doPadding) {
-                    output[cursor.op++] = '=';
-                    output[cursor.op++] = '=';
-                }
-                if (doNewline) {
-                    if (doCr) {
-                        output[cursor.op++] = '\r';
-                    }
-                    output[cursor.op++] = '\n';
-                }
+                p = finishOneByteRemaining(input, p, output, localAlphabet, cursor);
             } else if (p - tailLen == end - 2) {
-                int t = 0;
-                int v = (((tailLen > 1 ? tail[t++] : input[p++]) & 0xff) << 10) |
-                        (((tailLen > 0 ? tail[t++] : input[p++]) & 0xff) << 2);
-                tailLen -= t;
-                output[cursor.op++] = localAlphabet[(v >> 12) & 0x3f];
-                output[cursor.op++] = localAlphabet[(v >> 6) & 0x3f];
-                output[cursor.op++] = localAlphabet[v & 0x3f];
-                if (doPadding) {
-                    output[cursor.op++] = '=';
-                }
-                if (doNewline) {
-                    if (doCr) {
-                        output[cursor.op++] = '\r';
-                    }
-                    output[cursor.op++] = '\n';
-                }
+                p = finishTwoBytesRemaining(input, p, output, localAlphabet, cursor);
             } else if (doNewline && cursor.op > 0 && cursor.count != LINE_GROUPS) {
-                if (doCr) {
-                    output[cursor.op++] = '\r';
-                }
-                output[cursor.op++] = '\n';
+                writeNewline(output, cursor);
             }
 
             cursor.position = p;
+            validateFullyFlushed(cursor, end);
+        }
 
+        private int finishOneByteRemaining(byte[] input, int p, byte[] output, byte[] localAlphabet, EncodeCursor cursor) {
+            int t = 0;
+            int v = ((tailLen > 0 ? tail[t++] : input[p++]) & 0xff) << 4;
+            tailLen -= t;
+            output[cursor.op++] = localAlphabet[(v >> 6) & 0x3f];
+            output[cursor.op++] = localAlphabet[v & 0x3f];
+            if (doPadding) {
+                output[cursor.op++] = '=';
+                output[cursor.op++] = '=';
+            }
+            if (doNewline) {
+                writeNewline(output, cursor);
+            }
+            return p;
+        }
+
+        private int finishTwoBytesRemaining(byte[] input, int p, byte[] output, byte[] localAlphabet, EncodeCursor cursor) {
+            int t = 0;
+            int v = (((tailLen > 1 ? tail[t++] : input[p++]) & 0xff) << 10) |
+                    (((tailLen > 0 ? tail[t++] : input[p++]) & 0xff) << 2);
+            tailLen -= t;
+            output[cursor.op++] = localAlphabet[(v >> 12) & 0x3f];
+            output[cursor.op++] = localAlphabet[(v >> 6) & 0x3f];
+            output[cursor.op++] = localAlphabet[v & 0x3f];
+            if (doPadding) {
+                output[cursor.op++] = '=';
+            }
+            if (doNewline) {
+                writeNewline(output, cursor);
+            }
+            return p;
+        }
+
+        private void writeNewline(byte[] output, EncodeCursor cursor) {
+            if (doCr) {
+                output[cursor.op++] = '\r';
+            }
+            output[cursor.op++] = '\n';
+        }
+
+        private void validateFullyFlushed(EncodeCursor cursor, int end) {
             if (tailLen != 0 || cursor.position != end) {
                 throw new IllegalStateException("Base64 encoder left unexpected trailing state");
             }
