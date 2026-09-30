@@ -8,14 +8,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
-/*
+/**
  * @author Amit Kumar
  *
  * this class is used for reading properties file
  */
+// Singleton is intentional here: this is a small, immutable, read-mostly cache of
+// property files loaded once at class-init time and shared read-only by
+// CassandraConnectionManagerImpl, AccessTokenValidator and KeyManager. A managed Spring
+// bean is unnecessary since these callers are not Spring beans themselves, and the
+// initialization-on-demand holder below is already thread-safe without extra locking.
+@SuppressWarnings("java:S6548")
 public class PropertiesCache {
 
-    private static PropertiesCache propertiesCache = null;
     public final Map<String, Float> attributePercentageMap = new ConcurrentHashMap<>();
     private final String[] fileName = {
             "cassandra.config.properties",
@@ -33,22 +38,22 @@ public class PropertiesCache {
             try {
                 configProp.load(in);
             } catch (IOException e) {
+                // Tolerate an unreadable file so the remaining property files still load.
             }
         }
     }
 
+    /**
+     * Initialization-on-demand holder. The JVM initialises a class lazily, once, and
+     * under its own lock, so this is thread-safe with no synchronisation on the read
+     * path and no volatile field to publish.
+     */
+    private static final class Holder {
+        private static final PropertiesCache INSTANCE = new PropertiesCache();
+    }
+
     public static PropertiesCache getInstance() {
-
-        // change the lazy holder implementation to simple singleton implementation ...
-        if (null == propertiesCache) {
-            synchronized (PropertiesCache.class) {
-                if (null == propertiesCache) {
-                    propertiesCache = new PropertiesCache();
-                }
-            }
-        }
-
-        return propertiesCache;
+        return Holder.INSTANCE;
     }
 
     public void saveConfigProperty(String key, String value) {
