@@ -8,6 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -184,5 +185,36 @@ class Base64UtilTest {
         assertEquals(2, encoder.tailLen);
     }
 
+    @Test
+    void matchesJdkBase64ForManyRandomInputs() {
+        Random random = new Random(42);
+        for (int len = 0; len < 200; len++) {
+            byte[] data = new byte[len];
+            random.nextBytes(data);
+
+            String expected = java.util.Base64.getEncoder().withoutPadding().encodeToString(data);
+            String actual = Base64Util.encodeToString(data, Base64Util.NO_WRAP | Base64Util.NO_PADDING);
+            assertEquals(expected, actual, "mismatch encoding length " + len);
+
+            byte[] decoded = Base64Util.decode(actual, Base64Util.NO_WRAP | Base64Util.NO_PADDING);
+            assertArrayEquals(data, decoded, "mismatch decoding length " + len);
+        }
+    }
+
+    @Test
+    void matchesJdkBase64WithPaddingAndUrlSafe() {
+        Random random = new Random(7);
+        for (int len = 0; len < 100; len++) {
+            byte[] data = new byte[len];
+            random.nextBytes(data);
+
+            String expected = java.util.Base64.getUrlEncoder().encodeToString(data).replace("\n", "");
+            String actual = Base64Util.encodeToString(data, Base64Util.NO_WRAP | Base64Util.URL_SAFE);
+            assertEquals(expected, actual, "mismatch url-safe encoding length " + len);
+
+            byte[] decoded = Base64Util.decode(actual, Base64Util.URL_SAFE);
+            assertArrayEquals(data, decoded, "mismatch url-safe decoding length " + len);
+        }
+    }
 
 }
