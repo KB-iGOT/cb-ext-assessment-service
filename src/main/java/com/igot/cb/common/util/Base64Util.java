@@ -494,8 +494,7 @@ public class Base64Util {
                 cursor.value = (cursor.value << 6) | d;
                 cursor.state = 3;
             } else if (d == EQUALS) {
-                // Emit the last (partial) output tuple;
-                // expect exactly one more padding character.
+                // Emit the last partial output tuple and expect exactly one more padding character.
                 output[cursor.op++] = (byte) (cursor.value >> 4);
                 cursor.state = 4;
             } else if (d != SKIP) {
@@ -514,8 +513,7 @@ public class Base64Util {
                 cursor.op += 3;
                 cursor.state = 0;
             } else if (d == EQUALS) {
-                // Emit the last (partial) output tuple;
-                // expect no further data or padding characters.
+                // Emit the last partial output tuple and expect no further data or padding characters.
                 output[cursor.op + 1] = (byte) (cursor.value >> 2);
                 output[cursor.op] = (byte) (cursor.value >> 10);
                 cursor.op += 2;
