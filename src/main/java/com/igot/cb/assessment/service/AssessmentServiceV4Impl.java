@@ -44,8 +44,6 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
 
     private final KarmaPointsEventPublisher karmaPointsEventPublisher;
 
-    private final OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
-
     private final AssessmentUtilServiceV2 assessUtilServ;
 
     private final ObjectMapper mapper;
@@ -59,7 +57,6 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
     public AssessmentServiceV4Impl(CbExtAssessmentServerProperties serverProperties,
                                    Producer kafkaProducer,
                                    KarmaPointsEventPublisher karmaPointsEventPublisher,
-                                   OutboundRequestHandlerServiceImpl outboundRequestHandlerService,
                                    AssessmentUtilServiceV2 assessUtilServ,
                                    ObjectMapper mapper,
                                    AssessmentRepository assessmentRepository,
@@ -68,7 +65,6 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         this.serverProperties = serverProperties;
         this.kafkaProducer = kafkaProducer;
         this.karmaPointsEventPublisher = karmaPointsEventPublisher;
-        this.outboundRequestHandlerService = outboundRequestHandlerService;
         this.assessUtilServ = assessUtilServ;
         this.mapper = mapper;
         this.assessmentRepository = assessmentRepository;
