@@ -20,7 +20,6 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -38,38 +37,51 @@ import static java.util.stream.Collectors.toList;
 public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
 
     private final Logger logger = LoggerFactory.getLogger(AssessmentServiceV5Impl.class);
-    @Autowired
-    CbExtAssessmentServerProperties serverProperties;
+    private final CbExtAssessmentServerProperties serverProperties;
 
-    @Autowired
-    Producer kafkaProducer;
+    private final Producer kafkaProducer;
 
-    @Autowired
-    KarmaPointsEventPublisher karmaPointsEventPublisher;
+    private final KarmaPointsEventPublisher karmaPointsEventPublisher;
 
-    @Autowired
-    OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
+    private final OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
 
-    @Autowired
-    AssessmentUtilServiceV2 assessUtilServ;
+    private final AssessmentUtilServiceV2 assessUtilServ;
 
-    @Autowired
-    ObjectMapper mapper;
+    private final ObjectMapper mapper;
 
-    @Autowired
-    AssessmentRepository assessmentRepository;
+    private final AssessmentRepository assessmentRepository;
 
-    @Autowired
-    AccessTokenValidator accessTokenValidator;
+    private final AccessTokenValidator accessTokenValidator;
 
-    @Autowired
-    ContentService contentService;
-  
-    @Autowired
-    CassandraOperation cassandraOperation;
+    private final ContentService contentService;
 
-    @Autowired
-    private Producer producer;
+    private final CassandraOperation cassandraOperation;
+
+    private final Producer producer;
+
+    public AssessmentServiceV5Impl(CbExtAssessmentServerProperties serverProperties,
+                                   Producer kafkaProducer,
+                                   KarmaPointsEventPublisher karmaPointsEventPublisher,
+                                   OutboundRequestHandlerServiceImpl outboundRequestHandlerService,
+                                   AssessmentUtilServiceV2 assessUtilServ,
+                                   ObjectMapper mapper,
+                                   AssessmentRepository assessmentRepository,
+                                   AccessTokenValidator accessTokenValidator,
+                                   ContentService contentService,
+                                   CassandraOperation cassandraOperation,
+                                   Producer producer) {
+        this.serverProperties = serverProperties;
+        this.kafkaProducer = kafkaProducer;
+        this.karmaPointsEventPublisher = karmaPointsEventPublisher;
+        this.outboundRequestHandlerService = outboundRequestHandlerService;
+        this.assessUtilServ = assessUtilServ;
+        this.mapper = mapper;
+        this.assessmentRepository = assessmentRepository;
+        this.accessTokenValidator = accessTokenValidator;
+        this.contentService = contentService;
+        this.cassandraOperation = cassandraOperation;
+        this.producer = producer;
+    }
 
     @Override
     public SBApiResponse retakeAssessment(String assessmentIdentifier, String token, Boolean editMode) {

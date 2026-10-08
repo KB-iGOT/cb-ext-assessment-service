@@ -5,7 +5,6 @@ import com.igot.cb.core.producer.Producer;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +12,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Publishes the karma points assessment events to the unified topic.
@@ -34,8 +32,7 @@ public class KarmaPointsEventPublisher {
     public static final String EVENT_TYPE_ASSESSMENT_PASSED = "ASSESSMENT_PASSED";
     public static final String EVENT_TYPE_ASSESSMENT_HIGH_SCORE = "ASSESSMENT_HIGH_SCORE";
 
-    @Autowired
-    private Producer producer;
+    private final Producer producer;
 
     @Value("${karma.points.unified.event.topic:dev.karma.points.unified.v2.event}")
     private String karmaPointsUnifiedEventTopic;
@@ -54,6 +51,10 @@ public class KarmaPointsEventPublisher {
 
     @Value("${karma.points.event.version:1}")
     private int eventVersion;
+
+    public KarmaPointsEventPublisher(Producer producer) {
+        this.producer = producer;
+    }
 
     /**
      * @param submitRequest   the submit request (userId, courseId, batchId, identifier)
@@ -134,7 +135,7 @@ public class KarmaPointsEventPublisher {
             return false;
         }
         List<String> values = Arrays.stream(commaSeparated.split(","))
-                .map(String::trim).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+                .map(String::trim).filter(StringUtils::isNotBlank).toList();
         return values.stream().anyMatch(v -> v.equalsIgnoreCase(value.trim()));
     }
 
@@ -143,8 +144,8 @@ public class KarmaPointsEventPublisher {
     }
 
     private static Double asDouble(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
+        if (value instanceof Number number) {
+            return number.doubleValue();
         }
         if (value != null) {
             try {

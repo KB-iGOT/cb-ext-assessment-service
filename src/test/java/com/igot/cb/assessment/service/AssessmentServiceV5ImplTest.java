@@ -66,9 +66,11 @@ class AssessmentServiceV5ImplTest {
         cassandraOperation=mock(CassandraOperation.class);
         producer = mock(Producer.class);
 
-        service = new AssessmentServiceV5Impl();
+        // kafkaProducer and karmaPointsEventPublisher are left null here; tests that need them set them explicitly
+        service = new AssessmentServiceV5Impl(serverProperties, null, null, outboundRequestHandlerService,
+                assessUtilServ, mapper, assessmentRepository, accessTokenValidator, contentService,
+                cassandraOperation, producer);
 
-        // Inject dependencies manually since no constructor is used
         ReflectionTestUtils.setField(service, "accessTokenValidator", accessTokenValidator);
         ReflectionTestUtils.setField(service, "assessUtilServ", assessUtilServ);
         ReflectionTestUtils.setField(service, "mapper", mapper);
@@ -2476,8 +2478,7 @@ class AssessmentServiceV5ImplTest {
 
     private Producer attachKarmaPointsPublisher(Object target) {
         Producer karmaProducer = mock(Producer.class);
-        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher();
-        ReflectionTestUtils.setField(publisher, "producer", karmaProducer);
+        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
         ReflectionTestUtils.setField(publisher, "karmaPointsUnifiedEventTopic", "karma-topic");
         ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");

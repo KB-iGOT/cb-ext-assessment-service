@@ -1086,8 +1086,7 @@ class AssessmentServiceV4ImplTest {
 
     private Producer attachKarmaPointsPublisher(Object target) {
         Producer karmaProducer = mock(Producer.class);
-        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher();
-        ReflectionTestUtils.setField(publisher, "producer", karmaProducer);
+        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
         ReflectionTestUtils.setField(publisher, "karmaPointsUnifiedEventTopic", "karma-topic");
         ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
