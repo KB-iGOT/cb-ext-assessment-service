@@ -20,6 +20,7 @@ import com.igot.cb.common.util.AccessTokenValidator;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.producer.Producer;
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,6 +48,8 @@ class AssessmentServiceV5ImplTest {
     @Mock
     private Producer producer;
     @Mock
+    private KarmaPointsEventPublisher karmaPointsEventPublisher;
+    @Mock
     private ContentService contentService;
     @Mock
     private ObjectMapper mapper;
@@ -63,9 +66,11 @@ class AssessmentServiceV5ImplTest {
         cassandraOperation=mock(CassandraOperation.class);
         producer = mock(Producer.class);
 
-        service = new AssessmentServiceV5Impl();
+        // kafkaProducer and karmaPointsEventPublisher are left null here; tests that need them set them explicitly
+        service = new AssessmentServiceV5Impl(serverProperties, null, null, outboundRequestHandlerService,
+                assessUtilServ, mapper, assessmentRepository, accessTokenValidator, contentService,
+                cassandraOperation, producer);
 
-        // Inject dependencies manually since no constructor is used
         ReflectionTestUtils.setField(service, "accessTokenValidator", accessTokenValidator);
         ReflectionTestUtils.setField(service, "assessUtilServ", assessUtilServ);
         ReflectionTestUtils.setField(service, "mapper", mapper);
@@ -2465,5 +2470,128 @@ class AssessmentServiceV5ImplTest {
         method.setAccessible(true);
         boolean result = (boolean) method.invoke(service, hierarchy);
         assertTrue(result);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // KPIs 2.3 / 2.5: karma points assessment events (ASSESSMENT_PASSED, ASSESSMENT_HIGH_SCORE)
+    // ---------------------------------------------------------------------------------------------
+
+    private Producer attachKarmaPointsPublisher(Object target) {
+        Producer karmaProducer = mock(Producer.class);
+        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
+        ReflectionTestUtils.setField(publisher, "karmaPointsUnifiedEventTopic", "karma-topic");
+        ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
+        ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
+        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Program,Curated Program,Blended Program");
+        ReflectionTestUtils.setField(publisher, "highScoreThreshold", 75d);
+        ReflectionTestUtils.setField(publisher, "eventVersion", 1);
+        ReflectionTestUtils.setField(target, "karmaPointsEventPublisher", publisher);
+        return karmaProducer;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> publishedKarmaEventTypes(Producer karmaProducer, String userId) {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(karmaProducer, atLeast(0)).pushWithKey(eq("karma-topic"), captor.capture(), eq(userId));
+        List<String> types = new ArrayList<>();
+        for (Object value : captor.getAllValues()) {
+            Map<String, Object> event = (Map<String, Object>) value;
+            assertEquals(1, event.get("version"));
+            Map<String, Object> edata = (Map<String, Object>) ((Map<String, Object>) event.get("data")).get("edata");
+            assertEquals(userId, edata.get("userId"));
+            assertEquals("course-1", edata.get("courseId"));
+            assertEquals("assess-1", edata.get("assessmentId"));
+            types.add((String) event.get("eventType"));
+        }
+        return types;
+    }
+
+    private Map<String, Object> karmaSubmitRequest() {
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.IDENTIFIER, "assess-1");
+        submitRequest.put(Constants.COURSE_ID, "course-1");
+        submitRequest.put(Constants.BATCH_ID, "batch-1");
+        submitRequest.put(Constants.USER_ID, "user-1");
+        return submitRequest;
+    }
+
+    private Map<String, Object> karmaResult(boolean pass, double score) {
+        Map<String, Object> result = new HashMap<>();
+        result.put(Constants.PASS, pass);
+        result.put(Constants.OVERALL_RESULT, score);
+        return result;
+    }
+
+    private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory, String courseCategory) throws Exception {
+        Producer karmaProducer = attachKarmaPointsPublisher(service);
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(serverProperties.getAssessmentSubmitTopic()).thenReturn("topic");
+        ReflectionTestUtils.setField(service, "kafkaProducer", producer);
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("writeDataToDatabaseAndTriggerKafkaEvent",
+                Map.class, String.class, Map.class, Map.class, String.class, String.class, String.class, String.class);
+        method.setAccessible(true);
+        method.invoke(service, karmaSubmitRequest(), "user-1", questionSet, karmaResult(pass, score),
+                primaryCategory, courseCategory, "token", "");
+        return publishedKarmaEventTypes(karmaProducer, "user-1");
+    }
+
+    @Test
+    void testKarmaEvents_PassedWithHighScore_PublishesPassedAndHighScore() throws Exception {
+        List<String> types = runKarmaScenario(true, 82.5, "Course Assessment", "Course");
+        assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"), types);
+    }
+
+    @Test
+    void testKarmaEvents_PassedWithExactlyThreshold_PublishesBothEvents() throws Exception {
+        List<String> types = runKarmaScenario(true, 75.0, "Course Assessment", "Course");
+        assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"), types);
+    }
+
+    @Test
+    void testKarmaEvents_PassedBelowThreshold_PublishesOnlyPassed() throws Exception {
+        List<String> types = runKarmaScenario(true, 60.0, "Course Assessment", "Course");
+        assertEquals(Collections.singletonList("ASSESSMENT_PASSED"), types);
+    }
+
+    @Test
+    void testKarmaEvents_Failed_PublishesNothing() throws Exception {
+        List<String> types = runKarmaScenario(false, 40.0, "Course Assessment", "Course");
+        assertTrue(types.isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_NotCourseAssessment_PublishesNothing() throws Exception {
+        List<String> types = runKarmaScenario(true, 90.0, "Practice Question Set", "Course");
+        assertTrue(types.isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_CuratedProgram_PublishesNothing() throws Exception {
+        List<String> types = runKarmaScenario(true, 90.0, "Course Assessment", "Curated Program");
+        assertTrue(types.isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_KafkaFailure_DoesNotBreakSubmission() throws Exception {
+        Producer karmaProducer = attachKarmaPointsPublisher(service);
+        doThrow(new RuntimeException("kafka down")).when(karmaProducer).pushWithKey(anyString(), any(), anyString());
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(serverProperties.getAssessmentSubmitTopic()).thenReturn("topic");
+        ReflectionTestUtils.setField(service, "kafkaProducer", producer);
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+
+        Method method = AssessmentServiceV5Impl.class.getDeclaredMethod("writeDataToDatabaseAndTriggerKafkaEvent",
+                Map.class, String.class, Map.class, Map.class, String.class, String.class, String.class, String.class);
+        method.setAccessible(true);
+        assertDoesNotThrow(() -> method.invoke(service, karmaSubmitRequest(), "user-1", questionSet,
+                karmaResult(true, 90.0), "Course Assessment", "Course", "token", ""));
+
+        verify(producer, times(1)).push(eq("topic"), any());
+        verify(karmaProducer, times(2)).pushWithKey(eq("karma-topic"), any(), eq("user-1"));
     }
 }
