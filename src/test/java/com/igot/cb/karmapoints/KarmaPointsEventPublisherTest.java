@@ -5,6 +5,9 @@ import com.igot.cb.core.producer.Producer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -12,6 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -112,68 +116,26 @@ class KarmaPointsEventPublisherTest {
         verify(producer, never()).pushWithKey(anyString(), any(), anyString());
     }
 
-    @Test
-    @DisplayName("Should not publish when primaryCategory is not eligible")
-    void testSkipIneligiblePrimaryCategory() {
+    @ParameterizedTest(name = "[{index}] primaryCategory=\"{0}\", courseCategory=\"{1}\"")
+    @MethodSource("ineligibleCategoryScenarios")
+    @DisplayName("Should not publish when the category combination makes the assessment ineligible")
+    void testSkipWhenCategoryMakesAssessmentIneligible(String primaryCategory, String courseCategory) {
         Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
         Map<String, Object> result = createPassedResult(85.0);
 
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Self Assessment", "Regular Course");
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory);
 
         verify(producer, never()).pushWithKey(anyString(), any(), anyString());
     }
 
-    @Test
-    @DisplayName("Should not publish when courseCategory is excluded (Program)")
-    void testSkipExcludedProgram() {
+    @ParameterizedTest(name = "[{index}] primaryCategory=\"{0}\", courseCategory=\"{1}\"")
+    @MethodSource("eligibleCategoryScenarios")
+    @DisplayName("Should publish when the category combination is still eligible")
+    void testPublishWhenCategoryStillEligible(String primaryCategory, String courseCategory) {
         Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
         Map<String, Object> result = createPassedResult(85.0);
 
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Program");
-
-        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("Should not publish when courseCategory is excluded (Curated Program)")
-    void testSkipExcludedCuratedProgram() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Curated Program");
-
-        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("Should not publish when courseCategory is excluded (Blended Program)")
-    void testSkipExcludedBlendedProgram() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Blended Program");
-
-        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("Should allow publish when courseCategory is null")
-    void testPublishWhenCourseCategoryIsNull() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", null);
-
-        verify(producer, times(2)).pushWithKey(anyString(), any(), eq("user123"));
-    }
-
-    @Test
-    @DisplayName("Should allow publish when courseCategory is blank")
-    void testPublishWhenCourseCategoryIsBlank() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "   ");
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory);
 
         verify(producer, times(2)).pushWithKey(anyString(), any(), eq("user123"));
     }
@@ -367,17 +329,6 @@ class KarmaPointsEventPublisherTest {
     }
 
     @Test
-    @DisplayName("Should handle primaryCategory case-insensitive matching")
-    void testPrimaryCategoryMatchingCaseInsensitive() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "course assessment", "Regular Course");
-
-        verify(producer, times(2)).pushWithKey(anyString(), any(), eq("user123"));
-    }
-
-    @Test
     @DisplayName("Should handle multiple eligible primary categories")
     void testMultipleEligibleCategories() {
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment, Final Assessment, Practice Assessment");
@@ -478,32 +429,8 @@ class KarmaPointsEventPublisherTest {
     }
 
     @Test
-    @DisplayName("Should not publish when primaryCategory is blank")
-    void testSkipWhenPrimaryCategoryIsBlank() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "   ", "Regular Course");
-
-        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("Should not publish when primaryCategory is null")
-    void testSkipWhenPrimaryCategoryIsNull() {
-        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
-        Map<String, Object> result = createPassedResult(85.0);
-
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, null, "Regular Course");
-
-        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
-    }
-
-    @Test
     @DisplayName("Should swallow an unexpected exception from a malformed field and not publish")
     void testHandleUnexpectedExceptionOutsidePublishGracefully() {
-        // A value whose toString() throws forces the exception out of asString(...) and into
-        // the method's own outer try/catch (distinct from publish()'s inner try/catch).
         Object poisonUserId = new Object() {
             @Override
             public String toString() {
@@ -521,6 +448,25 @@ class KarmaPointsEventPublisherTest {
                 publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Regular Course"));
 
         verify(producer, never()).pushWithKey(anyString(), any(), anyString());
+    }
+
+    private static Stream<Arguments> ineligibleCategoryScenarios() {
+        return Stream.of(
+                Arguments.of("Self Assessment", "Regular Course"),   // primaryCategory not eligible
+                Arguments.of("Course Assessment", "Program"),        // courseCategory excluded
+                Arguments.of("Course Assessment", "Curated Program"),// courseCategory excluded
+                Arguments.of("Course Assessment", "Blended Program"),// courseCategory excluded
+                Arguments.of("   ", "Regular Course"),                // primaryCategory blank
+                Arguments.of(null, "Regular Course")                  // primaryCategory null
+        );
+    }
+
+    private static Stream<Arguments> eligibleCategoryScenarios() {
+        return Stream.of(
+                Arguments.of("Course Assessment", null),              // courseCategory null -> excluded check skipped
+                Arguments.of("Course Assessment", "   "),              // courseCategory blank -> excluded check skipped
+                Arguments.of("course assessment", "Regular Course")    // primaryCategory match is case-insensitive
+        );
     }
 
     // Helper methods
