@@ -18,7 +18,6 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -39,32 +38,39 @@ import com.igot.cb.core.exception.ApplicationLogicError;
 public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
 
     private final Logger logger = LoggerFactory.getLogger(AssessmentServiceV4Impl.class);
-    @Autowired
-    CbExtAssessmentServerProperties serverProperties;
+    private final CbExtAssessmentServerProperties serverProperties;
 
-    @Autowired
-    Producer kafkaProducer;
+    private final Producer kafkaProducer;
 
-    @Autowired
-    KarmaPointsEventPublisher karmaPointsEventPublisher;
+    private final KarmaPointsEventPublisher karmaPointsEventPublisher;
 
-    @Autowired
-    OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
+    private final AssessmentUtilServiceV2 assessUtilServ;
 
-    @Autowired
-    AssessmentUtilServiceV2 assessUtilServ;
+    private final ObjectMapper mapper;
 
-    @Autowired
-    ObjectMapper mapper;
+    private final AssessmentRepository assessmentRepository;
 
-    @Autowired
-    AssessmentRepository assessmentRepository;
+    private final AccessTokenValidator accessTokenValidator;
 
-    @Autowired
-    AccessTokenValidator accessTokenValidator;
+    private final ContentService contentService;
 
-    @Autowired
-    ContentService contentService;
+    public AssessmentServiceV4Impl(CbExtAssessmentServerProperties serverProperties,
+                                   Producer kafkaProducer,
+                                   KarmaPointsEventPublisher karmaPointsEventPublisher,
+                                   AssessmentUtilServiceV2 assessUtilServ,
+                                   ObjectMapper mapper,
+                                   AssessmentRepository assessmentRepository,
+                                   AccessTokenValidator accessTokenValidator,
+                                   ContentService contentService) {
+        this.serverProperties = serverProperties;
+        this.kafkaProducer = kafkaProducer;
+        this.karmaPointsEventPublisher = karmaPointsEventPublisher;
+        this.assessUtilServ = assessUtilServ;
+        this.mapper = mapper;
+        this.assessmentRepository = assessmentRepository;
+        this.accessTokenValidator = accessTokenValidator;
+        this.contentService = contentService;
+    }
 
     @Override
     public SBApiResponse retakeAssessment(String assessmentIdentifier, String token, Boolean editMode) {

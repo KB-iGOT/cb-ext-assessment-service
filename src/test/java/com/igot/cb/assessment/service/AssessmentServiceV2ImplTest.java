@@ -1,6 +1,7 @@
 package com.igot.cb.assessment.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cb.assessment.repo.AssessmentRepository;
 import com.igot.cb.cache.RedisCacheMgr;
@@ -11,16 +12,14 @@ import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.producer.Producer;
 import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.fasterxml.jackson.core.type.TypeReference;
-
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -64,14 +63,14 @@ class AssessmentServiceV2ImplTest {
     @Mock
     private KarmaPointsEventPublisher karmaPointsEventPublisher;
 
+    private AssessmentServiceV2Impl newService() {
+        return new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer,
+                karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, mapper, accessTokenValidator);
+    }
+
     private static final String TOKEN = "dummyToken";
     private static final String ASSESSMENT_ID = "assess123";
     private static final String USER_ID = "user123";
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
 
     // +ve: readAssessment returns success
     @Test
@@ -313,7 +312,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCalculateSectionFinalResults() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         // Prepare dummy section results
         Map<String, Object> section1 = new HashMap<>();
@@ -353,7 +352,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         // Mock dependencies
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
@@ -408,7 +407,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCalculateAssessmentRetakeCount() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         Map<String, Object> entry1 = new HashMap<>();
         entry1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE, "response1");
@@ -430,7 +429,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCreateResponseMapWithProperStructure_WithResultMap() {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         Map<String, Object> hierarchySection = new HashMap<>();
         hierarchySection.put(Constants.IDENTIFIER, "section1");
@@ -462,7 +461,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCreateResponseMapWithProperStructure_EmptyResultMap() {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         Map<String, Object> hierarchySection = new HashMap<>();
         hierarchySection.put(Constants.IDENTIFIER, "section2");
@@ -488,7 +487,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCalculateAssessmentFinalResults() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         Map<String, Object> assessmentLevelResult = new HashMap<>();
         assessmentLevelResult.put(Constants.RESULT, 85.0);
@@ -519,7 +518,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testReadSectionLevelParams_PopulatesSectionDetailsCorrectly() throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         CbExtAssessmentServerProperties mockProps = mock(CbExtAssessmentServerProperties.class);
         List<String> sectionParams = List.of(Constants.IDENTIFIER, Constants.MINIMUM_PASS_PERCENTAGE, Constants.MAX_QUESTIONS);
@@ -587,7 +586,7 @@ class AssessmentServiceV2ImplTest {
         when(serverProperties.getAssessmentLevelParams()).thenReturn(List.of(Constants.IDENTIFIER));
         when(serverProperties.getAssessmentSectionParams()).thenReturn(Collections.emptyList());
 
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
         Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
         propsField.setAccessible(true);
         propsField.set(service, serverProperties);
@@ -600,7 +599,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testReadAssessmentLevelData_withEmptyParams() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         // Inject mock serverProperties
         Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
@@ -682,7 +681,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testValidateQuestionListAPI_validAndInvalidCases() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         // Inject mocks
         Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
@@ -744,7 +743,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testGetQuestionIdList_variousCases() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         // Case 1: Valid request with identifiers
         Map<String, Object> requestBody = new HashMap<>();
@@ -785,7 +784,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_success() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
 
         // Mock dependencies
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
@@ -841,7 +840,7 @@ class AssessmentServiceV2ImplTest {
     @Test
     void testSubmitAssessment_FailedSubmission() throws Exception {
         // Prepare mocks and inject them
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
         Field repoField = AssessmentServiceV2Impl.class.getDeclaredField("assessmentRepository");
         repoField.setAccessible(true);
         repoField.set(service, assessmentRepository);
@@ -1027,7 +1026,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_dbUpdateFails() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
         Producer mockProducer = mock(Producer.class);
         AssessmentUtilServiceV2 mockUtil = mock(AssessmentUtilServiceV2.class);
@@ -1068,7 +1067,7 @@ class AssessmentServiceV2ImplTest {
     // -ve: Null start time, should not update DB or push Kafka
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_nullStartTime() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
         Producer mockProducer = mock(Producer.class);
         AssessmentUtilServiceV2 mockUtil = mock(AssessmentUtilServiceV2.class);
@@ -1106,7 +1105,7 @@ class AssessmentServiceV2ImplTest {
     // -ve: Exception thrown by repository
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_repoThrowsException() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
         Producer mockProducer = mock(Producer.class);
         AssessmentUtilServiceV2 mockUtil = mock(AssessmentUtilServiceV2.class);
@@ -1285,7 +1284,7 @@ class AssessmentServiceV2ImplTest {
     // Question set from DB/cache is null
     @Test
     void testSubmitAssessment_questionSetFromDbIsNull() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl();
+        AssessmentServiceV2Impl service = newService();
         Field repoField = AssessmentServiceV2Impl.class.getDeclaredField("assessmentRepository");
         repoField.setAccessible(true);
         repoField.set(service, assessmentRepository);
@@ -1512,8 +1511,7 @@ class AssessmentServiceV2ImplTest {
 
     private Producer attachKarmaPointsPublisher(Object target) {
         Producer karmaProducer = mock(Producer.class);
-        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher();
-        ReflectionTestUtils.setField(publisher, "producer", karmaProducer);
+        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
         ReflectionTestUtils.setField(publisher, "karmaPointsUnifiedEventTopic", "karma-topic");
         ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
@@ -1557,7 +1555,7 @@ class AssessmentServiceV2ImplTest {
         return result;
     }
 
-    private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory, String courseCategory) throws Exception {
+    private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory) throws Exception {
         Producer karmaProducer = attachKarmaPointsPublisher(assessmentServiceV2);
         when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
         when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
@@ -1575,31 +1573,31 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testKarmaEvents_PassedWithHighScore_PublishesPassedAndHighScore() throws Exception {
-        List<String> types = runKarmaScenario(true, 82.5, "Course Assessment", null);
+        List<String> types = runKarmaScenario(true, 82.5, "Course Assessment");
         assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"), types);
     }
 
     @Test
     void testKarmaEvents_PassedWithExactlyThreshold_PublishesBothEvents() throws Exception {
-        List<String> types = runKarmaScenario(true, 75.0, "Course Assessment", null);
+        List<String> types = runKarmaScenario(true, 75.0, "Course Assessment");
         assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"), types);
     }
 
     @Test
     void testKarmaEvents_PassedBelowThreshold_PublishesOnlyPassed() throws Exception {
-        List<String> types = runKarmaScenario(true, 60.0, "Course Assessment", null);
+        List<String> types = runKarmaScenario(true, 60.0, "Course Assessment");
         assertEquals(Collections.singletonList("ASSESSMENT_PASSED"), types);
     }
 
     @Test
     void testKarmaEvents_Failed_PublishesNothing() throws Exception {
-        List<String> types = runKarmaScenario(false, 40.0, "Course Assessment", null);
+        List<String> types = runKarmaScenario(false, 40.0, "Course Assessment");
         assertTrue(types.isEmpty());
     }
 
     @Test
     void testKarmaEvents_NotCourseAssessment_PublishesNothing() throws Exception {
-        List<String> types = runKarmaScenario(true, 90.0, "Practice Question Set", null);
+        List<String> types = runKarmaScenario(true, 90.0, "Practice Question Set");
         assertTrue(types.isEmpty());
     }
 }
