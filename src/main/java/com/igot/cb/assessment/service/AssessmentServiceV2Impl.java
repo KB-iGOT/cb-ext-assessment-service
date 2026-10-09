@@ -1,5 +1,6 @@
 package com.igot.cb.assessment.service;
 
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
@@ -19,7 +20,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -38,29 +38,39 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
     private final Logger logger = LoggerFactory.getLogger(AssessmentServiceV2Impl.class);
 
-    @Autowired
-    AssessmentUtilServiceV2 assessUtilServ;
+    private final AssessmentUtilServiceV2 assessUtilServ;
 
-    @Autowired
-    CbExtAssessmentServerProperties serverProperties;
+    private final CbExtAssessmentServerProperties serverProperties;
 
-    @Autowired
-    Producer kafkaProducer;
+    private final Producer kafkaProducer;
 
-    @Autowired
-    AssessmentRepository assessmentRepository;
+    private final KarmaPointsEventPublisher karmaPointsEventPublisher;
 
-    @Autowired
-    RedisCacheMgr redisCacheMgr;
+    private final AssessmentRepository assessmentRepository;
 
-    @Autowired
-    OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
+    private final RedisCacheMgr redisCacheMgr;
 
-    @Autowired
-    ObjectMapper mapper;
+    private final ObjectMapper mapper;
 
-    @Autowired
-    AccessTokenValidator accessTokenValidator;
+    private final AccessTokenValidator accessTokenValidator;
+
+    public AssessmentServiceV2Impl(AssessmentUtilServiceV2 assessUtilServ,
+                                   CbExtAssessmentServerProperties serverProperties,
+                                   Producer kafkaProducer,
+                                   KarmaPointsEventPublisher karmaPointsEventPublisher,
+                                   AssessmentRepository assessmentRepository,
+                                   RedisCacheMgr redisCacheMgr,
+                                   ObjectMapper mapper,
+                                   AccessTokenValidator accessTokenValidator) {
+        this.assessUtilServ = assessUtilServ;
+        this.serverProperties = serverProperties;
+        this.kafkaProducer = kafkaProducer;
+        this.karmaPointsEventPublisher = karmaPointsEventPublisher;
+        this.assessmentRepository = assessmentRepository;
+        this.redisCacheMgr = redisCacheMgr;
+        this.mapper = mapper;
+        this.accessTokenValidator = accessTokenValidator;
+    }
 
     public SBApiResponse readAssessment(String assessmentIdentifier, String token) {
         logger.info("AssessmentServiceV2Impl::readAssessment... Started");
@@ -446,6 +456,8 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                     }
 
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
+                    // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
+                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null);
                 }
             }
         } catch (Exception e) {
