@@ -793,6 +793,8 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
         Map<String, Object> res = new HashMap<>();
         try {
             assessUtilServ.populateAssessmentFinalResults(assessmentLevelResult, res);
+            // NAME is a V5-only field of the shared helper; V4 responses never carried it.
+            res.remove(Constants.NAME);
         } catch (Exception e) {
             logger.error("Failed to calculate Assessment final results. Exception: ", e);
         }

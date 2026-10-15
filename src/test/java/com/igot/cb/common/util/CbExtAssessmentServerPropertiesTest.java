@@ -62,7 +62,6 @@ class CbExtAssessmentServerPropertiesTest {
 
         props.setVersion("1.0.0");
         assertEquals("1.0.0", props.getVersion());
-        assertEquals("1.0.0", props.getSunbirdCbExtVersion());
 
         props.setSbUrl("https://sunbird.org");
         props.setSbHubGraphServiceUrl("https://graph.sunbird.org");

@@ -650,7 +650,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                         buildSubmitEvent(submitRequest, result, primaryCategory));
             }
         } catch (Exception e) {
-            logger.info(e.getMessage());
+            logger.error("Failed to write data for assessment submit response. Exception: ", e);
         }
     }
 
@@ -789,6 +789,8 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
         Map<String, Object> res = new HashMap<>();
         try {
             assessUtilServ.populateAssessmentFinalResults(assessmentLevelResult, res);
+            // NAME is a V5-only field of the shared helper; V2 responses never carried it.
+            res.remove(Constants.NAME);
         } catch (Exception e) {
             logger.info(e.getMessage());
         }
@@ -858,7 +860,10 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
     }
 
     public Map<String, Object> createResponseMapWithProperStructure(Map<String, Object> hierarchySection, Map<String, Object> resultMap) {
-        return assessUtilServ.createResponseMapWithProperStructure(hierarchySection, resultMap);
+        Map<String, Object> sectionLevelResult = assessUtilServ.createResponseMapWithProperStructure(hierarchySection, resultMap);
+        // V2 never exposed the per-question children in the section result; keep that contract.
+        sectionLevelResult.remove(Constants.CHILDREN);
+        return sectionLevelResult;
     }
 
     private SBApiResponse createDefaultResponse(String api) {
