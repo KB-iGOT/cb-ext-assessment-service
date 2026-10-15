@@ -1624,4 +1624,95 @@ class AssessmentServiceV2ImplTest {
         assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"),
                 runKarmaScenario(true, 90.0, "Course Assessment", "Final Program Assessment"));
     }
+
+    // ---- writeDataToDatabaseAndTriggerKafkaEvent: null safety and competency payload ----
+
+    private void invokeWriteData(Map<String, Object> submitRequest, Map<String, Object> questionSet,
+                                 Map<String, Object> result, String primaryCategory) throws Exception {
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod("writeDataToDatabaseAndTriggerKafkaEvent",
+                Map.class, String.class, Map.class, Map.class, String.class, String.class);
+        method.setAccessible(true);
+        method.invoke(assessmentServiceV2, submitRequest, "user-1", questionSet, result, primaryCategory, null);
+    }
+
+    @Test
+    void testWriteData_NullQuestionSet_SkipsWithoutException() {
+        assertDoesNotThrow(() -> invokeWriteData(karmaSubmitRequest(), null, karmaResult(true, 90.0), "Course Assessment"));
+        verifyNoInteractions(assessmentRepository);
+        verify(producer, never()).push(anyString(), any());
+    }
+
+    @Test
+    void testWriteData_NoStartTime_SkipsWithoutException() {
+        assertDoesNotThrow(() -> invokeWriteData(karmaSubmitRequest(), new HashMap<>(), karmaResult(true, 90.0), "Course Assessment"));
+        verifyNoInteractions(assessmentRepository);
+        verify(producer, never()).push(anyString(), any());
+    }
+
+    @Test
+    void testWriteData_NullPrimaryCategory_StillPushesSubmitEvent() throws Exception {
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(serverProperties.getAssessmentSubmitTopic()).thenReturn("topic");
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+
+        invokeWriteData(karmaSubmitRequest(), questionSet, karmaResult(true, 90.0), null);
+
+        verify(producer, times(1)).push(eq("topic"), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWriteData_CompetencyAssessment_AddsFirstCompetency() throws Exception {
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(serverProperties.getAssessmentSubmitTopic()).thenReturn("topic");
+        Map<String, Object> submitRequest = karmaSubmitRequest();
+        submitRequest.put("competencies_v3", "[{\"name\": \"Java\"}, {\"name\": \"Scala\"}]");
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+
+        invokeWriteData(submitRequest, questionSet, karmaResult(true, 90.0), "Competency Assessment");
+
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(producer).push(eq("topic"), captor.capture());
+        Map<String, Object> kafkaResult = (Map<String, Object>) captor.getValue();
+        assertEquals("Java", ((Map<String, Object>) kafkaResult.get(Constants.COMPETENCY)).get("name"));
+        assertEquals("course-1", kafkaResult.get(Constants.COURSE_ID));
+        assertEquals("batch-1", kafkaResult.get(Constants.BATCH_ID));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testWriteData_CompetencyAssessmentWithEmptyList_SetsEmptyCompetency() throws Exception {
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(serverProperties.getAssessmentSubmitTopic()).thenReturn("topic");
+        Map<String, Object> submitRequest = karmaSubmitRequest();
+        submitRequest.remove(Constants.BATCH_ID);
+        submitRequest.put("competencies_v3", "[]");
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+
+        invokeWriteData(submitRequest, questionSet, karmaResult(true, 90.0), "Competency Assessment");
+
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(producer).push(eq("topic"), captor.capture());
+        Map<String, Object> kafkaResult = (Map<String, Object>) captor.getValue();
+        assertEquals("", kafkaResult.get(Constants.COMPETENCY));
+        assertEquals("", kafkaResult.get(Constants.BATCH_ID));
+    }
+
+    @Test
+    void testWriteData_DbUpdateFails_DoesNotPush() throws Exception {
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(false);
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+
+        invokeWriteData(karmaSubmitRequest(), questionSet, karmaResult(true, 90.0), "Course Assessment");
+
+        verify(producer, never()).push(anyString(), any());
+    }
 }

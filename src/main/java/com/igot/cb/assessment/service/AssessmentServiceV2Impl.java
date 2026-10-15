@@ -1,6 +1,7 @@
 package com.igot.cb.assessment.service;
 
 import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
@@ -37,6 +38,9 @@ import static java.util.stream.Collectors.toList;
 public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
     private final Logger logger = LoggerFactory.getLogger(AssessmentServiceV2Impl.class);
+    private static final ObjectMapper COMPETENCY_MAPPER = new ObjectMapper();
+    private static final String COMPETENCY_ASSESSMENT = "Competency Assessment";
+    private static final String COMPETENCIES_V3 = "competencies_v3";
 
     private final AssessmentUtilServiceV2 assessUtilServ;
 
@@ -425,44 +429,47 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
     }
 
     private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId, Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String contextCategory) {
-        try {
-            if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
-                Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
-                Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId, (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED, startTime,null);
-                if (Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
-                    Map<String, Object> kafkaResult = new HashMap<>();
-                    kafkaResult.put(Constants.CONTENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));
-                    kafkaResult.put(Constants.COURSE_ID, submitRequest.get(Constants.COURSE_ID) != null ? submitRequest.get(Constants.COURSE_ID) : "");
-                    kafkaResult.put(Constants.BATCH_ID, submitRequest.get(Constants.BATCH_ID) != null ? submitRequest.get(Constants.BATCH_ID) : "");
-                    kafkaResult.put(Constants.USER_ID, submitRequest.get(Constants.USER_ID));
-                    kafkaResult.put(Constants.ASSESSMENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));
-                    kafkaResult.put(Constants.PRIMARY_CATEGORY, primaryCategory);
-                    kafkaResult.put(Constants.TOTAL_SCORE, result.get(Constants.OVERALL_RESULT));
-                    if ((primaryCategory.equalsIgnoreCase("Competency Assessment")
-                            && submitRequest.containsKey("competencies_v3")
-                            && submitRequest.get("competencies_v3") != null)) {
-                        ObjectMapper objectMapper = new ObjectMapper(); //Updated for Json Import
-                        List<Map<String, Object>> competencyList = objectMapper.readValue(
-                                (String) submitRequest.get("competencies_v3"),
-                                new TypeReference<List<Map<String, Object>>>() {
-                                }
-                        );
-
-                        if (!competencyList.isEmpty()) {
-                            kafkaResult.put(Constants.COMPETENCY, competencyList.get(0));  // First competency map
-                        } else {
-                            kafkaResult.put(Constants.COMPETENCY, "");
-                        }
-                    }
-
-                    kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
-                    // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
-                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null, contextCategory);
-                }
-            }
-        } catch (Exception e) {
-            logger.info(e.getMessage());
+        if (questionSetFromAssessment == null || questionSetFromAssessment.get(Constants.START_TIME) == null) {
+            logger.info("Assessment start time not available, skipping assessment submit update for userId: {}", userId);
+            return;
         }
+        try {
+            Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
+            Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId, (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED, startTime, null);
+            if (!Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
+                return;
+            }
+            Map<String, Object> kafkaResult = buildAssessmentSubmitKafkaResult(submitRequest, result, primaryCategory);
+            kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
+            // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
+            karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null, contextCategory);
+        } catch (Exception e) {
+            logger.error("Failed to write data for assessment submit response. Exception: ", e);
+        }
+    }
+
+    private Map<String, Object> buildAssessmentSubmitKafkaResult(Map<String, Object> submitRequest, Map<String, Object> result,
+                                                                 String primaryCategory) throws JsonProcessingException {
+        Map<String, Object> kafkaResult = new HashMap<>();
+        kafkaResult.put(Constants.CONTENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));
+        kafkaResult.put(Constants.COURSE_ID, Optional.ofNullable(submitRequest.get(Constants.COURSE_ID)).orElse(""));
+        kafkaResult.put(Constants.BATCH_ID, Optional.ofNullable(submitRequest.get(Constants.BATCH_ID)).orElse(""));
+        kafkaResult.put(Constants.USER_ID, submitRequest.get(Constants.USER_ID));
+        kafkaResult.put(Constants.ASSESSMENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));
+        kafkaResult.put(Constants.PRIMARY_CATEGORY, primaryCategory);
+        kafkaResult.put(Constants.TOTAL_SCORE, result.get(Constants.OVERALL_RESULT));
+        Object competencies = submitRequest.get(COMPETENCIES_V3);
+        if (COMPETENCY_ASSESSMENT.equalsIgnoreCase(primaryCategory) && competencies != null) {
+            kafkaResult.put(Constants.COMPETENCY, readFirstCompetency((String) competencies));
+        }
+        return kafkaResult;
+    }
+
+    private Object readFirstCompetency(String competenciesJson) throws JsonProcessingException {
+        List<Map<String, Object>> competencyList = COMPETENCY_MAPPER.readValue(competenciesJson,
+                new TypeReference<List<Map<String, Object>>>() {
+                });
+        return competencyList.isEmpty() ? "" : competencyList.get(0);
     }
 
     private String validateSubmitAssessmentRequest(Map<String, Object> submitRequest, String authUserToken, List<Map<String, Object>> hierarchySectionList, List<Map<String, Object>> sectionListFromSubmitRequest, Map<String, Object> assessmentHierarchy) throws IOException {
