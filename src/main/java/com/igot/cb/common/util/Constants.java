@@ -899,6 +899,7 @@ public class Constants {
     public static final String COMPETENCIES_V5 = "competencies_v5";
 
     public static final String COMPETENCIES_V3 = "competencies_v3";
+    public static final String COMPETENCY_ASSESSMENT = "Competency Assessment";
 
     public static final String CONTENT_LIST = "contentList";
 

@@ -39,8 +39,6 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
     private final Logger logger = LoggerFactory.getLogger(AssessmentServiceV2Impl.class);
     private static final ObjectMapper COMPETENCY_MAPPER = new ObjectMapper();
-    private static final String COMPETENCY_ASSESSMENT = "Competency Assessment";
-    private static final String COMPETENCIES_V3 = "competencies_v3";
 
     private final AssessmentUtilServiceV2 assessUtilServ;
 
@@ -458,8 +456,8 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
         kafkaResult.put(Constants.ASSESSMENT_ID_KEY, submitRequest.get(Constants.IDENTIFIER));
         kafkaResult.put(Constants.PRIMARY_CATEGORY, primaryCategory);
         kafkaResult.put(Constants.TOTAL_SCORE, result.get(Constants.OVERALL_RESULT));
-        Object competencies = submitRequest.get(COMPETENCIES_V3);
-        if (COMPETENCY_ASSESSMENT.equalsIgnoreCase(primaryCategory) && competencies != null) {
+        Object competencies = submitRequest.get(Constants.COMPETENCIES_V3);
+        if (Constants.COMPETENCY_ASSESSMENT.equalsIgnoreCase(primaryCategory) && competencies != null) {
             kafkaResult.put(Constants.COMPETENCY, readFirstCompetency((String) competencies));
         }
         return kafkaResult;
