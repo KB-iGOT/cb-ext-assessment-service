@@ -374,7 +374,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                     switch (scoreCutOffType) {
                         case Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF: {
                             result.putAll(createResponseMapWithProperStructure(hierarchySection, assessUtilServ.validateQumlAssessment(questionsListFromAssessmentHierarchy, questionsListFromSubmitRequest,assessUtilServ.readQListfromCache(questionsListFromAssessmentHierarchy,assessmentIdFromRequest,editMode,authUserToken))));                            outgoingResponse.getResult().putAll(calculateAssessmentFinalResults(result));
-                            writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result, (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY));
+                            writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result, (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), (String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                             return outgoingResponse;
                         }
                         case Constants.SECTION_LEVEL_SCORE_CUTOFF: {
@@ -412,7 +412,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
             if (errMsg.isEmpty() && !ObjectUtils.isEmpty(scoreCutOffType) && scoreCutOffType.equalsIgnoreCase(Constants.SECTION_LEVEL_SCORE_CUTOFF)) {
                 Map<String, Object> result = calculateSectionFinalResults(sectionLevelsResults);
                 outgoingResponse.getResult().putAll(result);
-                writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result, (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY));
+                writeDataToDatabaseAndTriggerKafkaEvent(submitRequest, userId, questionSetFromAssessment, result, (String) assessmentHierarchy.get(Constants.PRIMARY_CATEGORY), (String) assessmentHierarchy.get(Constants.CONTEXT_CATEGORY_TAG));
                 return outgoingResponse;
             }
         }
@@ -424,7 +424,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
         return outgoingResponse;
     }
 
-    private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId, Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory) {
+    private void writeDataToDatabaseAndTriggerKafkaEvent(Map<String, Object> submitRequest, String userId, Map<String, Object> questionSetFromAssessment, Map<String, Object> result, String primaryCategory, String contextCategory) {
         try {
             if (questionSetFromAssessment.get(Constants.START_TIME) != null) {
                 Instant startTime = assessUtilServ.parseStartTimeToInstant(questionSetFromAssessment.get(Constants.START_TIME));
@@ -457,7 +457,7 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
                     // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
-                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null);
+                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null, contextCategory);
                 }
             }
         } catch (Exception e) {

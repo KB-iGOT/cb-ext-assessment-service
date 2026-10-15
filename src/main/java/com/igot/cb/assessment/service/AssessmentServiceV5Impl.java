@@ -905,7 +905,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     }
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
 
-                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory);
+                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory, contextCategory);
                 }
             }
         } catch (Exception e) {

@@ -970,7 +970,7 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
                     }
                     kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(), kafkaResult);
                     // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
-                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory);
+                    karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory, contextCategory);
                 }
             }
         } catch (Exception e) {

@@ -16,7 +16,9 @@ import java.util.Map;
 /**
  * Publishes the karma points assessment events to the unified topic.
  *
- * For a saved, passed final (course) assessment:
+ * For a saved, passed final (course) assessment that has no contextCategory, or whose contextCategory
+ * is listed in karma.points.assessment.allowed.context.categories (empty by default, so assessments
+ * with a contextCategory such as Final Program Assessment don't publish until it is enabled there):
  * - ASSESSMENT_PASSED is published on every passed attempt (KPI 2.3);
  * - ASSESSMENT_HIGH_SCORE is published as well when the score is at or above the configured
  *   threshold (default 75, inclusive)
@@ -46,6 +48,9 @@ public class KarmaPointsEventPublisher {
     @Value("${karma.points.assessment.excluded.course.categories:Program,Curated Program,Blended Program}")
     private String excludedCourseCategories;
 
+    @Value("${karma.points.assessment.allowed.context.categories:}")
+    private String allowedContextCategories;
+
     @Value("${karma.points.assessment.high.score.threshold:75}")
     private double highScoreThreshold;
 
@@ -56,14 +61,22 @@ public class KarmaPointsEventPublisher {
         this.producer = producer;
     }
 
+    /** Same as the 5-argument variant, for callers that don't know the assessment's contextCategory. */
+    public void publishAssessmentKarmaEventsIfEligible(Map<String, Object> submitRequest, Map<String, Object> result,
+                                                       String primaryCategory, String courseCategory) {
+        publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, courseCategory, null);
+    }
+
     /**
      * @param submitRequest   the submit request (userId, courseId, batchId, identifier)
      * @param result          the computed result (pass, overallResult)
      * @param primaryCategory the assessment's primary category
      * @param courseCategory  the parent course category, or null when the caller doesn't know it
+     * @param contextCategory the assessment's contextCategory (e.g. Final Program Assessment), or null
      */
     public void publishAssessmentKarmaEventsIfEligible(Map<String, Object> submitRequest, Map<String, Object> result,
-                                                       String primaryCategory, String courseCategory) {
+                                                       String primaryCategory, String courseCategory,
+                                                       String contextCategory) {
         try {
             if (!assessmentEventEnabled || submitRequest == null || result == null) {
                 return;
@@ -75,6 +88,7 @@ public class KarmaPointsEventPublisher {
             Double score = asDouble(result.get(Constants.OVERALL_RESULT));
             String logCtx = "userId=" + userId + ", courseId=" + courseId + ", assessmentId=" + assessmentId
                     + ", primaryCategory=" + primaryCategory + ", courseCategory=" + courseCategory
+                    + ", contextCategory=" + contextCategory
                     + ", pass=" + passed + ", score=" + score;
 
             if (!passed) {
@@ -83,6 +97,10 @@ public class KarmaPointsEventPublisher {
             }
             if (!matches(eligiblePrimaryCategories, primaryCategory)) {
                 logger.info("[KARMA_POINTS][ASSESSMENT][skipped] Not a final course assessment: {}", logCtx);
+                return;
+            }
+            if (StringUtils.isNotBlank(contextCategory) && !matches(allowedContextCategories, contextCategory)) {
+                logger.info("[KARMA_POINTS][ASSESSMENT][skipped] contextCategory is not allowed: {}", logCtx);
                 return;
             }
             if (StringUtils.isNotBlank(courseCategory) && matches(excludedCourseCategories, courseCategory)) {

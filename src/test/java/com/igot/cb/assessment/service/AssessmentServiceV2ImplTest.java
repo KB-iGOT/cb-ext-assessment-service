@@ -395,10 +395,10 @@ class AssessmentServiceV2ImplTest {
         // Call private method via reflection
         Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
                 "writeDataToDatabaseAndTriggerKafkaEvent",
-                Map.class, String.class, Map.class, Map.class, String.class
+                Map.class, String.class, Map.class, Map.class, String.class, String.class
         );
         method.setAccessible(true);
-        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment");
+        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment", null);
 
         // Verify interactions
         verify(mockRepo, times(1)).updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any());
@@ -827,10 +827,10 @@ class AssessmentServiceV2ImplTest {
         // Call private method via reflection
         Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
                 "writeDataToDatabaseAndTriggerKafkaEvent",
-                Map.class, String.class, Map.class, Map.class, String.class
+                Map.class, String.class, Map.class, Map.class, String.class, String.class
         );
         method.setAccessible(true);
-        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment");
+        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment", null);
 
         // Verify interactions
         verify(mockRepo, times(1)).updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any());
@@ -1057,9 +1057,9 @@ class AssessmentServiceV2ImplTest {
         when(mockRepo.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(false);
 
         Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
-                "writeDataToDatabaseAndTriggerKafkaEvent", Map.class, String.class, Map.class, Map.class, String.class);
+                "writeDataToDatabaseAndTriggerKafkaEvent", Map.class, String.class, Map.class, Map.class, String.class, String.class);
         method.setAccessible(true);
-        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment");
+        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment", null);
 
         verify(mockProducer, never()).push(anyString(), any());
     }
@@ -1094,9 +1094,9 @@ class AssessmentServiceV2ImplTest {
         result.put(Constants.OVERALL_RESULT, 80.0);
 
         Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
-                "writeDataToDatabaseAndTriggerKafkaEvent", Map.class, String.class, Map.class, Map.class, String.class);
+                "writeDataToDatabaseAndTriggerKafkaEvent", Map.class, String.class, Map.class, Map.class, String.class, String.class);
         method.setAccessible(true);
-        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment");
+        method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment", null);
 
         verify(mockRepo, never()).updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any());
         verify(mockProducer, never()).push(anyString(), any());
@@ -1137,9 +1137,9 @@ class AssessmentServiceV2ImplTest {
                 .thenThrow(new RuntimeException("DB error"));
 
         Method method = AssessmentServiceV2Impl.class.getDeclaredMethod(
-                "writeDataToDatabaseAndTriggerKafkaEvent", Map.class, String.class, Map.class, Map.class, String.class);
+                "writeDataToDatabaseAndTriggerKafkaEvent", Map.class, String.class, Map.class, Map.class, String.class, String.class);
         method.setAccessible(true);
-        assertDoesNotThrow(() -> method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment"));
+        assertDoesNotThrow(() -> method.invoke(service, submitRequest, "user1", questionSetFromAssessment, result, "Assessment", null));
         verify(mockProducer, never()).push(anyString(), any());
     }
 
@@ -1509,6 +1509,8 @@ class AssessmentServiceV2ImplTest {
     // KPIs 2.3 / 2.5: karma points assessment events (ASSESSMENT_PASSED, ASSESSMENT_HIGH_SCORE)
     // ---------------------------------------------------------------------------------------------
 
+    private String allowContextCategories = "";
+
     private Producer attachKarmaPointsPublisher(Object target) {
         Producer karmaProducer = mock(Producer.class);
         KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
@@ -1516,6 +1518,7 @@ class AssessmentServiceV2ImplTest {
         ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
         ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Program,Curated Program,Blended Program");
+        ReflectionTestUtils.setField(publisher, "allowedContextCategories", allowContextCategories);
         ReflectionTestUtils.setField(publisher, "highScoreThreshold", 75d);
         ReflectionTestUtils.setField(publisher, "eventVersion", 1);
         ReflectionTestUtils.setField(target, "karmaPointsEventPublisher", publisher);
@@ -1556,6 +1559,10 @@ class AssessmentServiceV2ImplTest {
     }
 
     private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory) throws Exception {
+        return runKarmaScenario(pass, score, primaryCategory, null);
+    }
+
+    private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory, String contextCategory) throws Exception {
         Producer karmaProducer = attachKarmaPointsPublisher(assessmentServiceV2);
         when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
         when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
@@ -1563,9 +1570,9 @@ class AssessmentServiceV2ImplTest {
         Map<String, Object> questionSet = new HashMap<>();
         questionSet.put(Constants.START_TIME, Instant.now());
         Method method = AssessmentServiceV2Impl.class.getDeclaredMethod("writeDataToDatabaseAndTriggerKafkaEvent",
-                Map.class, String.class, Map.class, Map.class, String.class);
+                Map.class, String.class, Map.class, Map.class, String.class, String.class);
         method.setAccessible(true);
-        method.invoke(assessmentServiceV2, karmaSubmitRequest(), "user-1", questionSet, karmaResult(pass, score), primaryCategory);
+        method.invoke(assessmentServiceV2, karmaSubmitRequest(), "user-1", questionSet, karmaResult(pass, score), primaryCategory, contextCategory);
         // the existing assessment submit event is still pushed
         verify(producer, atLeastOnce()).push(eq("topic"), any());
         return publishedKarmaEventTypes(karmaProducer, "user-1");
@@ -1599,5 +1606,22 @@ class AssessmentServiceV2ImplTest {
     void testKarmaEvents_NotCourseAssessment_PublishesNothing() throws Exception {
         List<String> types = runKarmaScenario(true, 90.0, "Practice Question Set");
         assertTrue(types.isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_ContextCategoryNotAllowed_PublishesNothing() throws Exception {
+        assertTrue(runKarmaScenario(true, 90.0, "Course Assessment", "Final Program Assessment").isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_UnLockedContextCategoryNotAllowed_PublishesNothing() throws Exception {
+        assertTrue(runKarmaScenario(true, 90.0, "Course Assessment", "Final Program Assessment UnLocked").isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_AllowedContextCategory_PublishesEvents() throws Exception {
+        allowContextCategories = "Final Program Assessment";
+        assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"),
+                runKarmaScenario(true, 90.0, "Course Assessment", "Final Program Assessment"));
     }
 }

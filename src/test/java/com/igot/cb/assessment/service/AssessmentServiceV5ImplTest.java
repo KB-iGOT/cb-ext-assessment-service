@@ -2476,6 +2476,8 @@ class AssessmentServiceV5ImplTest {
     // KPIs 2.3 / 2.5: karma points assessment events (ASSESSMENT_PASSED, ASSESSMENT_HIGH_SCORE)
     // ---------------------------------------------------------------------------------------------
 
+    private String allowContextCategories = "";
+
     private Producer attachKarmaPointsPublisher(Object target) {
         Producer karmaProducer = mock(Producer.class);
         KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
@@ -2483,6 +2485,7 @@ class AssessmentServiceV5ImplTest {
         ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
         ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Program,Curated Program,Blended Program");
+        ReflectionTestUtils.setField(publisher, "allowedContextCategories", allowContextCategories);
         ReflectionTestUtils.setField(publisher, "highScoreThreshold", 75d);
         ReflectionTestUtils.setField(publisher, "eventVersion", 1);
         ReflectionTestUtils.setField(target, "karmaPointsEventPublisher", publisher);
@@ -2523,6 +2526,11 @@ class AssessmentServiceV5ImplTest {
     }
 
     private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory, String courseCategory) throws Exception {
+        return runKarmaScenario(pass, score, primaryCategory, courseCategory, "");
+    }
+
+    private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory, String courseCategory,
+                                          String contextCategory) throws Exception {
         Producer karmaProducer = attachKarmaPointsPublisher(service);
         when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
         when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
@@ -2534,7 +2542,7 @@ class AssessmentServiceV5ImplTest {
                 Map.class, String.class, Map.class, Map.class, String.class, String.class, String.class, String.class);
         method.setAccessible(true);
         method.invoke(service, karmaSubmitRequest(), "user-1", questionSet, karmaResult(pass, score),
-                primaryCategory, courseCategory, "token", "");
+                primaryCategory, courseCategory, "token", contextCategory);
         return publishedKarmaEventTypes(karmaProducer, "user-1");
     }
 
@@ -2593,5 +2601,22 @@ class AssessmentServiceV5ImplTest {
 
         verify(producer, times(1)).push(eq("topic"), any());
         verify(karmaProducer, times(2)).pushWithKey(eq("karma-topic"), any(), eq("user-1"));
+    }
+
+    @Test
+    void testKarmaEvents_ContextCategoryNotAllowed_PublishesNothing() throws Exception {
+        assertTrue(runKarmaScenario(true, 90.0, "Course Assessment", "Course", "Final Program Assessment").isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_UnLockedContextCategoryNotAllowed_PublishesNothing() throws Exception {
+        assertTrue(runKarmaScenario(true, 90.0, "Course Assessment", "Course", "final program assessment unlocked").isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_AllowedContextCategory_PublishesEvents() throws Exception {
+        allowContextCategories = "Final Program Assessment";
+        assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"),
+                runKarmaScenario(true, 90.0, "Course Assessment", "Course", "Final Program Assessment"));
     }
 }

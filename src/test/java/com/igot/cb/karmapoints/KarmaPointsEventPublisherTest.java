@@ -41,6 +41,7 @@ class KarmaPointsEventPublisherTest {
         ReflectionTestUtils.setField(publisher, "eventVersion", 1);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
         ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Program,Curated Program,Blended Program");
+        ReflectionTestUtils.setField(publisher, "allowedContextCategories", "");
     }
 
     @Test
@@ -470,6 +471,56 @@ class KarmaPointsEventPublisherTest {
     }
 
     // Helper methods
+    @ParameterizedTest
+    @MethodSource("contextCategoriesNotAllowedByDefault")
+    @DisplayName("Should not publish when contextCategory is set and the allowed list is empty")
+    void testNoEventsForContextCategoryWhenAllowedListEmpty(String contextCategory) {
+        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
+        Map<String, Object> result = createPassedResult(90.0);
+
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Regular Course", contextCategory);
+
+        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
+    }
+
+    static Stream<Arguments> contextCategoriesNotAllowedByDefault() {
+        return Stream.of(
+                Arguments.of("Final Program Assessment"),
+                Arguments.of("Final Program Assessment UnLocked"),
+                Arguments.of("Final Milestone Assessment"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("blankContextCategories")
+    @DisplayName("Should publish both events when the assessment has no contextCategory")
+    void testEventsForBlankContextCategory(String contextCategory) {
+        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
+        Map<String, Object> result = createPassedResult(90.0);
+
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Regular Course", contextCategory);
+
+        verify(producer, times(2)).pushWithKey(anyString(), any(), eq("user123"));
+    }
+
+    static Stream<Arguments> blankContextCategories() {
+        return Stream.of(Arguments.of((String) null), Arguments.of(""), Arguments.of("   "));
+    }
+
+    @Test
+    @DisplayName("Should publish for contextCategories added to the allowed list (case-insensitive)")
+    void testConfiguredAllowedContextCategories() {
+        ReflectionTestUtils.setField(publisher, "allowedContextCategories", "Final Program Assessment,Final Program Assessment UnLocked");
+        Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
+        Map<String, Object> result = createPassedResult(90.0);
+
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Regular Course", "final program assessment unlocked");
+        verify(producer, times(2)).pushWithKey(anyString(), any(), eq("user123"));
+
+        clearInvocations(producer);
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Regular Course", "Final Milestone Assessment");
+        verify(producer, never()).pushWithKey(anyString(), any(), anyString());
+    }
+
     private Map<String, Object> createValidSubmitRequest(String userId, String courseId, String batchId, String assessmentId) {
         Map<String, Object> submitRequest = new HashMap<>();
         submitRequest.put(Constants.USER_ID, userId);
