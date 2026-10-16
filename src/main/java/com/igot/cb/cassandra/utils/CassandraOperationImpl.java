@@ -169,6 +169,8 @@ public class CassandraOperationImpl implements CassandraOperation {
 			session.execute(statement);
 			response.put(Constants.RESPONSE, Constants.SUCCESS);
 		} catch (Exception e) {
+			// Not logged here: the only caller chain (writeDataToDatabaseAndTriggerKafkaEvent)
+			// already logs this exception, so logging it here too would be a double-log (S2139).
 			String errMsg = String.format("Exception occurred while updating record to %s: %s", tableName, e.getMessage());
 			throw new ApplicationLogicError(errMsg, e);
 		}

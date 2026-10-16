@@ -59,8 +59,8 @@ public class KeyManager {
 
   public static PublicKey loadPublicKey(String key) throws NoSuchAlgorithmException, InvalidKeySpecException {
     String publicKey = new String(key.getBytes(), StandardCharsets.UTF_8);
-    publicKey = publicKey.replace("-----BEGIN PUBLIC KEY-----", "");
-    publicKey = publicKey.replace("-----END PUBLIC KEY-----", "");
+    publicKey = publicKey.replaceAll("-+BEGIN PUBLIC KEY-+", "");
+    publicKey = publicKey.replaceAll("-+END PUBLIC KEY-+", "");
     publicKey = publicKey.replace("\r", "").replace("\n", "");
     byte[] keyBytes = Base64Util.decode(publicKey.getBytes(StandardCharsets.UTF_8), Base64Util.DEFAULT);
 

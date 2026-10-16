@@ -460,7 +460,6 @@ class RedisCacheMgrTest {
     void testGetSetFromCacheAsCommaSeparated_Exception() {
         when(jedis.smembers("key")).thenThrow(new RuntimeException("fail"));
         Set<String> result = redisCacheMgr.getSetFromCacheAsCommaSeparated("key");
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
+        assertNull(result);
     }
 }

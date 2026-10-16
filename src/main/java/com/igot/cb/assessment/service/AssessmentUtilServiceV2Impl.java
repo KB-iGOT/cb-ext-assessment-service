@@ -1183,6 +1183,9 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 		}
 		Set<String> courseIds = contentService.readChildCoursesFromCache(parentContextId);
 		logger.info("{} children courseIds: {}", Constants.PREFIX_VALIDATE_CONTEXT_LOCKING, courseIds);
+		if (courseIds == null) {
+			return failContextLocking(response, Constants.CONTENT_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 		if (!isAllCourseCompleted(userId, new ArrayList<>(courseIds))) {
 			return failContextLocking(response, Constants.USER_COURSES_NOT_COMPLETED, HttpStatus.BAD_REQUEST);
 		}

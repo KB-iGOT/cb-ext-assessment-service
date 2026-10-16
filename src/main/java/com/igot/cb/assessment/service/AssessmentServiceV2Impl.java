@@ -616,8 +616,10 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
                 .get(Constants.CHILDREN);
         for (Map<String, Object> section : sections) {
             if (userSectionId.equalsIgnoreCase((String) section.get(Constants.IDENTIFIER))) {
-                List<String> childNodes = (List<String>) section.get(Constants.CHILD_NODES);
-                return childNodes != null ? childNodes : fallback;
+                // Return the matched section's own child nodes, even when null - never a sibling
+                // section's ids, so a missing CHILD_NODES fails fast downstream instead of scoring
+                // against the wrong question set.
+                return (List<String>) section.get(Constants.CHILD_NODES);
             }
         }
         return fallback;

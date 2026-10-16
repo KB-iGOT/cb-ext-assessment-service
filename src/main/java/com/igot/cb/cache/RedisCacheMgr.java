@@ -167,13 +167,16 @@ public class RedisCacheMgr {
         return result;
     }
     
+    // Returns null on Redis failure (unlike the class's other getters) so callers can tell an
+    // outage apart from a genuinely empty result - matching the mget() contract above.
+    @SuppressWarnings("java:S1168")
     public List<String> hget(String key, int index, String... fields) {
         try (Jedis jedis = jedisDataPopulationPool.getResource()) {
             jedis.select(index);
             return jedis.hmget(key, fields);
         } catch (Exception e) {
             logger.error("Error while getting index list from Redis cache: ", e);
-            return Collections.emptyList();
+            return null;
         }
     }
 
@@ -252,13 +255,16 @@ public class RedisCacheMgr {
         }
     }
 
+    // Returns null on Redis failure (unlike the class's other getters) so callers can tell an
+    // outage apart from a genuinely empty result - matching the mget() contract above.
+    @SuppressWarnings("java:S1168")
     public Set<String> getSetFromCacheAsCommaSeparated(String key) {
         try (Jedis jedis = jedisPool.getResource()) {
             jedis.select(10);
             return jedis.smembers(key);
         } catch (Exception e) {
             logger.error("Failed to fetch Set from Redis cache: ", e);
-            return Collections.emptySet();
+            return null;
         }
     }
 }

@@ -1989,14 +1989,15 @@ class AssessmentServiceV2ImplTest {
         when(serverProperties.getAssessmentSubmitTopic()).thenReturn("submit-topic");
         when(assessmentRepository.fetchUserAssessmentDataFromDB(USER_ID, SUBMIT_ID))
                 .thenReturn(List.of(dbRecord(Constants.NOT_SUBMITTED, new Date(), storedQuestionSet())));
-        // cached copy: s2 carries no child nodes, so it falls back to the previous section's ids
+        // cached copy: each section carries its own child nodes
         Map<String, Object> cachedSet = mapOf(Constants.START_TIME, 1700000000000L, Constants.CHILDREN, List.of(
                 mapOf(Constants.IDENTIFIER, "s1", Constants.CHILD_NODES, List.of("q1")),
-                mapOf(Constants.IDENTIFIER, "s2")));
+                mapOf(Constants.IDENTIFIER, "s2", Constants.CHILD_NODES, List.of("q2"))));
         when(redisCacheMgr.getCache(Constants.USER_ASSESS_REQ + SUBMIT_ID + "_" + TOKEN)).thenReturn(json(cachedSet));
-        when(assessUtilServ.validateQumlAssessment(any(), any(), any())).thenReturn(
+        when(assessUtilServ.validateQumlAssessment(eq(List.of("q1")), any(), any())).thenReturn(
                 mapOf(Constants.RESULT, 100.0, Constants.TOTAL, 1, Constants.BLANK, 0, Constants.CORRECT, 1,
-                        Constants.INCORRECT, 0),
+                        Constants.INCORRECT, 0));
+        when(assessUtilServ.validateQumlAssessment(eq(List.of("q2")), any(), any())).thenReturn(
                 mapOf(Constants.RESULT, 0.0, Constants.TOTAL, 1, Constants.BLANK, 1, Constants.CORRECT, 0,
                         Constants.INCORRECT, 0));
         when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
@@ -2013,7 +2014,8 @@ class AssessmentServiceV2ImplTest {
         assertEquals(Boolean.FALSE, response.getResult().get(Constants.PASS));
         assertEquals(2, response.getResult().get(Constants.TOTAL));
         assertEquals(1, response.getResult().get(Constants.BLANK));
-        verify(assessUtilServ, times(2)).validateQumlAssessment(eq(List.of("q1")), any(), any());
+        verify(assessUtilServ).validateQumlAssessment(eq(List.of("q1")), any(), any());
+        verify(assessUtilServ).validateQumlAssessment(eq(List.of("q2")), any(), any());
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(producer).push(eq("submit-topic"), eventCaptor.capture());
         Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
