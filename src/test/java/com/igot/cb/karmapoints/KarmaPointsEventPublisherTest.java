@@ -40,7 +40,7 @@ class KarmaPointsEventPublisherTest {
         ReflectionTestUtils.setField(publisher, "highScoreThreshold", 75.0);
         ReflectionTestUtils.setField(publisher, "eventVersion", 1);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
-        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Program,Curated Program,Blended Program");
+        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Curated Program,Blended Program,Comprehensive Assessment Program,Moderated Assessment,Standalone Assessment,Invite-Only Program,Moderated Course");
     }
 
     @Test
@@ -418,12 +418,12 @@ class KarmaPointsEventPublisherTest {
     @Test
     @DisplayName("Should handle whitespace in comma-separated categories")
     void testHandleWhitespaceInCategories() {
-        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", " Program , Curated Program , Blended Program ");
+        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", " Curated Program , Blended Program , Comprehensive Assessment Program , Moderated Assessment , Standalone Assessment , Invite-Only Program , Moderated Course ");
 
         Map<String, Object> submitRequest = createValidSubmitRequest("user123", "course456", "batch789", "assessment001");
         Map<String, Object> result = createPassedResult(85.0);
 
-        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Program");
+        publisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, "Course Assessment", "Moderated Course");
 
         verify(producer, never()).pushWithKey(anyString(), any(), anyString());
     }
@@ -453,9 +453,14 @@ class KarmaPointsEventPublisherTest {
     private static Stream<Arguments> ineligibleCategoryScenarios() {
         return Stream.of(
                 Arguments.of("Self Assessment", "Regular Course"),   // primaryCategory not eligible
-                Arguments.of("Course Assessment", "Program"),        // courseCategory excluded
-                Arguments.of("Course Assessment", "Curated Program"),// courseCategory excluded
-                Arguments.of("Course Assessment", "Blended Program"),// courseCategory excluded
+                Arguments.of("Course Assessment", "Curated Program"),                  // courseCategory excluded
+                Arguments.of("Course Assessment", "Blended Program"),                  // courseCategory excluded
+                Arguments.of("Course Assessment", "Comprehensive Assessment Program"), // courseCategory excluded
+                Arguments.of("Course Assessment", "Moderated Assessment"),             // courseCategory excluded
+                Arguments.of("Course Assessment", "Standalone Assessment"),            // courseCategory excluded
+                Arguments.of("Course Assessment", "Invite-Only Program"),              // courseCategory excluded
+                Arguments.of("Course Assessment", "Moderated Course"),                 // courseCategory excluded
+                Arguments.of("Course Assessment", "invite-only program"),              // excluded match is case-insensitive
                 Arguments.of("   ", "Regular Course"),                // primaryCategory blank
                 Arguments.of(null, "Regular Course")                  // primaryCategory null
         );
@@ -465,7 +470,8 @@ class KarmaPointsEventPublisherTest {
         return Stream.of(
                 Arguments.of("Course Assessment", null),              // courseCategory null -> excluded check skipped
                 Arguments.of("Course Assessment", "   "),              // courseCategory blank -> excluded check skipped
-                Arguments.of("course assessment", "Regular Course")    // primaryCategory match is case-insensitive
+                Arguments.of("course assessment", "Regular Course"),   // primaryCategory match is case-insensitive
+                Arguments.of("Course Assessment", "Program")           // "Program" is no longer excluded
         );
     }
 
