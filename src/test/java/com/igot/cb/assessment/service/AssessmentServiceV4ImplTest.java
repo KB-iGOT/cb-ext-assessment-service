@@ -1090,7 +1090,7 @@ class AssessmentServiceV4ImplTest {
         ReflectionTestUtils.setField(publisher, "karmaPointsUnifiedEventTopic", "karma-topic");
         ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
         ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
-        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Program,Curated Program,Blended Program");
+        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Curated Program,Blended Program,Comprehensive Assessment Program,Moderated Assessment,Standalone Assessment,Invite-Only Program,Moderated Course");
         ReflectionTestUtils.setField(publisher, "highScoreThreshold", 75d);
         ReflectionTestUtils.setField(publisher, "eventVersion", 1);
         ReflectionTestUtils.setField(target, "karmaPointsEventPublisher", publisher);
