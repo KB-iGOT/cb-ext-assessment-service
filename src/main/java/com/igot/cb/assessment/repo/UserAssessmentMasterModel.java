@@ -1,5 +1,11 @@
 package com.igot.cb.assessment.repo;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
@@ -7,6 +13,11 @@ import org.springframework.data.cassandra.core.mapping.Table;
 import java.math.BigDecimal;
 import java.util.Date;
 
+@Getter
+@Setter
+@Builder(builderClassName = "Builder")
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Table("user_assessment_master")
 public class UserAssessmentMasterModel {
 
@@ -31,106 +42,6 @@ public class UserAssessmentMasterModel {
 	private String sourceTitle;
 	@Column("user_id")
 	private String userId;
-
-	public UserAssessmentMasterPrimaryKeyModel getPrimaryKey() {
-		return primaryKey;
-	}
-
-	public void setPrimaryKey(UserAssessmentMasterPrimaryKeyModel primaryKey) {
-		this.primaryKey = primaryKey;
-	}
-
-	public Integer getCorrectCount() {
-		return correctCount;
-	}
-
-	public void setCorrectCount(Integer correctCount) {
-		this.correctCount = correctCount;
-	}
-
-	public Date getDateCreated() {
-		return dateCreated;
-	}
-
-	public void setDateCreated(Date dateCreated) {
-		this.dateCreated = dateCreated;
-	}
-
-	public Integer getIncorrectCount() {
-		return incorrectCount;
-	}
-
-	public void setIncorrectCount(Integer incorrectCount) {
-		this.incorrectCount = incorrectCount;
-	}
-
-	public Integer getNotAnsweredCount() {
-		return notAnsweredCount;
-	}
-
-	public void setNotAnsweredCount(Integer notAnsweredCount) {
-		this.notAnsweredCount = notAnsweredCount;
-	}
-
-	public String getParentContentType() {
-		return parentContentType;
-	}
-
-	public void setParentContentType(String parentContentType) {
-		this.parentContentType = parentContentType;
-	}
-
-	public BigDecimal getPassPercent() {
-		return passPercent;
-	}
-
-	public void setPassPercent(BigDecimal passPercent) {
-		this.passPercent = passPercent;
-	}
-
-	public String getSourceId() {
-		return sourceId;
-	}
-
-	public void setSourceId(String sourceId) {
-		this.sourceId = sourceId;
-	}
-
-	public String getSourceTitle() {
-		return sourceTitle;
-	}
-
-	public void setSourceTitle(String sourceTitle) {
-		this.sourceTitle = sourceTitle;
-	}
-
-	public String getUserId() {
-		return userId;
-	}
-
-	public void setUser_id(String userId) {
-		this.userId = userId;
-	}
-
-	public UserAssessmentMasterModel(UserAssessmentMasterPrimaryKeyModel primaryKey, Integer correctCount,
-                                     Date dateCreated, Integer incorrectCount, Integer notAnsweredCount, String parentContentType,
-                                     BigDecimal passPercent, String sourceId, String sourceTitle, String userId) {
-		super();
-		this.primaryKey = primaryKey;
-		this.correctCount = correctCount;
-		this.dateCreated = dateCreated;
-		this.incorrectCount = incorrectCount;
-		this.notAnsweredCount = notAnsweredCount;
-		this.parentContentType = parentContentType;
-		this.passPercent = passPercent;
-		this.sourceId = sourceId;
-		this.sourceTitle = sourceTitle;
-		this.userId = userId;
-	}
-
-	public UserAssessmentMasterModel() {
-		super();
-	}
 
 	@Override
 	public String toString() {

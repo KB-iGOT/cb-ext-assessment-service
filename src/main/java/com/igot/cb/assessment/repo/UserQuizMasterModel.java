@@ -1,5 +1,11 @@
 package com.igot.cb.assessment.repo;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
@@ -7,6 +13,11 @@ import org.springframework.data.cassandra.core.mapping.Table;
 import java.math.BigDecimal;
 import java.util.Date;
 
+@Getter
+@Setter
+@Builder(builderClassName = "Builder")
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Table("user_quiz_master")
 public class UserQuizMasterModel {
 
@@ -29,97 +40,6 @@ public class UserQuizMasterModel {
 	private String sourceTitle;
 	@Column("user_id")
 	private String userId;
-
-	public UserQuizMasterPrimaryKeyModel getPrimaryKey() {
-		return primaryKey;
-	}
-
-	public void setPrimaryKey(UserQuizMasterPrimaryKeyModel primaryKey) {
-		this.primaryKey = primaryKey;
-	}
-
-	public Integer getCorrectCount() {
-		return correctCount;
-	}
-
-	public void setCorrectCount(Integer correctCount) {
-		this.correctCount = correctCount;
-	}
-
-	public Date getDateCreated() {
-		return dateCreated;
-	}
-
-	public void setDateCreated(Date dateCreated) {
-		this.dateCreated = dateCreated;
-	}
-
-	public Integer getIncorrectCount() {
-		return incorrectCount;
-	}
-
-	public void setIncorrectCount(Integer incorrectCount) {
-		this.incorrectCount = incorrectCount;
-	}
-
-	public Integer getNotAnsweredCount() {
-		return notAnsweredCount;
-	}
-
-	public void setNotAnsweredCount(Integer notAnsweredCount) {
-		this.notAnsweredCount = notAnsweredCount;
-	}
-
-	public BigDecimal getPassPercent() {
-		return passPercent;
-	}
-
-	public void setPassPercent(BigDecimal passPercent) {
-		this.passPercent = passPercent;
-	}
-
-	public String getSourceId() {
-		return sourceId;
-	}
-
-	public void setSourceId(String sourceId) {
-		this.sourceId = sourceId;
-	}
-
-	public String getSourceTitle() {
-		return sourceTitle;
-	}
-
-	public void setSourceTitle(String sourceTitle) {
-		this.sourceTitle = sourceTitle;
-	}
-
-	public String getUserId() {
-		return userId;
-	}
-
-	public void setUserId(String userId) {
-		this.userId = userId;
-	}
-
-	public UserQuizMasterModel(UserQuizMasterPrimaryKeyModel primaryKey, Integer correctCount, Date dateCreated,
-                               Integer incorrectCount, Integer notAnsweredCount, BigDecimal passPercent, String sourceId,
-                               String sourceTitle, String userId) {
-		super();
-		this.primaryKey = primaryKey;
-		this.correctCount = correctCount;
-		this.dateCreated = dateCreated;
-		this.incorrectCount = incorrectCount;
-		this.notAnsweredCount = notAnsweredCount;
-		this.passPercent = passPercent;
-		this.sourceId = sourceId;
-		this.sourceTitle = sourceTitle;
-		this.userId = userId;
-	}
-
-	public UserQuizMasterModel() {
-		super();
-	}
 
 	@Override
 	public String toString() {
