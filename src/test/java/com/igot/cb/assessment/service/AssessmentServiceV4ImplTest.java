@@ -109,7 +109,7 @@ class AssessmentServiceV4ImplTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        lenient().doAnswer(inv -> { realUtil.updateContentProgressForContext(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)); return null; }).when(assessUtilServ).updateContentProgressForContext(any(), any(), any(), any());
+        lenient().doAnswer(inv -> { realUtil.updateContentProgressForContext(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3), inv.getArgument(4)); return null; }).when(assessUtilServ).updateContentProgressForContext(any(), any(), any(), any(), any());
         lenient().when(assessUtilServ.calculateRetakeAttemptsConsumed(any(), any(), any(), anyInt(), any(), any(), any()))
                 .thenAnswer(inv -> realUtil.calculateRetakeAttemptsConsumed(inv.getArgument(0), inv.getArgument(1),
                         inv.getArgument(2), inv.getArgument(3), inv.getArgument(4), inv.getArgument(5), inv.getArgument(6)));
@@ -1653,7 +1653,9 @@ class AssessmentServiceV4ImplTest {
     }
 
     @Test
-    void submitAsyncMandatoryContextCategoryFailedSkipsPublish() throws Exception {
+    void submitAsyncMandatoryContextCategoryFailedStillUpdatesContentProgressAndPublishes() throws Exception {
+        // Content progress (and the Kafka event) is recorded on every attempt, pass or fail - a
+        // failed mandatory-pass attempt no longer short-circuits before either happens.
         Map<String, Object> hierarchy = submitHierarchy("Course Assessment",
                 Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF, "Final Milestone Assessment",
                 new ArrayList<>(List.of(hierarchySection("s1"))));
@@ -1664,8 +1666,8 @@ class AssessmentServiceV4ImplTest {
 
         verify(assessmentRepository).updateUserAssesmentDataToDB(eq(USER_ID), eq(ASSESSMENT_ID), any(), any(),
                 eq(Constants.SUBMITTED), any(), isNull());
-        verifyNoInteractions(kafkaProducer);
-        verify(contentService, never()).updateContentProgress(any(), any(), any(), any());
+        verify(contentService).updateContentProgress(any(), any(), any(), any());
+        verify(kafkaProducer).push(eq(TOPIC), any());
     }
 
     @Test
@@ -1682,7 +1684,7 @@ class AssessmentServiceV4ImplTest {
     }
 
     @Test
-    void submitAsyncMandatoryCourseCategoryFailedSkipsPublish() throws Exception {
+    void submitAsyncMandatoryCourseCategoryFailedStillPublishes() throws Exception {
         Map<String, Object> hierarchy = submitHierarchy("Course Assessment",
                 Constants.ASSESSMENT_LEVEL_SCORE_CUTOFF, "Some Context",
                 new ArrayList<>(List.of(hierarchySection("s1"))));
@@ -1692,7 +1694,7 @@ class AssessmentServiceV4ImplTest {
         service.submitAssessmentAsync(submitRequest(new ArrayList<>(List.of(submitSection("s1", "q1")))), TOKEN,
                 false);
 
-        verifyNoInteractions(kafkaProducer);
+        verify(kafkaProducer).push(eq(TOPIC), any());
     }
 
     @Test
