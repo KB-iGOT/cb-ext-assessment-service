@@ -1395,6 +1395,13 @@ public class Constants {
     public static final String METHOD_V5_SUBMIT_ASSESSMENT_ASYNC_V6 = "AssessmentServiceV5Impl.submitAssessmentAsyncV6";
     public static final String TABLE_USER_ASSESSMENT_FAILED_AUDIT = "user_assessment_failed_audit";
     
+    // Sankalp assessment submit event (Kafka message keys)
+    public static final String SANKALP_EVENT_USER_ID = "user_id";
+    public static final String SANKALP_EVENT_PRIMARY_CATEGORY = "primary_category";
+    public static final String SANKALP_EVENT_COURSE_CATEGORY = "course_category";
+    public static final String SANKALP_EVENT_ASSESSMENT_ID = "assessment_id";
+    public static final String SANKALP_EVENT_SUBMITTED_ON = "submitted_on";
+
     private Constants() {
         throw new IllegalStateException("Utility class");
     }

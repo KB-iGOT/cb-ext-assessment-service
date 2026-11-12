@@ -13,6 +13,7 @@ import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.producer.Producer;
 import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
+import com.igot.cb.sankalp.SankalpAssessmentEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -36,6 +37,9 @@ class AssessmentServiceV4ImplTest {
     Producer kafkaProducer;
     @Mock
     private KarmaPointsEventPublisher karmaPointsEventPublisher;
+
+    @Mock
+    private SankalpAssessmentEventPublisher sankalpAssessmentEventPublisher;
     @Mock
     OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
     @Mock
