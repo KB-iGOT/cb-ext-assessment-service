@@ -21,6 +21,7 @@ import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.producer.Producer;
 import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
+import com.igot.cb.sankalp.SankalpAssessmentEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +50,9 @@ class AssessmentServiceV5ImplTest {
     private Producer producer;
     @Mock
     private KarmaPointsEventPublisher karmaPointsEventPublisher;
+
+    @Mock
+    private SankalpAssessmentEventPublisher sankalpAssessmentEventPublisher;
     @Mock
     private ContentService contentService;
     @Mock
@@ -65,9 +69,10 @@ class AssessmentServiceV5ImplTest {
         outboundRequestHandlerService = mock(OutboundRequestHandlerServiceImpl.class);
         cassandraOperation=mock(CassandraOperation.class);
         producer = mock(Producer.class);
+        sankalpAssessmentEventPublisher = mock(SankalpAssessmentEventPublisher.class);
 
         // kafkaProducer and karmaPointsEventPublisher are left null here; tests that need them set them explicitly
-        service = new AssessmentServiceV5Impl(serverProperties, null, null, outboundRequestHandlerService,
+        service = new AssessmentServiceV5Impl(serverProperties, null, null, sankalpAssessmentEventPublisher, outboundRequestHandlerService,
                 assessUtilServ, mapper, assessmentRepository, accessTokenValidator, contentService,
                 cassandraOperation, producer);
 

@@ -1,6 +1,7 @@
 package com.igot.cb.assessment.service;
 
 import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
+import com.igot.cb.sankalp.SankalpAssessmentEventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
@@ -43,6 +44,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
 
     private final KarmaPointsEventPublisher karmaPointsEventPublisher;
 
+    private final SankalpAssessmentEventPublisher sankalpAssessmentEventPublisher;
+
     private final OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
 
     private final AssessmentUtilServiceV2 assessUtilServ;
@@ -62,6 +65,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
     public AssessmentServiceV5Impl(CbExtAssessmentServerProperties serverProperties,
                                    Producer kafkaProducer,
                                    KarmaPointsEventPublisher karmaPointsEventPublisher,
+                                   SankalpAssessmentEventPublisher sankalpAssessmentEventPublisher,
                                    OutboundRequestHandlerServiceImpl outboundRequestHandlerService,
                                    AssessmentUtilServiceV2 assessUtilServ,
                                    ObjectMapper mapper,
@@ -73,6 +77,7 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
         this.serverProperties = serverProperties;
         this.kafkaProducer = kafkaProducer;
         this.karmaPointsEventPublisher = karmaPointsEventPublisher;
+        this.sankalpAssessmentEventPublisher = sankalpAssessmentEventPublisher;
         this.outboundRequestHandlerService = outboundRequestHandlerService;
         this.assessUtilServ = assessUtilServ;
         this.mapper = mapper;
@@ -868,6 +873,10 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                 Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(userId,
                         (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                         startTime,null);
+                // Sankalp (Baseline/Endline) submit event - published for every saved submit
+                if (Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
+                    sankalpAssessmentEventPublisher.publishIfEligible(submitRequest, primaryCategory, courseCategory);
+                }
                 //If the assessment is of the type of Standalone assessment it should be mandatory to pass to generate the certificate and updateContentProgess
                 if (Boolean.TRUE.equals(isAssessmentUpdatedToDB) && proceedWithContentUpdate(contextCategory, courseCategory, (boolean) result.get(Constants.PASS))) {
                     SBApiResponse contentUpdateResponse = new SBApiResponse();
