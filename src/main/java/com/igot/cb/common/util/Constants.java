@@ -182,6 +182,8 @@ public class Constants {
     public static final String ACTIVE = "active";
     public static final String CHILDREN_COURSES = "childrenCourses";
     public static final String STATUS_COMPLETED ="2";
+    public static final String ADDITIONAL_PROPERTIES = "additionalProperties";
+    public static final String CURRENT_SCORE = "currentScore";
 
     private Constants() {
         throw new IllegalStateException("Utility class");

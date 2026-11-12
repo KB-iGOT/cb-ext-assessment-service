@@ -89,6 +89,14 @@ public class ContentServiceImpl implements ContentService{
             reqObj.put("lastAccessTime", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSSZ").format(new Date()));
             reqObj.put(Constants.COMPLETION_PERCENTAGE, 100);
 
+            Object overallResult = outgoingResponse.getResult().get(Constants.OVERALL_RESULT);
+            if (!ObjectUtils.isEmpty(overallResult)) {
+                Map<String, Object> additionalProperties = new HashMap<>();
+                additionalProperties.put(Constants.ASSESSMENT_ID_KEY, reqBody.get(Constants.IDENTIFIER));
+                additionalProperties.put(Constants.CURRENT_SCORE, overallResult);
+                reqObj.put(Constants.ADDITIONAL_PROPERTIES, additionalProperties);
+            }
+
             contents.add(reqObj);
 
             req.put(Constants.USER_ID, userId);
