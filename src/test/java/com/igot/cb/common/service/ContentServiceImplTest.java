@@ -425,4 +425,105 @@ class ContentServiceImplTest {
         assertTrue(result.isEmpty());
         verify(dataCacheMgr, never()).putContentInCache(anyString(), any());
     }
+
+    @Test
+    void testUpdateContentProgress_FailedAttempt_UsesConfiguredFailStatusAndPercentage() {
+        when(serverConfig.getProgressUpdateFailStatus()).thenReturn(1);
+        when(serverConfig.getProgressUpdateFailCompletionPercentage()).thenReturn(0);
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenReturn(Map.of("responseCode", "OK"));
+
+        SBApiResponse outgoing = new SBApiResponse();
+        outgoing.put(Constants.PASS, false);
+
+        contentService.updateContentProgress("token", progressRequestBody(), "user1", outgoing);
+
+        ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outboundRequestHandlerService).fetchResultUsingPatch(anyString(), requestCaptor.capture(), any());
+        Map<String, Object> contentEntry = firstContentEntry(requestCaptor.getValue());
+        assertEquals(1, contentEntry.get(Constants.STATUS));
+        assertEquals(0, contentEntry.get(Constants.COMPLETION_PERCENTAGE));
+    }
+
+    @Test
+    void testUpdateContentProgress_PassedAttempt_UsesDefaultStatusAndPercentage() {
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenReturn(Map.of("responseCode", "OK"));
+
+        SBApiResponse outgoing = new SBApiResponse();
+        outgoing.put(Constants.PASS, true);
+
+        contentService.updateContentProgress("token", progressRequestBody(), "user1", outgoing);
+
+        ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outboundRequestHandlerService).fetchResultUsingPatch(anyString(), requestCaptor.capture(), any());
+        Map<String, Object> contentEntry = firstContentEntry(requestCaptor.getValue());
+        assertEquals(2, contentEntry.get(Constants.STATUS));
+        assertEquals(100, contentEntry.get(Constants.COMPLETION_PERCENTAGE));
+    }
+
+    @Test
+    void testUpdateContentProgress_OverallResultPresent_AttachesAdditionalProperties() {
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenReturn(Map.of("responseCode", "OK"));
+
+        SBApiResponse outgoing = new SBApiResponse();
+        outgoing.put(Constants.OVERALL_RESULT, 85.0);
+
+        contentService.updateContentProgress("token", progressRequestBody(), "user1", outgoing);
+
+        ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outboundRequestHandlerService).fetchResultUsingPatch(anyString(), requestCaptor.capture(), any());
+        Map<String, Object> contentEntry = firstContentEntry(requestCaptor.getValue());
+        Map<String, Object> additionalProperties = (Map<String, Object>) contentEntry.get(Constants.ADDITIONAL_PROPERTIES);
+        assertNotNull(additionalProperties);
+        assertEquals("id1", additionalProperties.get(Constants.ASSESSMENT_ID_KEY));
+        assertEquals(85.0, additionalProperties.get(Constants.CURRENT_SCORE));
+    }
+
+    @Test
+    void testUpdateContentProgress_OverallResultAbsent_OmitsAdditionalProperties() {
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenReturn(Map.of("responseCode", "OK"));
+
+        contentService.updateContentProgress("token", progressRequestBody(), "user1", new SBApiResponse());
+
+        ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outboundRequestHandlerService).fetchResultUsingPatch(anyString(), requestCaptor.capture(), any());
+        Map<String, Object> contentEntry = firstContentEntry(requestCaptor.getValue());
+        assertFalse(contentEntry.containsKey(Constants.ADDITIONAL_PROPERTIES));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testUpdatePreEnrolledAssessment_FailedAttempt_UsesConfiguredFailValuesAndAttachesAdditionalProperties() {
+        when(serverConfig.getExtCourseServiceHost()).thenReturn("http://ext");
+        when(serverConfig.getContentStateUpdate()).thenReturn("/state");
+        when(serverConfig.getProgressUpdateFailStatus()).thenReturn(1);
+        when(serverConfig.getProgressUpdateFailCompletionPercentage()).thenReturn(0);
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenReturn(Map.of("responseCode", "OK"));
+
+        SBApiResponse outgoing = new SBApiResponse();
+        outgoing.put(Constants.PASS, false);
+        outgoing.put(Constants.OVERALL_RESULT, 20.0);
+
+        contentService.updatePreEnrolledAssessment("token", progressRequestBody(), "user1", outgoing);
+
+        ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outboundRequestHandlerService).fetchResultUsingPatch(anyString(), requestCaptor.capture(), any());
+        Map<String, Object> contentEntry = firstContentEntry(requestCaptor.getValue());
+        assertEquals(1, contentEntry.get(Constants.STATUS));
+        Map<String, Object> additionalProperties = (Map<String, Object>) contentEntry.get(Constants.ADDITIONAL_PROPERTIES);
+        assertNotNull(additionalProperties);
+        assertEquals("id1", additionalProperties.get(Constants.ASSESSMENT_ID_KEY));
+        assertEquals(20.0, additionalProperties.get(Constants.CURRENT_SCORE));
+        assertEquals(0, contentEntry.get(Constants.COMPLETION_PERCENTAGE));
+    }
+
+    private Map<String, Object> firstContentEntry(Object capturedRequestWrapper) {
+        Map<String, Object> request = (Map<String, Object>) ((Map<String, Object>) capturedRequestWrapper).get(Constants.REQUEST);
+        List<Map<String, Object>> contents = (List<Map<String, Object>>) request.get("contents");
+        return contents.get(0);
+    }
 }

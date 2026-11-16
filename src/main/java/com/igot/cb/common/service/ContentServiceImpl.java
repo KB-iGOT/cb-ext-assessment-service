@@ -91,10 +91,10 @@ public class ContentServiceImpl implements ContentService{
             reqObj.put(Constants.CONTENT_ID_KEY, reqBody.get(Constants.IDENTIFIER));
             reqObj.put(Constants.COURSE_ID, reqBody.get(Constants.COURSE_ID));
             reqObj.put(Constants.BATCH_ID, reqBody.get(Constants.BATCH_ID));
-            reqObj.put(Constants.STATUS, 2);
             reqObj.put("lastAccessTime", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSSZ").format(new Date()));
-            reqObj.put(Constants.COMPLETION_PERCENTAGE, 100);
+            addStatusAndCompletionPercentage(reqObj, outgoingResponse);
             reqObj.put(Constants.LANGUAGE, reqBody.get(Constants.LANGUAGE));
+            addAdditionalProperties(reqObj, reqBody, outgoingResponse);
 
             contents.add(reqObj);
 
@@ -221,10 +221,10 @@ public class ContentServiceImpl implements ContentService{
             Map<String, Object> reqObj = new HashMap<>();
             reqObj.put(Constants.CONTENT_ID_KEY, reqBody.get(Constants.IDENTIFIER));
 
-            reqObj.put(Constants.STATUS, 2);
             reqObj.put("lastAccessTime", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSSZ").format(new Date()));
-            reqObj.put(Constants.COMPLETION_PERCENTAGE, 100);
             reqObj.put(Constants.PROGRESS_DETAILS, new HashMap<>());
+            addStatusAndCompletionPercentage(reqObj, outgoingResponse);
+            addAdditionalProperties(reqObj, reqBody, outgoingResponse);
 
             contents.add(reqObj);
 
@@ -265,5 +265,43 @@ public class ContentServiceImpl implements ContentService{
     public Set<String> readChildCoursesFromCache(String parentDoId) {
         return redisCacheMgr
                 .getSetFromCacheAsCommaSeparated(parentDoId + ":" + parentDoId + ":" + Constants.CHILDREN_COURSES);
+    }
+
+    /**
+     * Sets status/completionPercentage on the content-progress-update payload based on whether
+     * this attempt passed. Defaults to the pass-case values when the caller never populated PASS
+     * on outgoingResponse, matching the previous unconditional behaviour.
+     */
+    private void addStatusAndCompletionPercentage(Map<String, Object> reqObj, SBApiResponse outgoingResponse) {
+        Object pass = outgoingResponse.getResult().get(Constants.PASS);
+        if (Boolean.FALSE.equals(pass)) {
+            int failStatus = serverConfig.getProgressUpdateFailStatus();
+            int failCompletionPercentage = serverConfig.getProgressUpdateFailCompletionPercentage();
+            logger.info("Content progress for a failed attempt - status: {}, completionPercentage: {}",
+                    failStatus, failCompletionPercentage);
+            reqObj.put(Constants.STATUS, failStatus);
+            reqObj.put(Constants.COMPLETION_PERCENTAGE, failCompletionPercentage);
+        } else {
+            reqObj.put(Constants.STATUS, 2);
+            reqObj.put(Constants.COMPLETION_PERCENTAGE, 100);
+        }
+    }
+
+    /**
+     * Attaches additionalProperties (assessmentId + this attempt's score) to the
+     * content-progress-update payload, so sunbird-course-service can track best/current score
+     * for a Comprehensive Assessment. No-op when the caller never populated OVERALL_RESULT.
+     */
+    private void addAdditionalProperties(Map<String, Object> reqObj, Map<String, Object> reqBody,
+            SBApiResponse outgoingResponse) {
+        Object overallResult = outgoingResponse.getResult().get(Constants.OVERALL_RESULT);
+        if (!ObjectUtils.isEmpty(overallResult)) {
+            Object assessmentId = reqBody.get(Constants.IDENTIFIER);
+            Map<String, Object> additionalProperties = new HashMap<>();
+            additionalProperties.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
+            additionalProperties.put(Constants.CURRENT_SCORE, overallResult);
+            reqObj.put(Constants.ADDITIONAL_PROPERTIES, additionalProperties);
+            logger.info("Attached additionalProperties for assessment {}: score {}", assessmentId, overallResult);
+        }
     }
 }

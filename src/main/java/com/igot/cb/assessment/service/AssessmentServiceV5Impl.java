@@ -762,14 +762,15 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
             Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(eventContext.userId(),
                     (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                     startTime,null);
-            //If the assessment is of the type of Standalone assessment it should be mandatory to pass to generate the certificate and updateContentProgess
-            if (!Boolean.TRUE.equals(isAssessmentUpdatedToDB)
-                    || !assessUtilServ.proceedWithContentUpdate(contextCategory, eventContext.courseCategory(),
-                            (boolean) result.get(Constants.PASS))) {
+            if (!Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
+                logger.info("Skipping content progress update for userId: {} - assessment DB write did not succeed",
+                        eventContext.userId());
                 return;
             }
+            // Content progress is recorded on every attempt, pass or fail, so the score/status
+            // always reaches course-service.
             assessUtilServ.updateContentProgressForContext(contextCategory, eventContext.userAuthToken(),
-                    eventContext.submitRequest(), eventContext.userId());
+                    eventContext.submitRequest(), eventContext.userId(), result);
             kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(),
                     assessUtilServ.buildSubmitEvent(submitRequest, eventContext.primaryCategory(), result));
         } catch (Exception e) {

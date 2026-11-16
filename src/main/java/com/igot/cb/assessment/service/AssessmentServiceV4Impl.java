@@ -825,14 +825,19 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             Boolean isAssessmentUpdatedToDB = assessmentRepository.updateUserAssesmentDataToDB(eventContext.userId(),
                     (String) submitRequest.get(Constants.IDENTIFIER), submitRequest, result, Constants.SUBMITTED,
                     startTime,null);
-            if (!Boolean.TRUE.equals(isAssessmentUpdatedToDB)
-                    || !assessUtilServ.proceedWithContentUpdate(contextCategory, eventContext.courseCategory(),
-                            (boolean) result.get(Constants.PASS))) {
+            if (!Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
+                logger.info("Skipping content progress update for userId: {} - assessment DB write did not succeed",
+                        eventContext.userId());
                 return;
             }
+            // Content progress is recorded on every attempt, pass or fail, so the score/status
+            // always reaches course-service.
             if (eventContext.shouldUpdateContentProgress()) {
                 assessUtilServ.updateContentProgressForContext(contextCategory, eventContext.userAuthToken(),
-                        eventContext.submitRequest(), eventContext.userId());
+                        eventContext.submitRequest(), eventContext.userId(), result);
+            } else {
+                logger.info("Content progress update not applicable for userId: {} on this async submission path",
+                        eventContext.userId());
             }
             kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(),
                     assessUtilServ.buildSubmitEvent(submitRequest, eventContext.primaryCategory(), result));

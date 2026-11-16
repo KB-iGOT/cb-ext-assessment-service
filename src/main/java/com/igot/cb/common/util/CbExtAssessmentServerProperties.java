@@ -1086,6 +1086,12 @@ public class CbExtAssessmentServerProperties {
     @Value("${kafka.topics.assessment.failed.audit.error}")
     private String assessmentFailedAuditErrorTopic;
 
+    @Value("${progress.api.update.fail.status}")
+    private int progressUpdateFailStatus;
+
+    @Value("${progress.api.update.fail.completion.percentage}")
+    private int progressUpdateFailCompletionPercentage;
+
     public String getStateLearningInsightsRedisKeyMapping() {
         return stateLearningInsightsRedisKeyMapping;
     }

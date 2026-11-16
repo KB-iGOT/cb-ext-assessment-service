@@ -3664,4 +3664,53 @@ class AssessmentUtilServiceV2ImplTest {
         assertDoesNotThrow(() -> Instant.parse(startTime),
                 "startTime should be a valid ISO-8601 instant string");
     }
+
+    @Test
+    void testUpdateContentProgressForContext_StandardContext_ForwardsResultAndRoutesToUpdateContentProgress() {
+        Map<String, Object> result = new HashMap<>();
+        result.put(Constants.OVERALL_RESULT, 85.0);
+        result.put(Constants.PASS, true);
+
+        utilService.updateContentProgressForContext("courseAssessment", "token", new HashMap<>(), "user1", result);
+
+        ArgumentCaptor<SBApiResponse> responseCaptor = ArgumentCaptor.forClass(SBApiResponse.class);
+        verify(contentService).updateContentProgress(eq("token"), any(), eq("user1"), responseCaptor.capture());
+        verify(contentService, never()).updatePreEnrolledAssessment(any(), any(), any(), any());
+        SBApiResponse forwarded = responseCaptor.getValue();
+        assertEquals(85.0, forwarded.getResult().get(Constants.OVERALL_RESULT));
+        assertEquals(true, forwarded.getResult().get(Constants.PASS));
+    }
+
+    @Test
+    void testUpdateContentProgressForContext_FailedAttempt_StillForwardsPassFalse() {
+        Map<String, Object> result = new HashMap<>();
+        result.put(Constants.OVERALL_RESULT, 20.0);
+        result.put(Constants.PASS, false);
+
+        utilService.updateContentProgressForContext("courseAssessment", "token", new HashMap<>(), "user1", result);
+
+        ArgumentCaptor<SBApiResponse> responseCaptor = ArgumentCaptor.forClass(SBApiResponse.class);
+        verify(contentService).updateContentProgress(eq("token"), any(), eq("user1"), responseCaptor.capture());
+        SBApiResponse forwarded = responseCaptor.getValue();
+        assertEquals(false, forwarded.getResult().get(Constants.PASS));
+    }
+
+    @Test
+    void testUpdateContentProgressForContext_PreEnrolledContext_RoutesToUpdatePreEnrolledAssessment() {
+        utilService.updateContentProgressForContext(Constants.PRE_ENROLLED_ASSESSMENT_KEY, "token", new HashMap<>(),
+                "user1", Map.of(Constants.OVERALL_RESULT, 50.0, Constants.PASS, true));
+
+        verify(contentService).updatePreEnrolledAssessment(eq("token"), any(), eq("user1"), any());
+        verify(contentService, never()).updateContentProgress(any(), any(), any(), any());
+    }
+
+    @Test
+    void testUpdateContentProgressForContext_EmptyResult_DoesNotThrowAndForwardsNothing() {
+        utilService.updateContentProgressForContext("courseAssessment", "token", new HashMap<>(), "user1",
+                Collections.emptyMap());
+
+        ArgumentCaptor<SBApiResponse> responseCaptor = ArgumentCaptor.forClass(SBApiResponse.class);
+        verify(contentService).updateContentProgress(eq("token"), any(), eq("user1"), responseCaptor.capture());
+        assertNull(responseCaptor.getValue().getResult().get(Constants.OVERALL_RESULT));
+    }
 }
