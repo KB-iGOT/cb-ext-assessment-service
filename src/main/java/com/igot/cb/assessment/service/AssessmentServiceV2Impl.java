@@ -1,5 +1,6 @@
 package com.igot.cb.assessment.service;
 
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +45,8 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
     Producer kafkaProducer;
 
+    KarmaPointsEventPublisher karmaPointsEventPublisher;
+
     AssessmentRepository assessmentRepository;
 
     RedisCacheMgr redisCacheMgr;
@@ -54,10 +57,11 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
 
     AccessTokenValidator accessTokenValidator;
 
-    public AssessmentServiceV2Impl(AssessmentUtilServiceV2 assessUtilServ, CbExtAssessmentServerProperties serverProperties, Producer kafkaProducer, AssessmentRepository assessmentRepository, RedisCacheMgr redisCacheMgr, OutboundRequestHandlerServiceImpl outboundRequestHandlerService, ObjectMapper mapper, AccessTokenValidator accessTokenValidator) {
+    public AssessmentServiceV2Impl(AssessmentUtilServiceV2 assessUtilServ, CbExtAssessmentServerProperties serverProperties, Producer kafkaProducer, KarmaPointsEventPublisher karmaPointsEventPublisher, AssessmentRepository assessmentRepository, RedisCacheMgr redisCacheMgr, OutboundRequestHandlerServiceImpl outboundRequestHandlerService, ObjectMapper mapper, AccessTokenValidator accessTokenValidator) {
         this.assessUtilServ = assessUtilServ;
         this.serverProperties = serverProperties;
         this.kafkaProducer = kafkaProducer;
+        this.karmaPointsEventPublisher = karmaPointsEventPublisher;
         this.assessmentRepository = assessmentRepository;
         this.redisCacheMgr = redisCacheMgr;
         this.outboundRequestHandlerService = outboundRequestHandlerService;
@@ -650,6 +654,8 @@ public class AssessmentServiceV2Impl implements AssessmentServiceV2 {
             if (Boolean.TRUE.equals(isAssessmentUpdatedToDB)) {
                 kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(),
                         buildSubmitEvent(submitRequest, result, primaryCategory));
+                // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
+                karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result, primaryCategory, null);
             }
         } catch (Exception e) {
             logger.error("Failed to write data for assessment submit response. Exception: ", e);

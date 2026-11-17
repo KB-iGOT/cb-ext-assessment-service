@@ -1,5 +1,6 @@
 package com.igot.cb.assessment.service;
 
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +47,8 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
 
     Producer kafkaProducer;
 
+    KarmaPointsEventPublisher karmaPointsEventPublisher;
+
     OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
 
     AssessmentUtilServiceV2 assessUtilServ;
@@ -62,9 +65,10 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
 
     private Producer producer;
 
-    public AssessmentServiceV5Impl(CbExtAssessmentServerProperties serverProperties, Producer kafkaProducer, OutboundRequestHandlerServiceImpl outboundRequestHandlerService, AssessmentUtilServiceV2 assessUtilServ, ObjectMapper mapper, AssessmentRepository assessmentRepository, AccessTokenValidator accessTokenValidator, ContentService contentService, CassandraOperation cassandraOperation, Producer producer) {
+    public AssessmentServiceV5Impl(CbExtAssessmentServerProperties serverProperties, Producer kafkaProducer, KarmaPointsEventPublisher karmaPointsEventPublisher, OutboundRequestHandlerServiceImpl outboundRequestHandlerService, AssessmentUtilServiceV2 assessUtilServ, ObjectMapper mapper, AssessmentRepository assessmentRepository, AccessTokenValidator accessTokenValidator, ContentService contentService, CassandraOperation cassandraOperation, Producer producer) {
         this.serverProperties = serverProperties;
         this.kafkaProducer = kafkaProducer;
+        this.karmaPointsEventPublisher = karmaPointsEventPublisher;
         this.outboundRequestHandlerService = outboundRequestHandlerService;
         this.assessUtilServ = assessUtilServ;
         this.mapper = mapper;
@@ -772,6 +776,9 @@ public class AssessmentServiceV5Impl implements AssessmentServiceV5 {
                     eventContext.submitRequest(), eventContext.userId());
             kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(),
                     assessUtilServ.buildSubmitEvent(submitRequest, eventContext.primaryCategory(), result));
+            // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
+            karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result,
+                    eventContext.primaryCategory(), eventContext.courseCategory());
         } catch (Exception e) {
             logger.error("Failed to write data for assessment submit response. Exception: ", e);
         }
