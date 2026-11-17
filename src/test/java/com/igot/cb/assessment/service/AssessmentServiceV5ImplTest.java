@@ -3370,12 +3370,12 @@ class AssessmentServiceV5ImplTest {
     /** Builds the private {@code KafkaEventContext} record reflectively and invokes writeDataToDatabaseAndTriggerKafkaEvent. */
     private void invokeWriteDataAndTriggerKafkaEvent(Class<?> serviceClass, Object target, Map<String, Object> questionSet,
                                                      Map<String, Object> result, Object... contextArgs) throws Exception {
-        Class<?> ctxClass = Arrays.stream(serviceClass.getDeclaredClasses())
-                .filter(c -> c.getSimpleName().equals("KafkaEventContext")).findFirst().orElseThrow();
-        java.lang.reflect.Constructor<?> ctor = ctxClass.getDeclaredConstructors()[0];
+        Method method = Arrays.stream(serviceClass.getDeclaredMethods())
+                .filter(m -> "writeDataToDatabaseAndTriggerKafkaEvent".equals(m.getName()) && m.getParameterCount() == 3)
+                .findFirst().orElseThrow();
+        java.lang.reflect.Constructor<?> ctor = method.getParameterTypes()[0].getDeclaredConstructors()[0];
         ctor.setAccessible(true);
         Object ctx = ctor.newInstance(contextArgs);
-        Method method = serviceClass.getDeclaredMethod("writeDataToDatabaseAndTriggerKafkaEvent", ctxClass, Map.class, Map.class);
         method.setAccessible(true);
         method.invoke(target, ctx, questionSet, result);
     }
@@ -3430,7 +3430,7 @@ class AssessmentServiceV5ImplTest {
     }
 
     @Test
-    void testKarmaEvents_KafkaFailure_DoesNotBreakSubmission() throws Exception {
+    void testKarmaEvents_KafkaFailure_DoesNotBreakSubmission() {
         Producer karmaProducer = attachKarmaPointsPublisher(service);
         doThrow(new RuntimeException("kafka down")).when(karmaProducer).pushWithKey(anyString(), any(), anyString());
         when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
