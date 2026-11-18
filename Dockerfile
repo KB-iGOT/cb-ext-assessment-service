@@ -1,19 +1,21 @@
-FROM openjdk:17.0.1-jdk-slim
+FROM eclipse-temurin:17-jdk-jammy
 
 RUN useradd -ms /bin/bash appuser
 
-RUN apt-get update \
-    && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y \
         curl \
         libxrender1 \
+        libjpeg-turbo8 \
         fontconfig \
         libxtst6 \
         xfonts-75dpi \
         xfonts-base \
-        xz-utils
+        xz-utils && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN curl "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.buster_amd64.deb" -L -o "wkhtmltopdf.deb"
-RUN dpkg -i wkhtmltopdf.deb
+#RUN curl "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.buster_amd64.deb" -L -o "wkhtmltopdf.deb"
+#RUN dpkg -i wkhtmltopdf.deb
 
 COPY cb-ext-assessment-service-0.0.1-SNAPSHOT.jar /opt/
 
