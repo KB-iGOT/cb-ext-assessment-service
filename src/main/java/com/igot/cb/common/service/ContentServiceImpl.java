@@ -297,11 +297,14 @@ public class ContentServiceImpl implements ContentService{
         Object overallResult = outgoingResponse.getResult().get(Constants.OVERALL_RESULT);
         if (!ObjectUtils.isEmpty(overallResult)) {
             Object assessmentId = reqBody.get(Constants.IDENTIFIER);
+            Object minimumPassPercentage = outgoingResponse.getResult().get(Constants.PASS_PERCENTAGE);
             Map<String, Object> additionalProperties = new HashMap<>();
             additionalProperties.put(Constants.ASSESSMENT_ID_KEY, assessmentId);
             additionalProperties.put(Constants.CURRENT_SCORE, overallResult);
+            additionalProperties.put(Constants.MINIMUM_PASS_PERCENTAGE, minimumPassPercentage);
             reqObj.put(Constants.ADDITIONAL_PROPERTIES, additionalProperties);
-            logger.info("Attached additionalProperties for assessment {}: score {}", assessmentId, overallResult);
+            logger.info("Attached additionalProperties for assessment {}: score {}, minimumPassPercentage {}",
+                    assessmentId, overallResult, minimumPassPercentage);
         }
     }
 }
