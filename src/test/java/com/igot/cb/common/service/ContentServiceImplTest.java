@@ -469,6 +469,7 @@ class ContentServiceImplTest {
 
         SBApiResponse outgoing = new SBApiResponse();
         outgoing.put(Constants.OVERALL_RESULT, 85.0);
+        outgoing.put(Constants.PASS_PERCENTAGE, 60.0);
 
         contentService.updateContentProgress("token", progressRequestBody(), "user1", outgoing);
 
@@ -479,6 +480,25 @@ class ContentServiceImplTest {
         assertNotNull(additionalProperties);
         assertEquals("id1", additionalProperties.get(Constants.ASSESSMENT_ID_KEY));
         assertEquals(85.0, additionalProperties.get(Constants.CURRENT_SCORE));
+        assertEquals(60.0, additionalProperties.get(Constants.MINIMUM_PASS_PERCENTAGE));
+    }
+
+    @Test
+    void testUpdateContentProgress_OverallResultPresent_MinimumPassPercentageAbsent_SetsNullValue() {
+        when(outboundRequestHandlerService.fetchResultUsingPatch(anyString(), any(), any()))
+                .thenReturn(Map.of("responseCode", "OK"));
+
+        SBApiResponse outgoing = new SBApiResponse();
+        outgoing.put(Constants.OVERALL_RESULT, 85.0);
+
+        contentService.updateContentProgress("token", progressRequestBody(), "user1", outgoing);
+
+        ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outboundRequestHandlerService).fetchResultUsingPatch(anyString(), requestCaptor.capture(), any());
+        Map<String, Object> contentEntry = firstContentEntry(requestCaptor.getValue());
+        Map<String, Object> additionalProperties = (Map<String, Object>) contentEntry.get(Constants.ADDITIONAL_PROPERTIES);
+        assertNotNull(additionalProperties);
+        assertNull(additionalProperties.get(Constants.MINIMUM_PASS_PERCENTAGE));
     }
 
     @Test
@@ -507,6 +527,7 @@ class ContentServiceImplTest {
         SBApiResponse outgoing = new SBApiResponse();
         outgoing.put(Constants.PASS, false);
         outgoing.put(Constants.OVERALL_RESULT, 20.0);
+        outgoing.put(Constants.PASS_PERCENTAGE, 50.0);
 
         contentService.updatePreEnrolledAssessment("token", progressRequestBody(), "user1", outgoing);
 
@@ -518,6 +539,7 @@ class ContentServiceImplTest {
         assertNotNull(additionalProperties);
         assertEquals("id1", additionalProperties.get(Constants.ASSESSMENT_ID_KEY));
         assertEquals(20.0, additionalProperties.get(Constants.CURRENT_SCORE));
+        assertEquals(50.0, additionalProperties.get(Constants.MINIMUM_PASS_PERCENTAGE));
         assertEquals(0, contentEntry.get(Constants.COMPLETION_PERCENTAGE));
     }
 
