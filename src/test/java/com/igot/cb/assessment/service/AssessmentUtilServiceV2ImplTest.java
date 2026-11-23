@@ -3670,6 +3670,7 @@ class AssessmentUtilServiceV2ImplTest {
         Map<String, Object> result = new HashMap<>();
         result.put(Constants.OVERALL_RESULT, 85.0);
         result.put(Constants.PASS, true);
+        result.put(Constants.PASS_PERCENTAGE, 50);
 
         utilService.updateContentProgressForContext("courseAssessment", "token", new HashMap<>(), "user1", result);
 
@@ -3679,6 +3680,7 @@ class AssessmentUtilServiceV2ImplTest {
         SBApiResponse forwarded = responseCaptor.getValue();
         assertEquals(85.0, forwarded.getResult().get(Constants.OVERALL_RESULT));
         assertEquals(true, forwarded.getResult().get(Constants.PASS));
+        assertEquals(50, forwarded.getResult().get(Constants.PASS_PERCENTAGE));
     }
 
     @Test
@@ -3712,5 +3714,19 @@ class AssessmentUtilServiceV2ImplTest {
         ArgumentCaptor<SBApiResponse> responseCaptor = ArgumentCaptor.forClass(SBApiResponse.class);
         verify(contentService).updateContentProgress(eq("token"), any(), eq("user1"), responseCaptor.capture());
         assertNull(responseCaptor.getValue().getResult().get(Constants.OVERALL_RESULT));
+    }
+
+    @Test
+    void testUpdateContentProgressForContext_ResultMissingPassPercentage_ForwardsWithoutPassPercentage() {
+        Map<String, Object> result = new HashMap<>();
+        result.put(Constants.OVERALL_RESULT, 85.0);
+        result.put(Constants.PASS, true);
+
+        utilService.updateContentProgressForContext("courseAssessment", "token", new HashMap<>(), "user1", result);
+
+        ArgumentCaptor<SBApiResponse> responseCaptor = ArgumentCaptor.forClass(SBApiResponse.class);
+        verify(contentService).updateContentProgress(eq("token"), any(), eq("user1"), responseCaptor.capture());
+        SBApiResponse forwarded = responseCaptor.getValue();
+        assertNull(forwarded.getResult().get(Constants.PASS_PERCENTAGE));
     }
 }
