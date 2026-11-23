@@ -2360,6 +2360,9 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 			if (result.containsKey(Constants.PASS)) {
 				contentUpdateResponse.put(Constants.PASS, result.get(Constants.PASS));
 			}
+			if (result.containsKey(Constants.PASS_PERCENTAGE)) {
+				contentUpdateResponse.put(Constants.PASS_PERCENTAGE, result.get(Constants.PASS_PERCENTAGE));
+			}
 		}
 		logger.info("Routing content progress update for userId: {}, contextCategory: {}, pass: {}",
 				userId, contextCategory, MapUtils.isEmpty(result) ? null : result.get(Constants.PASS));
