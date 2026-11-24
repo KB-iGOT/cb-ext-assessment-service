@@ -10,6 +10,8 @@ import com.igot.cb.common.util.AccessTokenValidator;
 import com.igot.cb.common.util.CbExtAssessmentServerProperties;
 import com.igot.cb.common.util.Constants;
 import com.igot.cb.core.producer.Producer;
+import org.springframework.test.util.ReflectionTestUtils;
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +60,9 @@ class AssessmentServiceV2ImplTest {
 
     @Mock
     private Producer producer;
+
+    @Mock
+    private KarmaPointsEventPublisher karmaPointsEventPublisher;
 
     private static final String TOKEN = "dummyToken";
     private static final String ASSESSMENT_ID = "assess123";
@@ -326,7 +331,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCalculateSectionFinalResults() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         // Prepare dummy section results
         Map<String, Object> section1 = new HashMap<>();
@@ -366,7 +371,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         // Mock dependencies
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
@@ -421,7 +426,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCalculateAssessmentRetakeCount() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         Map<String, Object> entry1 = new HashMap<>();
         entry1.put(Constants.SUBMIT_ASSESSMENT_RESPONSE, "response1");
@@ -443,7 +448,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCreateResponseMapWithProperStructure_WithResultMap() {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         Map<String, Object> hierarchySection = new HashMap<>();
         hierarchySection.put(Constants.IDENTIFIER, "section1");
@@ -475,7 +480,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCreateResponseMapWithProperStructure_EmptyResultMap() {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         Map<String, Object> hierarchySection = new HashMap<>();
         hierarchySection.put(Constants.IDENTIFIER, "section2");
@@ -501,7 +506,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testCalculateAssessmentFinalResults() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         Map<String, Object> assessmentLevelResult = new HashMap<>();
         assessmentLevelResult.put(Constants.RESULT, 85.0);
@@ -533,7 +538,7 @@ class AssessmentServiceV2ImplTest {
     @Test
     @SuppressWarnings("unchecked")
     void testReadSectionLevelParams_PopulatesSectionDetailsCorrectly() throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         CbExtAssessmentServerProperties mockProps = mock(CbExtAssessmentServerProperties.class);
         List<String> sectionParams = List.of(Constants.IDENTIFIER, Constants.MINIMUM_PASS_PERCENTAGE, Constants.MAX_QUESTIONS);
@@ -602,7 +607,7 @@ class AssessmentServiceV2ImplTest {
         when(serverProperties.getAssessmentLevelParams()).thenReturn(List.of(Constants.IDENTIFIER));
         when(serverProperties.getAssessmentSectionParams()).thenReturn(Collections.emptyList());
 
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
         Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
         propsField.setAccessible(true);
         propsField.set(service, serverProperties);
@@ -616,7 +621,7 @@ class AssessmentServiceV2ImplTest {
     @Test
     @SuppressWarnings("unchecked")
     void testReadAssessmentLevelData_withEmptyParams() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         // Inject mock serverProperties
         Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
@@ -699,7 +704,7 @@ class AssessmentServiceV2ImplTest {
     @Test
     @SuppressWarnings("unchecked")
     void testValidateQuestionListAPI_validAndInvalidCases() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         // Inject mocks
         Field propsField = AssessmentServiceV2Impl.class.getDeclaredField("serverProperties");
@@ -762,7 +767,7 @@ class AssessmentServiceV2ImplTest {
     @Test
     @SuppressWarnings("unchecked")
     void testGetQuestionIdList_variousCases() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
 
         // Case 1: Valid request with identifiers
         Map<String, Object> requestBody = new HashMap<>();
@@ -804,7 +809,7 @@ class AssessmentServiceV2ImplTest {
     @Test
     void testSubmitAssessment_FailedSubmission() throws Exception {
         // Prepare mocks and inject them
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
         Field repoField = AssessmentServiceV2Impl.class.getDeclaredField("assessmentRepository");
         repoField.setAccessible(true);
         repoField.set(service, assessmentRepository);
@@ -995,7 +1000,7 @@ class AssessmentServiceV2ImplTest {
 
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_dbUpdateFails() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
         Producer mockProducer = mock(Producer.class);
         AssessmentUtilServiceV2 mockUtil = mock(AssessmentUtilServiceV2.class);
@@ -1036,7 +1041,7 @@ class AssessmentServiceV2ImplTest {
     // -ve: Null start time, should not update DB or push Kafka
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_nullStartTime() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
         Producer mockProducer = mock(Producer.class);
         AssessmentUtilServiceV2 mockUtil = mock(AssessmentUtilServiceV2.class);
@@ -1074,7 +1079,7 @@ class AssessmentServiceV2ImplTest {
     // -ve: Exception thrown by repository
     @Test
     void testWriteDataToDatabaseAndTriggerKafkaEvent_repoThrowsException() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
         AssessmentRepository mockRepo = mock(AssessmentRepository.class);
         Producer mockProducer = mock(Producer.class);
         AssessmentUtilServiceV2 mockUtil = mock(AssessmentUtilServiceV2.class);
@@ -1253,7 +1258,7 @@ class AssessmentServiceV2ImplTest {
     // Question set from DB/cache is null
     @Test
     void testSubmitAssessment_questionSetFromDbIsNull() throws Exception {
-        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
+        AssessmentServiceV2Impl service = new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository, redisCacheMgr, outboundRequestHandlerService, mapper, accessTokenValidator);
         Field repoField = AssessmentServiceV2Impl.class.getDeclaredField("assessmentRepository");
         repoField.setAccessible(true);
         repoField.set(service, assessmentRepository);
@@ -1485,7 +1490,7 @@ class AssessmentServiceV2ImplTest {
     private static final String SUBMIT_ID = "assess1";
 
     private AssessmentServiceV2Impl realMapperService() {
-        return new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, assessmentRepository,
+        return new AssessmentServiceV2Impl(assessUtilServ, serverProperties, producer, karmaPointsEventPublisher, assessmentRepository,
                 redisCacheMgr, outboundRequestHandlerService, REAL_MAPPER, accessTokenValidator);
     }
 
@@ -2165,5 +2170,101 @@ class AssessmentServiceV2ImplTest {
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(3, response.getResult().get(Constants.TOTAL_RETAKE_ATTEMPTS_ALLOWED));
         assertEquals(2, response.getResult().get(Constants.RETAKE_ATTEMPTS_CONSUMED));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // KPIs 2.3 / 2.5: karma points assessment events (ASSESSMENT_PASSED, ASSESSMENT_HIGH_SCORE)
+    // ---------------------------------------------------------------------------------------------
+
+    private Producer attachKarmaPointsPublisher(Object target) {
+        Producer karmaProducer = mock(Producer.class);
+        KarmaPointsEventPublisher publisher = new KarmaPointsEventPublisher(karmaProducer);
+        ReflectionTestUtils.setField(publisher, "karmaPointsUnifiedEventTopic", "karma-topic");
+        ReflectionTestUtils.setField(publisher, "assessmentEventEnabled", true);
+        ReflectionTestUtils.setField(publisher, "eligiblePrimaryCategories", "Course Assessment");
+        ReflectionTestUtils.setField(publisher, "excludedCourseCategories", "Curated Program,Blended Program,Comprehensive Assessment Program,Moderated Assessment,Standalone Assessment,Invite-Only Program,Moderated Course");
+        ReflectionTestUtils.setField(publisher, "highScoreThreshold", 75d);
+        ReflectionTestUtils.setField(publisher, "eventVersion", 1);
+        ReflectionTestUtils.setField(target, "karmaPointsEventPublisher", publisher);
+        return karmaProducer;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> publishedKarmaEventTypes(Producer karmaProducer, String userId) {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(karmaProducer, atLeast(0)).pushWithKey(eq("karma-topic"), captor.capture(), eq(userId));
+        List<String> types = new ArrayList<>();
+        for (Object value : captor.getAllValues()) {
+            Map<String, Object> event = (Map<String, Object>) value;
+            assertEquals(1, event.get("version"));
+            Map<String, Object> edata = (Map<String, Object>) ((Map<String, Object>) event.get("data")).get("edata");
+            assertEquals(userId, edata.get("userId"));
+            assertEquals("course-1", edata.get("courseId"));
+            assertEquals("assess-1", edata.get("assessmentId"));
+            types.add((String) event.get("eventType"));
+        }
+        return types;
+    }
+
+    private Map<String, Object> karmaSubmitRequest() {
+        Map<String, Object> submitRequest = new HashMap<>();
+        submitRequest.put(Constants.IDENTIFIER, "assess-1");
+        submitRequest.put(Constants.COURSE_ID, "course-1");
+        submitRequest.put(Constants.BATCH_ID, "batch-1");
+        submitRequest.put(Constants.USER_ID, "user-1");
+        return submitRequest;
+    }
+
+    private Map<String, Object> karmaResult(boolean pass, double score) {
+        Map<String, Object> result = new HashMap<>();
+        result.put(Constants.PASS, pass);
+        result.put(Constants.OVERALL_RESULT, score);
+        return result;
+    }
+
+    private List<String> runKarmaScenario(boolean pass, double score, String primaryCategory) throws Exception {
+        Producer karmaProducer = attachKarmaPointsPublisher(assessmentServiceV2);
+        when(assessUtilServ.parseStartTimeToInstant(any())).thenReturn(Instant.now());
+        when(assessmentRepository.updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(serverProperties.getAssessmentSubmitTopic()).thenReturn("topic");
+        Map<String, Object> questionSet = new HashMap<>();
+        questionSet.put(Constants.START_TIME, Instant.now());
+        Method method = AssessmentServiceV2Impl.class.getDeclaredMethod("writeDataToDatabaseAndTriggerKafkaEvent",
+                Map.class, String.class, Map.class, Map.class, String.class);
+        method.setAccessible(true);
+        method.invoke(assessmentServiceV2, karmaSubmitRequest(), "user-1", questionSet, karmaResult(pass, score), primaryCategory);
+        // the existing assessment submit event is still pushed
+        verify(producer, atLeastOnce()).push(eq("topic"), any());
+        return publishedKarmaEventTypes(karmaProducer, "user-1");
+    }
+
+    @Test
+    void testKarmaEvents_PassedWithHighScore_PublishesPassedAndHighScore() throws Exception {
+        List<String> types = runKarmaScenario(true, 82.5, "Course Assessment");
+        assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"), types);
+    }
+
+    @Test
+    void testKarmaEvents_PassedWithExactlyThreshold_PublishesBothEvents() throws Exception {
+        List<String> types = runKarmaScenario(true, 75.0, "Course Assessment");
+        assertEquals(Arrays.asList("ASSESSMENT_PASSED", "ASSESSMENT_HIGH_SCORE"), types);
+    }
+
+    @Test
+    void testKarmaEvents_PassedBelowThreshold_PublishesOnlyPassed() throws Exception {
+        List<String> types = runKarmaScenario(true, 60.0, "Course Assessment");
+        assertEquals(Collections.singletonList("ASSESSMENT_PASSED"), types);
+    }
+
+    @Test
+    void testKarmaEvents_Failed_PublishesNothing() throws Exception {
+        List<String> types = runKarmaScenario(false, 40.0, "Course Assessment");
+        assertTrue(types.isEmpty());
+    }
+
+    @Test
+    void testKarmaEvents_NotCourseAssessment_PublishesNothing() throws Exception {
+        List<String> types = runKarmaScenario(true, 90.0, "Practice Question Set");
+        assertTrue(types.isEmpty());
     }
 }

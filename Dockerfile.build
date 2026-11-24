@@ -7,4 +7,3 @@ RUN apt-get update && \
 COPY . /opt
 WORKDIR /opt
 RUN mvn clean install
-

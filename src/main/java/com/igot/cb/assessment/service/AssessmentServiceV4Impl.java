@@ -1,5 +1,6 @@
 package com.igot.cb.assessment.service;
 
+import com.igot.cb.karmapoints.KarmaPointsEventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
@@ -40,6 +41,8 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
 
     Producer kafkaProducer;
 
+    KarmaPointsEventPublisher karmaPointsEventPublisher;
+
     OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
 
     AssessmentUtilServiceV2 assessUtilServ;
@@ -52,9 +55,10 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
 
     ContentService contentService;
 
-    public AssessmentServiceV4Impl(CbExtAssessmentServerProperties serverProperties, Producer kafkaProducer, OutboundRequestHandlerServiceImpl outboundRequestHandlerService, AssessmentUtilServiceV2 assessUtilServ, ObjectMapper mapper, AssessmentRepository assessmentRepository, AccessTokenValidator accessTokenValidator, ContentService contentService) {
+    public AssessmentServiceV4Impl(CbExtAssessmentServerProperties serverProperties, Producer kafkaProducer, KarmaPointsEventPublisher karmaPointsEventPublisher, OutboundRequestHandlerServiceImpl outboundRequestHandlerService, AssessmentUtilServiceV2 assessUtilServ, ObjectMapper mapper, AssessmentRepository assessmentRepository, AccessTokenValidator accessTokenValidator, ContentService contentService) {
         this.serverProperties = serverProperties;
         this.kafkaProducer = kafkaProducer;
+        this.karmaPointsEventPublisher = karmaPointsEventPublisher;
         this.outboundRequestHandlerService = outboundRequestHandlerService;
         this.assessUtilServ = assessUtilServ;
         this.mapper = mapper;
@@ -841,6 +845,9 @@ public class AssessmentServiceV4Impl implements AssessmentServiceV4 {
             }
             kafkaProducer.push(serverProperties.getAssessmentSubmitTopic(),
                     assessUtilServ.buildSubmitEvent(submitRequest, eventContext.primaryCategory(), result));
+            // KPIs 2.3 / 2.5: ASSESSMENT_PASSED, plus ASSESSMENT_HIGH_SCORE when score >= threshold
+            karmaPointsEventPublisher.publishAssessmentKarmaEventsIfEligible(submitRequest, result,
+                    eventContext.primaryCategory(), eventContext.courseCategory());
         } catch (Exception e) {
             logger.error("Failed to write data for assessment submit response. Exception: ", e);
         }
