@@ -185,7 +185,8 @@ public interface AssessmentUtilServiceV2 {
 
 	/** Routes the progress update to the pre-enrolled endpoint or the standard content endpoint. */
 	void updateContentProgressForContext(String contextCategory, String userAuthToken,
-										 Map<String, Object> submitRequest, String userId);
+										 Map<String, Object> submitRequest, String userId,
+										 Map<String, Object> result);
 
 	/**
 	 * Controls how a blocked retake is reported by {@link #calculateRetakeAttemptsConsumed}.

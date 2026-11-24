@@ -124,7 +124,7 @@ class AssessmentServiceV5ImplTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        lenient().doAnswer(inv -> { realUtil.updateContentProgressForContext(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)); return null; }).when(assessUtilServ).updateContentProgressForContext(any(), any(), any(), any());
+        lenient().doAnswer(inv -> { realUtil.updateContentProgressForContext(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3), inv.getArgument(4)); return null; }).when(assessUtilServ).updateContentProgressForContext(any(), any(), any(), any(), any());
         lenient().when(assessUtilServ.calculateRetakeAttemptsConsumed(any(), any(), any(), anyInt(), any(), any(), any()))
                 .thenAnswer(inv -> realUtil.calculateRetakeAttemptsConsumed(inv.getArgument(0), inv.getArgument(1),
                         inv.getArgument(2), inv.getArgument(3), inv.getArgument(4), inv.getArgument(5), inv.getArgument(6)));
@@ -2446,7 +2446,9 @@ class AssessmentServiceV5ImplTest {
     }
 
     @Test
-    void testSubmitAssessmentAsync_MandatoryContextCategoryFailed_SkipsContentUpdate() throws Exception {
+    void testSubmitAssessmentAsync_MandatoryContextCategoryFailed_StillUpdatesContentProgressAndPushesEvent() throws Exception {
+        // Content progress (and the Kafka event) is recorded on every attempt, pass or fail - a
+        // failed mandatory-pass attempt no longer short-circuits before either happens.
         Map<String, Object> hierarchy = buildSubmitHierarchy("default", "Course Assessment",
                 "Final Milestone Assessment");
         stubSubmitFlow(hierarchy,
@@ -2458,12 +2460,12 @@ class AssessmentServiceV5ImplTest {
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(Boolean.FALSE, response.getResult().get(Constants.PASS));
         verify(assessmentRepository).updateUserAssesmentDataToDB(any(), any(), any(), any(), any(), any(), any());
-        verify(contentService, never()).updateContentProgress(any(), any(), any(), any());
-        verify(producer, never()).push(anyString(), any());
+        verify(assessUtilServ).updateContentProgressForContext(any(), any(), any(), any(), any());
+        verify(producer).push(eq("submit-topic"), any());
     }
 
     @Test
-    void testSubmitAssessmentAsync_MandatoryCourseCategoryFailed_SkipsContentUpdate() throws Exception {
+    void testSubmitAssessmentAsync_MandatoryCourseCategoryFailed_StillUpdatesContentProgressAndPushesEvent() throws Exception {
         Map<String, Object> hierarchy = buildSubmitHierarchy("default", "Course Assessment", null);
         stubSubmitFlow(hierarchy,
                 List.of(existingAttempt(Instant.now().minusSeconds(60), STORED_QUESTION_SET)),
@@ -2474,8 +2476,8 @@ class AssessmentServiceV5ImplTest {
         SBApiResponse response = service.submitAssessmentAsync(buildSubmitRequest(), "token", false);
 
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-        verify(contentService, never()).updateContentProgress(any(), any(), any(), any());
-        verify(producer, never()).push(anyString(), any());
+        verify(assessUtilServ).updateContentProgressForContext(any(), any(), any(), any(), any());
+        verify(producer).push(eq("submit-topic"), any());
     }
 
     @Test

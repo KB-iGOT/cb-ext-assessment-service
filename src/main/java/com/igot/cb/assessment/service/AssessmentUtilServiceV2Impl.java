@@ -2350,8 +2350,22 @@ public class AssessmentUtilServiceV2Impl implements AssessmentUtilServiceV2 {
 
 	@Override
 	public void updateContentProgressForContext(String contextCategory, String userAuthToken,
-												Map<String, Object> submitRequest, String userId) {
+												Map<String, Object> submitRequest, String userId,
+												Map<String, Object> result) {
 		SBApiResponse contentUpdateResponse = new SBApiResponse();
+		if (MapUtils.isNotEmpty(result)) {
+			if (result.containsKey(Constants.OVERALL_RESULT)) {
+				contentUpdateResponse.put(Constants.OVERALL_RESULT, result.get(Constants.OVERALL_RESULT));
+			}
+			if (result.containsKey(Constants.PASS)) {
+				contentUpdateResponse.put(Constants.PASS, result.get(Constants.PASS));
+			}
+			if (result.containsKey(Constants.PASS_PERCENTAGE)) {
+				contentUpdateResponse.put(Constants.PASS_PERCENTAGE, result.get(Constants.PASS_PERCENTAGE));
+			}
+		}
+		logger.info("Routing content progress update for userId: {}, contextCategory: {}, pass: {}",
+				userId, contextCategory, MapUtils.isEmpty(result) ? null : result.get(Constants.PASS));
 		if (StringUtils.isNotBlank(contextCategory)
 				&& contextCategory.equalsIgnoreCase(Constants.PRE_ENROLLED_ASSESSMENT_KEY)) {
 			contentService.updatePreEnrolledAssessment(userAuthToken, submitRequest, userId, contentUpdateResponse);
